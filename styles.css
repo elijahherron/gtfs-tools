@@ -65,6 +65,104 @@ button:hover {
     background-color: #45a049;
 }
 
+.validate-link {
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    text-decoration: none;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.validate-link:hover {
+    background-color: #1976d2;
+}
+
+.calendar-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+}
+
+.calendar-method {
+    margin-bottom: 15px;
+}
+
+.calendar-inputs {
+    margin-top: 15px;
+}
+
+.days-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+    padding: 10px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.days-checkboxes label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.days-checkboxes input[type="checkbox"] {
+    margin: 0;
+}
+
+.input-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.input-group-inline label {
+    min-width: 100px;
+    font-weight: bold;
+}
+
+.date-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.color-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.color-input-group input[type="color"] {
+    width: 50px;
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.color-input-group input[type="text"] {
+    width: 120px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+    text-transform: uppercase;
+}
+
 button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
@@ -278,7 +376,7 @@ td input:focus {
 /* Map Editor Styles */
 .map-view {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     height: 600px;
 }
 
@@ -286,18 +384,18 @@ td input:focus {
     background: #f8f9fa;
     padding: 15px;
     border: 1px solid #ddd;
-    border-radius: 4px 4px 0 0;
+    border-radius: 4px 0 0 4px;
+    flex: 1;
+    max-height: 600px;
+    overflow-y: auto;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 20px;
+    flex-direction: column;
 }
 
 .route-creator {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    min-width: 350px;
 }
 
 .creator-section {
@@ -616,12 +714,11 @@ td input:focus {
 #mapContainer {
     flex: 1;
     border: 1px solid #ddd;
-    border-top: none;
-    border-radius: 0 0 4px 4px;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
     position: relative;
     min-height: 400px;
     height: 100%;
-    width: 100%;
 }
 
 /* Map marker styles */
@@ -804,6 +901,20 @@ td input:focus {
     
     .map-view {
         height: 500px;
+        flex-direction: column;
+    }
+    
+    .map-toolbar {
+        width: 100%;
+        min-width: auto;
+        max-height: none;
+        border-radius: 4px 4px 0 0;
+    }
+    
+    #mapContainer {
+        border-left: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
     }
     
     .route-creator {

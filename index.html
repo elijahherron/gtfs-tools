@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GTFS Editor</title>
+    <title>Static Data GTFS Editor / Creator</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
@@ -11,7 +11,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>GTFS Editor</h1>
+            <h1>Static Data GTFS Editor / Creator</h1>
             <p>Create and edit General Transit Feed Specification files</p>
         </header>
 
@@ -65,7 +65,10 @@
                                     </div>
                                     <div class="input-group">
                                         <label for="routeColorInput">Route Color:</label>
-                                        <input type="color" id="routeColorInput" value="#4caf50" />
+                                        <div class="color-input-group">
+                                            <input type="color" id="routeColorInput" value="#4caf50" />
+                                            <input type="text" id="routeColorHex" value="#4caf50" placeholder="#RRGGBB" maxlength="7" />
+                                        </div>
                                     </div>
                                     <div class="input-group">
                                         <label for="locationSearchInput">Start Location:</label>
@@ -107,6 +110,55 @@
                                     <div class="input-group">
                                         <label for="tripShortNameInput">Trip Short Name:</label>
                                         <input type="text" id="tripShortNameInput" placeholder="Optional" />
+                                    </div>
+                                </div>
+                                
+                                <div class="calendar-section">
+                                    <h5>Service Calendar</h5>
+                                    <div class="calendar-method">
+                                        <label for="calendarMethodSelect">Calendar Method:</label>
+                                        <select id="calendarMethodSelect">
+                                            <option value="existing">Use existing service</option>
+                                            <option value="new">Create new service</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="calendar-inputs" id="existingCalendarInputs">
+                                        <div class="input-group">
+                                            <label for="existingServiceSelect">Existing Service:</label>
+                                            <select id="existingServiceSelect">
+                                                <option value="">Choose a service...</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="calendar-inputs" id="newCalendarInputs" style="display: none;">
+                                        <div class="input-group">
+                                            <label for="serviceNameInput">Service Name:</label>
+                                            <input type="text" id="serviceNameInput" placeholder="weekday_service" />
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Days of Operation:</label>
+                                            <div class="days-checkboxes">
+                                                <label><input type="checkbox" id="mondayCheck" checked> Monday</label>
+                                                <label><input type="checkbox" id="tuesdayCheck" checked> Tuesday</label>
+                                                <label><input type="checkbox" id="wednesdayCheck" checked> Wednesday</label>
+                                                <label><input type="checkbox" id="thursdayCheck" checked> Thursday</label>
+                                                <label><input type="checkbox" id="fridayCheck" checked> Friday</label>
+                                                <label><input type="checkbox" id="saturdayCheck"> Saturday</label>
+                                                <label><input type="checkbox" id="sundayCheck"> Sunday</label>
+                                            </div>
+                                        </div>
+                                        <div class="date-inputs">
+                                            <div class="input-group-inline">
+                                                <label for="startDateInput">Start Date:</label>
+                                                <input type="date" id="startDateInput" />
+                                            </div>
+                                            <div class="input-group-inline">
+                                                <label for="endDateInput">End Date:</label>
+                                                <input type="date" id="endDateInput" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -188,7 +240,7 @@
             <div class="actions">
                 <button id="addRowBtn">Add Row</button>
                 <button id="deleteRowBtn">Delete Selected</button>
-                <button id="validateBtn">Validate</button>
+                <a href="https://gtfs-validator.mobilitydata.org/" target="_blank" class="validate-link">Validate with MobilityData</a>
                 <button id="downloadBtn">Download GTFS</button>
             </div>
         </div>

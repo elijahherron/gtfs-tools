@@ -40,6 +40,13 @@ class MapEditor {
         // Timing method listener
         document.getElementById('timingMethodSelect').addEventListener('change', () => this.handleTimingMethodChange());
         
+        // Calendar method listener
+        document.getElementById('calendarMethodSelect').addEventListener('change', () => this.handleCalendarMethodChange());
+        
+        // Color input synchronization
+        document.getElementById('routeColorInput').addEventListener('change', () => this.syncColorFromPicker());
+        document.getElementById('routeColorHex').addEventListener('input', () => this.syncColorFromHex());
+        
         // Enter key support for location search
         document.getElementById('locationSearchInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -323,6 +330,9 @@ class MapEditor {
         
         // Update route info display
         document.getElementById('currentRouteName').textContent = this.currentRoute.name;
+        
+        // Initialize calendar UI
+        this.handleCalendarMethodChange();
     }
 
     backToRouteCreation() {
@@ -484,6 +494,128 @@ class MapEditor {
             autoInputs.style.display = 'none';
             manualInputs.style.display = 'block';
             coordTimeInputs.style.display = 'block';
+        }
+    }
+
+    handleCalendarMethodChange() {
+        const method = document.getElementById('calendarMethodSelect').value;
+        const existingInputs = document.getElementById('existingCalendarInputs');
+        const newInputs = document.getElementById('newCalendarInputs');
+        
+        if (method === 'existing') {
+            existingInputs.style.display = 'block';
+            newInputs.style.display = 'none';
+            this.populateExistingServices();
+        } else {
+            existingInputs.style.display = 'none';
+            newInputs.style.display = 'block';
+            this.setDefaultDates();
+        }
+    }
+
+    populateExistingServices() {
+        const parser = this.gtfsEditor.parser;
+        const existingServices = parser.getFileData('calendar.txt') || [];
+        const select = document.getElementById('existingServiceSelect');
+        
+        // Clear existing options except the first one
+        select.innerHTML = '<option value="">Choose a service...</option>';
+        
+        existingServices.forEach(service => {
+            const option = document.createElement('option');
+            option.value = service.service_id;
+            option.textContent = `${service.service_id} (${this.getServiceDaysText(service)})`;
+            select.appendChild(option);
+        });
+    }
+
+    getServiceDaysText(service) {
+        const days = [];
+        if (service.monday === '1') days.push('Mon');
+        if (service.tuesday === '1') days.push('Tue');
+        if (service.wednesday === '1') days.push('Wed');
+        if (service.thursday === '1') days.push('Thu');
+        if (service.friday === '1') days.push('Fri');
+        if (service.saturday === '1') days.push('Sat');
+        if (service.sunday === '1') days.push('Sun');
+        return days.join(', ');
+    }
+
+    setDefaultDates() {
+        const today = new Date();
+        const nextYear = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+        
+        document.getElementById('startDateInput').value = today.toISOString().split('T')[0];
+        document.getElementById('endDateInput').value = nextYear.toISOString().split('T')[0];
+    }
+
+    syncColorFromPicker() {
+        const colorPicker = document.getElementById('routeColorInput');
+        const hexInput = document.getElementById('routeColorHex');
+        hexInput.value = colorPicker.value.toUpperCase();
+    }
+
+    syncColorFromHex() {
+        const colorPicker = document.getElementById('routeColorInput');
+        const hexInput = document.getElementById('routeColorHex');
+        let hexValue = hexInput.value.trim();
+        
+        // Add # if missing
+        if (hexValue && !hexValue.startsWith('#')) {
+            hexValue = '#' + hexValue;
+            hexInput.value = hexValue;
+        }
+        
+        // Validate hex color format
+        if (/^#[0-9A-Fa-f]{6}$/.test(hexValue)) {
+            colorPicker.value = hexValue;
+            hexInput.style.borderColor = '#ddd';
+        } else if (hexValue.length > 1) {
+            // Invalid format, show red border
+            hexInput.style.borderColor = '#f44336';
+        }
+    }
+
+    getOrCreateService() {
+        const calendarMethod = document.getElementById('calendarMethodSelect').value;
+        const parser = this.gtfsEditor.parser;
+        
+        if (calendarMethod === 'existing') {
+            const selectedService = document.getElementById('existingServiceSelect').value;
+            if (selectedService) {
+                return selectedService;
+            } else {
+                alert('Please select an existing service');
+                return null;
+            }
+        } else {
+            // Create new service
+            const serviceName = document.getElementById('serviceNameInput').value.trim() || 'custom_service';
+            const serviceId = `${serviceName}_${Date.now()}`;
+            
+            const startDate = document.getElementById('startDateInput').value.replace(/-/g, '');
+            const endDate = document.getElementById('endDateInput').value.replace(/-/g, '');
+            
+            if (!startDate || !endDate) {
+                alert('Please set start and end dates for the service');
+                return null;
+            }
+            
+            const serviceData = {
+                service_id: serviceId,
+                monday: document.getElementById('mondayCheck').checked ? '1' : '0',
+                tuesday: document.getElementById('tuesdayCheck').checked ? '1' : '0',
+                wednesday: document.getElementById('wednesdayCheck').checked ? '1' : '0',
+                thursday: document.getElementById('thursdayCheck').checked ? '1' : '0',
+                friday: document.getElementById('fridayCheck').checked ? '1' : '0',
+                saturday: document.getElementById('saturdayCheck').checked ? '1' : '0',
+                sunday: document.getElementById('sundayCheck').checked ? '1' : '0',
+                start_date: startDate,
+                end_date: endDate
+            };
+            
+            parser.addRow('calendar.txt', serviceData);
+            return serviceId;
         }
     }
 
@@ -827,24 +959,10 @@ class MapEditor {
             }
         });
 
-        // 4. Add Service (if doesn't exist for this route)
-        const serviceId = `service_${this.currentRoute.id}`;
-        const existingServices = parser.getFileData('calendar.txt');
-        const existingService = existingServices.find(s => s.service_id === serviceId);
-        
-        if (!existingService) {
-            parser.addRow('calendar.txt', {
-                service_id: serviceId,
-                monday: '1',
-                tuesday: '1',
-                wednesday: '1',
-                thursday: '1',
-                friday: '1',
-                saturday: '1',
-                sunday: '1',
-                start_date: '20240101',
-                end_date: '20241231'
-            });
+        // 4. Handle Service Calendar
+        const serviceId = this.getOrCreateService();
+        if (!serviceId) {
+            return; // Exit if service creation failed
         }
 
         // 5. Add Trip

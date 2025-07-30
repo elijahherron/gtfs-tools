@@ -18,7 +18,6 @@ class GTFSEditor {
         // Editor actions
         document.getElementById('addRowBtn').addEventListener('click', () => this.addRow());
         document.getElementById('deleteRowBtn').addEventListener('click', () => this.deleteSelectedRows());
-        document.getElementById('validateBtn').addEventListener('click', () => this.validateFeed());
         document.getElementById('downloadBtn').addEventListener('click', () => this.downloadFeed());
     }
 
@@ -73,6 +72,8 @@ class GTFSEditor {
             this.mapEditor = new MapEditor(this);
             // Make it globally accessible for popup callbacks
             window.mapEditor = this.mapEditor;
+            // Switch to map view by default for route creation
+            setTimeout(() => this.mapEditor.switchToMapView(), 100);
         }
     }
 
@@ -253,33 +254,6 @@ class GTFSEditor {
         });
     }
 
-    validateFeed() {
-        const validation = this.parser.validateFeed();
-        const resultsContainer = document.getElementById('validationResults');
-        
-        let html = '<h3>Validation Results</h3>';
-        
-        if (validation.errors.length === 0 && validation.warnings.length === 0) {
-            html += '<div class="validation-success">✓ GTFS feed is valid!</div>';
-        } else {
-            if (validation.errors.length > 0) {
-                html += '<h4>Errors:</h4>';
-                validation.errors.forEach(error => {
-                    html += `<div class="validation-error">• ${error}</div>`;
-                });
-            }
-            
-            if (validation.warnings.length > 0) {
-                html += '<h4>Warnings:</h4>';
-                validation.warnings.forEach(warning => {
-                    html += `<div class="validation-warning">• ${warning}</div>`;
-                });
-            }
-        }
-        
-        resultsContainer.innerHTML = html;
-        resultsContainer.style.display = 'block';
-    }
 
     async downloadFeed() {
         try {
