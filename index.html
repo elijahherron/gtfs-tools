@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTFS Editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GTFS Editor</h1>
+            <p>Create and edit General Transit Feed Specification files</p>
+        </header>
+
+        <div class="upload-section">
+            <h2>Upload GTFS Feed</h2>
+            <input type="file" id="gtfsUpload" accept=".zip" />
+            <button id="uploadBtn">Upload GTFS</button>
+            <div id="uploadStatus"></div>
+        </div>
+
+        <div class="editor-section" id="editorSection" style="display: none;">
+            <div class="editor-header">
+                <div class="file-tabs" id="fileTabs"></div>
+                <div class="view-toggle">
+                    <button id="tableViewBtn" class="view-btn active">Table View</button>
+                    <button id="mapViewBtn" class="view-btn">Map View</button>
+                </div>
+            </div>
+            
+            <div class="editor-content">
+                <div class="table-view" id="tableView">
+                    <div class="table-container" id="tableContainer"></div>
+                </div>
+                
+                <div class="map-view" id="mapView" style="display: none;">
+                    <div class="map-toolbar">
+                        <div class="route-creator">
+                            <h3>Route & Trip Creator</h3>
+                            
+                            <!-- Route Creation Section -->
+                            <div class="creator-section" id="routeSection">
+                                <h4>1. Create Route</h4>
+                                <div class="route-inputs">
+                                    <div class="input-group">
+                                        <label for="routeNameInput">Route Short Name:</label>
+                                        <input type="text" id="routeNameInput" placeholder="1" />
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="routeLongNameInput">Route Long Name:</label>
+                                        <input type="text" id="routeLongNameInput" placeholder="Main Street Line" />
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="routeTypeSelect">Type:</label>
+                                        <select id="routeTypeSelect">
+                                            <option value="3">Bus</option>
+                                            <option value="0">Tram/Light Rail</option>
+                                            <option value="1">Subway/Metro</option>
+                                            <option value="2">Rail</option>
+                                            <option value="4">Ferry</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="routeColorInput">Route Color:</label>
+                                        <input type="color" id="routeColorInput" value="#4caf50" />
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="locationSearchInput">Start Location:</label>
+                                        <input type="text" id="locationSearchInput" placeholder="Search city or address..." />
+                                    </div>
+                                </div>
+                                <button id="searchLocationBtn" type="button">Search Location</button>
+                                <div class="route-buttons">
+                                    <button id="createRouteBtn">Create Route</button>
+                                    <button id="selectExistingRouteBtn">Use Existing Route</button>
+                                </div>
+                            </div>
+
+                            <!-- Route Selection Section -->
+                            <div class="creator-section" id="routeSelectSection" style="display: none;">
+                                <h4>Select Existing Route</h4>
+                                <select id="existingRouteSelect">
+                                    <option value="">Choose a route...</option>
+                                </select>
+                                <button id="selectRouteBtn">Select Route</button>
+                                <button id="cancelSelectBtn">Cancel</button>
+                            </div>
+
+                            <!-- Trip Creation Section -->
+                            <div class="creator-section" id="tripSection" style="display: none;">
+                                <h4>2. Create Trip</h4>
+                                <div class="trip-inputs">
+                                    <div class="input-group">
+                                        <label for="tripHeadsignInput">Trip Headsign:</label>
+                                        <input type="text" id="tripHeadsignInput" placeholder="Downtown" />
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="directionSelect">Direction ID:</label>
+                                        <select id="directionSelect">
+                                            <option value="0">0</option>
+                                            <option value="1">1</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="tripShortNameInput">Trip Short Name:</label>
+                                        <input type="text" id="tripShortNameInput" placeholder="Optional" />
+                                    </div>
+                                </div>
+                                
+                                <div class="timing-section">
+                                    <h5>Trip Timing</h5>
+                                    <div class="timing-method">
+                                        <label for="timingMethodSelect">Timing Method:</label>
+                                        <select id="timingMethodSelect">
+                                            <option value="auto">Auto-calculate with intervals</option>
+                                            <option value="manual">Set time for each stop</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="timing-inputs" id="autoTimingInputs">
+                                        <div class="input-group-inline">
+                                            <label for="tripStartTimeInput">Start Time:</label>
+                                            <input type="time" id="tripStartTimeInput" value="08:00" />
+                                        </div>
+                                        <div class="input-group-inline">
+                                            <label for="defaultStopIntervalInput">Interval (min):</label>
+                                            <input type="number" id="defaultStopIntervalInput" value="2" min="1" max="60" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="timing-inputs" id="manualTimingInputs" style="display: none;">
+                                        <p class="timing-note">You'll set arrival/departure times when adding each stop</p>
+                                    </div>
+                                </div>
+                                <div class="trip-buttons">
+                                    <button id="startTripBtn">Start Creating Trip</button>
+                                    <button id="finishTripBtn" disabled>Finish Trip</button>
+                                    <button id="clearTripBtn">Clear Trip</button>
+                                    <button id="backToRouteBtn">Back to Route</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="route-info" id="routeInfo" style="display: none;">
+                            <h4>Current Trip</h4>
+                            <p><strong>Route:</strong> <span id="currentRouteName">-</span></p>
+                            <p><strong>Direction:</strong> <span id="currentDirection">-</span></p>
+                            <p><strong>Stops:</strong> <span id="stopCount">0</span></p>
+                            <p><strong>Distance:</strong> <span id="routeDistance">0 km</span></p>
+                            
+                            <div class="stop-input-section">
+                                <h5>Add Stop by Coordinates</h5>
+                                <div class="coord-inputs">
+                                    <div class="coord-group">
+                                        <label for="latInput">Latitude:</label>
+                                        <input type="number" id="latInput" step="0.000001" placeholder="40.7128" />
+                                    </div>
+                                    <div class="coord-group">
+                                        <label for="lngInput">Longitude:</label>
+                                        <input type="number" id="lngInput" step="0.000001" placeholder="-74.0060" />
+                                    </div>
+                                </div>
+                                <div class="coord-time-inputs" id="coordTimeInputs" style="display: none;">
+                                    <div class="coord-group">
+                                        <label for="coordArrivalInput">Arrival Time:</label>
+                                        <input type="time" id="coordArrivalInput" />
+                                    </div>
+                                    <div class="coord-group">
+                                        <label for="coordDepartureInput">Departure Time:</label>
+                                        <input type="time" id="coordDepartureInput" />
+                                    </div>
+                                </div>
+                                <button id="addStopByCoordBtn" type="button">Add Stop</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="mapContainer">
+                        <div id="mapLoading" class="map-loading">
+                            <div class="loading-spinner"></div>
+                            <p>Loading map...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button id="addRowBtn">Add Row</button>
+                <button id="deleteRowBtn">Delete Selected</button>
+                <button id="validateBtn">Validate</button>
+                <button id="downloadBtn">Download GTFS</button>
+            </div>
+        </div>
+
+        <div class="create-section">
+            <h2>Create New GTFS Feed</h2>
+            <button id="createNewBtn">Create New Feed</button>
+        </div>
+
+        <div id="validationResults" class="validation-results" style="display: none;"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="gtfs-spec.js"></script>
+    <script src="gtfs-parser.js"></script>
+    <script src="gtfs-editor.js"></script>
+    <script src="map-editor.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
