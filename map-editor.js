@@ -309,6 +309,7 @@ class MapEditor {
             this.currentRoute = {
                 id: selectedRoute.route_id,
                 name: selectedRoute.route_short_name || selectedRoute.route_long_name,
+                longName: selectedRoute.route_long_name || selectedRoute.route_short_name,
                 type: selectedRoute.route_type,
                 color: selectedRoute.route_color || '4caf50',
                 isNew: false
@@ -328,8 +329,23 @@ class MapEditor {
         document.getElementById('routeSelectSection').style.display = 'none';
         document.getElementById('tripSection').style.display = 'block';
         
-        // Update route info display
-        document.getElementById('currentRouteName').textContent = this.currentRoute.name;
+        // Update route info display with more details
+        const routeStatus = this.currentRoute.isNew ? '(New Route)' : '(Existing Route)';
+        const routeColor = this.currentRoute.color ? `#${this.currentRoute.color}` : '#4caf50';
+        
+        // Update route banner styling
+        const banner = document.querySelector('.current-route-banner');
+        if (banner) {
+            banner.style.borderLeftColor = routeColor;
+        }
+        
+        // Update route information
+        document.getElementById('currentRouteName').innerHTML = `
+            <span style="color: ${routeColor}; font-weight: bold;">${this.currentRoute.name}</span> 
+            <small style="color: #666;">${routeStatus}</small>
+        `;
+        document.getElementById('currentRouteType').textContent = this.getRouteTypeName(this.currentRoute.type);
+        document.getElementById('currentRouteId').textContent = this.currentRoute.id;
         
         // Initialize calendar UI
         this.handleCalendarMethodChange();
@@ -940,6 +956,8 @@ class MapEditor {
                 route_color: this.currentRoute.color,
                 agency_id: 'agency_1'
             });
+            // Mark route as no longer new after adding it
+            this.currentRoute.isNew = false;
         }
 
         // 3. Add Stops (check for duplicates)

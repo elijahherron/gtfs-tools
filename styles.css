@@ -100,8 +100,8 @@ button:hover {
 
 .days-checkboxes {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
     margin-top: 8px;
     padding: 10px;
     background: white;
@@ -377,7 +377,9 @@ td input:focus {
 .map-view {
     display: flex;
     flex-direction: row;
-    height: 600px;
+    height: calc(100vh - 150px);
+    min-height: 500px;
+    max-height: 800px;
 }
 
 .map-toolbar {
@@ -719,6 +721,7 @@ td input:focus {
     position: relative;
     min-height: 400px;
     height: 100%;
+    overflow: hidden;
 }
 
 /* Map marker styles */
@@ -900,7 +903,8 @@ td input:focus {
     }
     
     .map-view {
-        height: 500px;
+        height: calc(100vh - 120px);
+        min-height: 400px;
         flex-direction: column;
     }
     
