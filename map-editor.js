@@ -161,7 +161,8 @@ class MapEditor {
     setTimeout(() => {
       if (this.map) {
         this.map.invalidateSize(true);
-        this.loadExistingData();
+        // Don't automatically load existing data - keep map empty by default
+        // this.loadExistingData();
       }
     }, 300);
   }
@@ -191,8 +192,17 @@ class MapEditor {
       }
 
       // Initialize map centered on a default location (can be changed)
+      console.log("Initializing map on container:", document.getElementById("mapContainer"));
       this.map = L.map("mapContainer").setView([40.7128, -74.006], 12); // NYC default
-      console.log("Map object created");
+      console.log("Map object created:", this.map);
+      
+      // Force map to recognize container size
+      setTimeout(() => {
+        if (this.map) {
+          this.map.invalidateSize(true);
+          console.log("Map size invalidated");
+        }
+      }, 500);
 
       // Add OpenStreetMap tiles
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -2672,6 +2682,326 @@ class MapEditor {
     });
 
     console.log(`Shape ${shapeId} deleted`);
+  }
+
+  // GTFS Route/Trip Filtering and Visualization
+  filterMapData(routeId, tripId, showAll = false) {
+    console.log('filterMapData called with:', { routeId, tripId, showAll });
+    this.clearMapFilter(); // Clear existing filtered data
+    
+    if (!this.gtfsEditor.files) {
+      console.log('No GTFS files available');
+      return;
+    }
+    
+    const stopsFile = this.gtfsEditor.files.find(f => f.name === 'stops');
+    const routesFile = this.gtfsEditor.files.find(f => f.name === 'routes');
+    const tripsFile = this.gtfsEditor.files.find(f => f.name === 'trips');
+    const stopTimesFile = this.gtfsEditor.files.find(f => f.name === 'stop_times');
+    
+    if (!stopsFile || !routesFile || !tripsFile || !stopTimesFile) return;
+    
+    // Create a layer group for filtered data
+    if (!this.filteredDataGroup) {
+      this.filteredDataGroup = L.layerGroup().addTo(this.map);
+    }
+    
+    if (showAll) {
+      // Show all routes and trips
+      tripsFile.data.forEach(trip => {
+        this.visualizeTrip(trip.trip_id, stopsFile.data, stopTimesFile.data, tripsFile.data, routesFile.data);
+      });
+      
+      // Fit map to show all data
+      if (this.filteredDataGroup.getLayers().length > 0) {
+        this.map.fitBounds(this.filteredDataGroup.getBounds(), { padding: [20, 20] });
+      }
+    } else if (tripId) {
+      // Show specific trip
+      this.visualizeTrip(tripId, stopsFile.data, stopTimesFile.data, tripsFile.data, routesFile.data);
+    } else if (routeId) {
+      // Show all trips for the route
+      const routeTrips = tripsFile.data.filter(trip => trip.route_id === routeId);
+      routeTrips.forEach(trip => {
+        this.visualizeTrip(trip.trip_id, stopsFile.data, stopTimesFile.data, tripsFile.data, routesFile.data);
+      });
+    }
+    // If neither routeId nor tripId is provided and showAll is false, show nothing (empty map)
+  }
+  
+  visualizeTrip(tripId, stops, stopTimes, trips, routes) {
+    // Get trip details
+    const trip = trips.find(t => t.trip_id === tripId);
+    if (!trip) return;
+    
+    // Get route details for styling
+    const route = routes.find(r => r.route_id === trip.route_id);
+    const routeColor = route && route.route_color ? `#${route.route_color}` : '#4caf50';
+    
+    // Get stop times for this trip (ordered by stop_sequence)
+    const tripStopTimes = stopTimes
+      .filter(st => st.trip_id === tripId)
+      .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+    
+    if (tripStopTimes.length === 0) return;
+    
+    // Create route polyline
+    const routePoints = [];
+    const tripStops = [];
+    
+    tripStopTimes.forEach((stopTime, index) => {
+      const stop = stops.find(s => s.stop_id === stopTime.stop_id);
+      if (stop) {
+        const lat = parseFloat(stop.stop_lat);
+        const lng = parseFloat(stop.stop_lon);
+        routePoints.push([lat, lng]);
+        
+        // Create stop marker - make it draggable for editing
+        const stopMarker = L.marker([lat, lng], {
+          draggable: true,
+          icon: L.divIcon({
+            className: 'editable-stop-marker',
+            html: `<div style="background: ${routeColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          })
+        });
+        
+        // Stop popup with editing functionality
+        const arrivalTime = stopTime.arrival_time || 'N/A';
+        const departureTime = stopTime.departure_time || 'N/A';
+        stopMarker.bindPopup(`
+          <div class="stop-popup">
+            <h4>${stop.stop_name || stop.stop_id}</h4>
+            <p><strong>Stop:</strong> ${index + 1} of ${tripStopTimes.length}</p>
+            
+            <div class="popup-field">
+              <label>Stop Name:</label>
+              <input type="text" id="edit-stop-name-${stop.stop_id}" value="${stop.stop_name || ''}" />
+            </div>
+            
+            <div class="time-inputs">
+              <div class="time-field">
+                <label>Arrival:</label>
+                <input type="time" id="edit-arrival-${stop.stop_id}" value="${this.convertToTimeInput(arrivalTime)}" />
+              </div>
+              <div class="time-field">
+                <label>Departure:</label>
+                <input type="time" id="edit-departure-${stop.stop_id}" value="${this.convertToTimeInput(departureTime)}" />
+              </div>
+            </div>
+            
+            <div class="coord-display">
+              ${lat.toFixed(6)}, ${lng.toFixed(6)}
+            </div>
+            
+            <div class="popup-buttons">
+              <button class="update-btn" onclick="mapEditor.updateStopData('${stop.stop_id}', '${tripId}', ${index})">Update</button>
+              <button class="remove-btn" onclick="mapEditor.removeStopFromTrip('${stop.stop_id}', '${tripId}')">Remove</button>
+            </div>
+          </div>
+        `);
+        
+        // Make stop draggable
+        stopMarker.on('dragend', (e) => {
+          const newLatLng = e.target.getLatLng();
+          this.updateStopPosition(stop.stop_id, newLatLng.lat, newLatLng.lng);
+        });
+        
+        this.filteredDataGroup.addLayer(stopMarker);
+        tripStops.push({ marker: stopMarker, stop, stopTime });
+      }
+    });
+    
+    // Load trip shape if available, otherwise create polyline from stops
+    if (trip.shape_id) {
+      this.loadTripShape(trip.shape_id, routeColor, route);
+    } else if (routePoints.length > 1) {
+      // Create route polyline from stops if no shape available
+      const routePolyline = L.polyline(routePoints, {
+        color: routeColor,
+        weight: 4,
+        opacity: 0.8
+      });
+      
+      // Route popup with trip details
+      routePolyline.bindPopup(`
+        <div class="route-popup">
+          <h4>${route ? (route.route_short_name || route.route_long_name) : 'Unknown Route'}</h4>
+          <p><strong>Trip:</strong> ${trip.trip_headsign || tripId}</p>
+          <p><strong>Direction:</strong> ${trip.direction_id || '0'}</p>
+          <p><strong>Stops:</strong> ${tripStops.length}</p>
+        </div>
+      `);
+      
+      this.filteredDataGroup.addLayer(routePolyline);
+    }
+    
+    // Zoom to fit the trip data
+    setTimeout(() => {
+      const bounds = [];
+      
+      // Collect all coordinates from stops
+      tripStops.forEach(stopData => {
+        const latLng = stopData.marker.getLatLng();
+        bounds.push([latLng.lat, latLng.lng]);
+      });
+      
+      // If we have a shape, add its bounds too
+      if (trip.shape_id) {
+        const shapesFile = this.gtfsEditor.files.find(f => f.name === 'shapes');
+        if (shapesFile) {
+          const shapePoints = shapesFile.data
+            .filter(shape => shape.shape_id === trip.shape_id)
+            .map(shape => [parseFloat(shape.shape_pt_lat), parseFloat(shape.shape_pt_lon)])
+            .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+          bounds.push(...shapePoints);
+        }
+      }
+      
+      // Zoom to bounds if we have any
+      if (bounds.length > 0) {
+        const leafletBounds = L.latLngBounds(bounds);
+        this.map.fitBounds(leafletBounds, { 
+          padding: [50, 50],
+          maxZoom: 16
+        });
+      }
+    }, 200);
+  }
+  
+  loadTripShape(shapeId, routeColor, route) {
+    const shapesFile = this.gtfsEditor.files.find(f => f.name === 'shapes');
+    if (!shapesFile) return;
+    
+    // Get shape points for this shape_id
+    const shapePoints = shapesFile.data
+      .filter(shape => shape.shape_id === shapeId)
+      .map(shape => ({
+        lat: parseFloat(shape.shape_pt_lat),
+        lng: parseFloat(shape.shape_pt_lon),
+        sequence: parseInt(shape.shape_pt_sequence),
+        dist: parseFloat(shape.shape_dist_traveled || 0)
+      }))
+      .sort((a, b) => a.sequence - b.sequence)
+      .filter(p => !isNaN(p.lat) && !isNaN(p.lng));
+    
+    if (shapePoints.length < 2) return;
+    
+    const routeName = route ? (route.route_short_name || route.route_long_name) : 'Unknown Route';
+    
+    // Create editable polyline for the shape
+    const latlngs = shapePoints.map(p => [p.lat, p.lng]);
+    const shapePolyline = L.polyline(latlngs, {
+      color: routeColor,
+      weight: 4,
+      opacity: 0.8
+    });
+    
+    // Store shape data for editing
+    shapePolyline.shapeId = shapeId;
+    shapePolyline.shapePoints = shapePoints;
+    
+    // Add popup with editing functionality
+    shapePolyline.bindPopup(`
+      <div class="shape-popup">
+        <h4>${routeName}</h4>
+        <p><strong>Shape ID:</strong> ${shapeId}</p>
+        <p><strong>Points:</strong> ${shapePoints.length}</p>
+        <p><strong>Route Type:</strong> ${this.getRouteTypeName(route?.route_type)}</p>
+        <div class="shape-actions">
+          <button onclick="window.mapEditor.enableShapeEditing(this.parentElement.parentElement.parentElement._source)" class="edit-btn">Edit Shape</button>
+          <button onclick="window.mapEditor.deleteShape('${shapeId}')" class="remove-btn">Delete Shape</button>
+        </div>
+      </div>
+    `);
+    
+    // Enable direct click editing
+    shapePolyline.on('click', () => this.enableShapeEditing(shapePolyline));
+    
+    this.filteredDataGroup.addLayer(shapePolyline);
+  }
+  
+  clearMapFilter() {
+    if (this.filteredDataGroup) {
+      this.filteredDataGroup.clearLayers();
+    }
+  }
+
+  // Helper methods for editing functionality
+  convertToTimeInput(gtfsTime) {
+    if (!gtfsTime || gtfsTime === 'N/A') return '';
+    // Convert GTFS time format (HH:MM:SS) to HTML time input format (HH:MM)
+    return gtfsTime.substring(0, 5);
+  }
+
+  updateStopData(stopId, tripId, stopIndex) {
+    const stopName = document.getElementById(`edit-stop-name-${stopId}`).value;
+    const arrival = document.getElementById(`edit-arrival-${stopId}`).value;
+    const departure = document.getElementById(`edit-departure-${stopId}`).value;
+
+    // Update stops data
+    const stopsFile = this.gtfsEditor.files.find(f => f.name === 'stops');
+    if (stopsFile) {
+      const stop = stopsFile.data.find(s => s.stop_id === stopId);
+      if (stop) {
+        stop.stop_name = stopName;
+      }
+    }
+
+    // Update stop_times data
+    const stopTimesFile = this.gtfsEditor.files.find(f => f.name === 'stop_times');
+    if (stopTimesFile) {
+      const stopTime = stopTimesFile.data.find(st => st.trip_id === tripId && st.stop_id === stopId);
+      if (stopTime) {
+        stopTime.arrival_time = arrival ? arrival + ':00' : '';
+        stopTime.departure_time = departure ? departure + ':00' : '';
+      }
+    }
+
+    console.log(`Updated stop ${stopId}: name="${stopName}", arrival="${arrival}", departure="${departure}"`);
+    
+    // Close popup and refresh display
+    this.map.closePopup();
+    this.refreshCurrentFilter();
+  }
+
+  updateStopPosition(stopId, newLat, newLng) {
+    // Update stop coordinates in the data
+    const stopsFile = this.gtfsEditor.files.find(f => f.name === 'stops');
+    if (stopsFile) {
+      const stop = stopsFile.data.find(s => s.stop_id === stopId);
+      if (stop) {
+        stop.stop_lat = newLat.toFixed(6);
+        stop.stop_lon = newLng.toFixed(6);
+        console.log(`Updated stop ${stopId} position to: ${newLat.toFixed(6)}, ${newLng.toFixed(6)}`);
+      }
+    }
+  }
+
+  removeStopFromTrip(stopId, tripId) {
+    if (!confirm('Remove this stop from the trip? This cannot be undone.')) return;
+
+    // Remove from stop_times
+    const stopTimesFile = this.gtfsEditor.files.find(f => f.name === 'stop_times');
+    if (stopTimesFile) {
+      const index = stopTimesFile.data.findIndex(st => st.trip_id === tripId && st.stop_id === stopId);
+      if (index !== -1) {
+        stopTimesFile.data.splice(index, 1);
+        console.log(`Removed stop ${stopId} from trip ${tripId}`);
+      }
+    }
+
+    // Close popup and refresh display
+    this.map.closePopup();
+    this.refreshCurrentFilter();
+  }
+
+  refreshCurrentFilter() {
+    // Re-apply the current filter to refresh the display
+    if (this.gtfsEditor) {
+      this.gtfsEditor.applyMapFilter();
+    }
   }
 }
 

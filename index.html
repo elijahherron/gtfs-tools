@@ -29,6 +29,7 @@
       </div>
 
       <div class="editor-section" id="editorSection" style="display: none">
+
         <div class="editor-header">
           <div class="file-tabs" id="fileTabs"></div>
           <div class="view-toggle">
@@ -46,8 +47,41 @@
 
           <div class="map-view" id="mapView" style="display: none">
             <div class="map-toolbar">
+              <!-- Route/Trip Filter Dropdown for Uploaded GTFS -->
+              <div class="route-trip-filter" id="routeTripFilter" style="display: none">
+                <div class="filter-header" id="filterHeader">
+                  <h3>Filter Routes & Trips</h3>
+                  <button class="collapse-filter-btn" id="collapseFilterBtn" title="Collapse/Expand Filter">−</button>
+                </div>
+                <div class="filter-content" id="filterContent">
+                
+                <div class="filter-section">
+                  <label for="routeFilterSelect">Route:</label>
+                  <select id="routeFilterSelect">
+                    <option value="">All Routes</option>
+                  </select>
+                </div>
+                
+                <div class="filter-section">
+                  <label for="tripFilterSelect">Trip:</label>
+                  <select id="tripFilterSelect" disabled>
+                    <option value="">Select Route First</option>
+                  </select>
+                </div>
+                
+                <div class="filter-actions">
+                  <button id="applyFilterBtn" class="filter-btn">Show on Map</button>
+                  <button id="clearFilterBtn" class="filter-btn secondary">Clear Filter</button>
+                </div>
+                </div>
+              </div>
+
               <div class="route-creator">
-                <h3>Route & Trip Creator</h3>
+                <div class="route-creator-header" id="routeCreatorHeader">
+                  <h3>Route & Trip Creator</h3>
+                  <button class="collapse-creator-btn" id="collapseCreatorBtn" title="Collapse/Expand Creator">−</button>
+                </div>
+                <div class="route-creator-content" id="routeCreatorContent">
 
                 <!-- Route Creation Section -->
                 <div class="creator-section" id="routeSection">
@@ -404,6 +438,15 @@
                   </div>
                 </div>
 
+                <!-- Existing Stops Section -->
+                <div class="existing-stops-section" id="existingStopsSection" style="display: none">
+                  <h6>Reuse Existing Stops</h6>
+                  <div class="existing-stops-search">
+                    <input type="text" id="existingStopsSearch" placeholder="Search existing stops..." />
+                  </div>
+                  <div class="existing-stops-list" id="existingStopsList"></div>
+                </div>
+
                 <div class="stop-input-section">
                   <h6>Add Stop by Coordinates</h6>
                   <div class="coord-inputs">
@@ -448,21 +491,27 @@
                     Add Stop
                   </button>
                 </div>
+                </div> <!-- Close route-creator-content -->
               </div>
             </div>
           </div>
         </div>
 
         <div class="actions">
-          <button id="addRowBtn">Add Row</button>
-          <button id="deleteRowBtn">Delete Selected</button>
-          <a
-            href="https://gtfs-validator.mobilitydata.org/"
-            target="_blank"
-            class="validate-link"
-            >Validate with MobilityData</a
-          >
-          <button id="downloadBtn">Download GTFS</button>
+          <div class="table-actions">
+            <button id="addRowBtn">Add Row</button>
+            <button id="deleteRowBtn">Delete Selected</button>
+          </div>
+          
+          <div class="gtfs-actions">
+            <button id="downloadBtn">Download GTFS</button>
+            <a
+              href="https://gtfs-validator.mobilitydata.org/"
+              target="_blank"
+              class="validate-link"
+              >Validate with MobilityData</a
+            >
+          </div>
         </div>
       </div>
 
