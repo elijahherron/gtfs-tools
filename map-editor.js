@@ -68,16 +68,28 @@ class MapEditor {
         document.getElementById('tableViewBtn').classList.remove('active');
         document.getElementById('mapViewBtn').classList.add('active');
         
-        // Use a longer timeout to ensure the container is fully rendered
+        // Use multiple timeouts to ensure proper initialization
         setTimeout(() => {
             if (!this.map) {
                 this.initializeMap();
             } else {
+                // Force container to re-measure
+                const container = document.getElementById('mapContainer');
+                if (container) {
+                    container.style.width = '';
+                    container.style.height = '';
+                }
                 // Refresh map size in case container changed
-                this.map.invalidateSize();
+                this.map.invalidateSize(true);
             }
-            this.loadExistingData();
-        }, 200);
+        }, 100);
+        
+        setTimeout(() => {
+            if (this.map) {
+                this.map.invalidateSize(true);
+                this.loadExistingData();
+            }
+        }, 300);
     }
 
     initializeMap() {
@@ -158,13 +170,20 @@ class MapEditor {
         this.map.on(L.Draw.Event.EDITED, (e) => this.handleDrawEdited(e));
         this.map.on(L.Draw.Event.DELETED, (e) => this.handleDrawDeleted(e));
 
-        // Force map to resize after a moment
+        // Force map to resize multiple times to ensure proper sizing
         setTimeout(() => {
             if (this.map) {
-                this.map.invalidateSize();
-                console.log('Map size invalidated');
+                this.map.invalidateSize(true);
+                console.log('Map size invalidated (first pass)');
             }
         }, 500);
+        
+        setTimeout(() => {
+            if (this.map) {
+                this.map.invalidateSize(true);
+                console.log('Map size invalidated (second pass)');
+            }
+        }, 1000);
 
         // Try to get user's location
         if (navigator.geolocation) {
@@ -654,21 +673,46 @@ class MapEditor {
             stop.departure_time = this.convertToGTFSTime(customTimes.departure);
         }
 
-        // Create marker
+        // Update previous stops to show as "previous" (muted)
+        this.routeStops.forEach(prevStop => {
+            if (prevStop.marker) {
+                prevStop.marker.setStyle({
+                    radius: 6,
+                    fillColor: '#9e9e9e',
+                    color: 'white',
+                    weight: 2,
+                    opacity: 0.7,
+                    fillOpacity: 0.7
+                });
+            }
+        });
+
+        // Create marker for current stop with emphasis
         const marker = L.circleMarker([lat, lng], {
-            radius: 8,
-            fillColor: '#4caf50',
+            radius: 10,
+            fillColor: '#ff5722',
             color: 'white',
-            weight: 2,
+            weight: 3,
             opacity: 1,
-            fillOpacity: 0.8
+            fillOpacity: 0.9
         }).addTo(this.map);
+
+        // Add pulsing effect to current stop
+        const pulseInterval = setInterval(() => {
+            if (marker._map && this.isCreatingTrip) {
+                const currentRadius = marker.getRadius();
+                marker.setRadius(currentRadius === 10 ? 12 : 10);
+            } else {
+                clearInterval(pulseInterval);
+            }
+        }, 1000);
 
         // Create popup for editing stop details
         const popupContent = this.createStopPopup(stop, marker);
         marker.bindPopup(popupContent);
 
         stop.marker = marker;
+        stop.pulseInterval = pulseInterval;
         this.routeStops.push(stop);
         
         this.updateRouteInfo();
@@ -909,6 +953,25 @@ class MapEditor {
             return;
         }
 
+        // Finalize all stops to show as completed (green)
+        this.routeStops.forEach(stop => {
+            if (stop.marker) {
+                // Clear pulse intervals
+                if (stop.pulseInterval) {
+                    clearInterval(stop.pulseInterval);
+                }
+                // Set final completed style
+                stop.marker.setStyle({
+                    radius: 8,
+                    fillColor: '#4caf50',
+                    color: 'white',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+            }
+        });
+
         // Generate GTFS data from the visual trip
         this.generateGTFSFromTrip();
         
@@ -1075,6 +1138,10 @@ class MapEditor {
         this.routeStops.forEach(stop => {
             if (stop.marker) {
                 this.map.removeLayer(stop.marker);
+            }
+            // Clear pulse intervals
+            if (stop.pulseInterval) {
+                clearInterval(stop.pulseInterval);
             }
         });
         
