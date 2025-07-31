@@ -17,7 +17,7 @@
   <body>
     <div class="container">
       <header>
-        <h1>Static Data GTFS Editor / Creator</h1>
+        <h1 id="mainTitle">Static Data GTFS Editor / Creator</h1>
         <p>Create and edit GTFS files</p>
       </header>
 
@@ -29,6 +29,7 @@
       </div>
 
       <div class="editor-section" id="editorSection" style="display: none">
+        <h2 id="editorTitle" style="display: none; margin-bottom: 20px;">Creating New GTFS</h2>
 
         <div class="editor-header">
           <div class="file-tabs" id="fileTabs"></div>
@@ -505,6 +506,7 @@
           
           <div class="gtfs-actions">
             <button id="downloadBtn">Download GTFS</button>
+            <button id="resetPageBtn" style="display: none;">Reset Page</button>
             <a
               href="https://gtfs-validator.mobilitydata.org/"
               target="_blank"

@@ -17,6 +17,9 @@ class GTFSEditor {
         // Create new feed
         document.getElementById('createNewBtn').addEventListener('click', () => this.createNewFeed());
         
+        // Reset page
+        document.getElementById('resetPageBtn').addEventListener('click', () => this.resetPage());
+        
         // Editor actions
         document.getElementById('addRowBtn').addEventListener('click', () => this.addRow());
         document.getElementById('deleteRowBtn').addEventListener('click', () => this.deleteSelectedRows());
@@ -75,6 +78,9 @@ class GTFSEditor {
                 // This is an uploaded GTFS file, not a new creation
                 this.isNewGTFS = false;
                 
+                // Update UI for editing mode
+                this.updateUIForEditingMode();
+                
                 // Convert the parsed data into the format expected by the editor
                 this.files = this.convertParsedDataToFiles(result.data, result.files);
                 this.showStatus(`Successfully loaded GTFS with ${result.files.length} files`, 'success');
@@ -96,6 +102,9 @@ class GTFSEditor {
         if (result.success) {
             // This is a new GTFS creation, not an uploaded file
             this.isNewGTFS = true;
+            
+            // Update UI for creation mode
+            this.updateUIForCreationMode();
             
             // Convert the parsed data into the format expected by the editor
             this.files = this.convertParsedDataToFiles(result.data, result.files);
@@ -670,6 +679,9 @@ class GTFSEditor {
         document.getElementById('tableView').style.display = 'block';
         document.getElementById('mapView').style.display = 'none';
         
+        // Show table actions
+        document.querySelector('.table-actions').style.display = 'block';
+        
         // Hide route filter and existing stops
         this.hideRouteFilter();
         this.hideExistingStops();
@@ -683,6 +695,9 @@ class GTFSEditor {
         // Show map view
         document.getElementById('tableView').style.display = 'none';
         document.getElementById('mapView').style.display = 'block';
+        
+        // Hide table actions in map view
+        document.querySelector('.table-actions').style.display = 'none';
         
         if (this.isNewGTFS) {
             // New GTFS creation mode - optimize for creating routes
@@ -745,5 +760,32 @@ class GTFSEditor {
                 item.style.display = 'none';
             }
         });
+    }
+
+    updateUIForCreationMode() {
+        // Show editor title
+        document.getElementById('editorTitle').style.display = 'block';
+        
+        // Hide the create section
+        document.querySelector('.create-section').style.display = 'none';
+        
+        // Show reset button
+        document.getElementById('resetPageBtn').style.display = 'inline-block';
+    }
+
+    updateUIForEditingMode() {
+        // Hide editor title
+        document.getElementById('editorTitle').style.display = 'none';
+        
+        // Show the create section
+        document.querySelector('.create-section').style.display = 'block';
+        
+        // Hide reset button
+        document.getElementById('resetPageBtn').style.display = 'none';
+    }
+
+    resetPage() {
+        // Reload the page to start fresh
+        window.location.reload();
     }
 }
