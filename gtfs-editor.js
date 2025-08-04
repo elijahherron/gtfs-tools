@@ -262,6 +262,24 @@ class GTFSEditor {
                 input.dataset.field = header;
                 input.dataset.index = index;
                 input.addEventListener('change', (e) => this.updateCell(filename, index, header, e.target.value));
+                
+                // Add color display for route_color fields
+                if (header === 'route_color' && row[header]) {
+                    const colorDiv = document.createElement('div');
+                    colorDiv.style.cssText = `
+                        width: 20px;
+                        height: 20px;
+                        background-color: #${row[header]};
+                        border: 1px solid #ccc;
+                        border-radius: 3px;
+                        display: inline-block;
+                        margin-right: 8px;
+                        vertical-align: middle;
+                    `;
+                    td.style.cssText = 'display: flex; align-items: center;';
+                    td.appendChild(colorDiv);
+                }
+                
                 td.appendChild(input);
                 tr.appendChild(td);
             });
@@ -282,6 +300,33 @@ class GTFSEditor {
 
     updateCell(filename, rowIndex, field, value) {
         this.parser.updateCell(filename, rowIndex, field, value);
+        
+        // Update color display for route_color fields
+        if (field === 'route_color') {
+            const input = document.querySelector(`input[data-field="route_color"][data-index="${rowIndex}"]`);
+            if (input && input.parentElement) {
+                const existingColorDiv = input.parentElement.querySelector('div[style*="background-color"]');
+                if (existingColorDiv) {
+                    existingColorDiv.remove();
+                }
+                
+                if (value && value.length === 6) {
+                    const colorDiv = document.createElement('div');
+                    colorDiv.style.cssText = `
+                        width: 20px;
+                        height: 20px;
+                        background-color: #${value};
+                        border: 1px solid #ccc;
+                        border-radius: 3px;
+                        display: inline-block;
+                        margin-right: 8px;
+                        vertical-align: middle;
+                    `;
+                    input.parentElement.style.cssText = 'display: flex; align-items: center;';
+                    input.parentElement.insertBefore(colorDiv, input);
+                }
+            }
+        }
     }
 
     addRow() {

@@ -208,6 +208,7 @@ class MapEditor {
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
         maxZoom: 19,
+        opacity: 0.7,
       }).addTo(this.map);
       console.log("Tiles added");
     } catch (error) {
