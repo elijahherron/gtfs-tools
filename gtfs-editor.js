@@ -843,26 +843,128 @@ class GTFSEditor {
             const agencyData = gtfsData['agency.txt'][0]; // Get first agency
             if (agencyData.agency_url) {
                 this.agencyUrl = agencyData.agency_url;
-                this.showAgencyButton();
                 console.log('Found agency URL:', this.agencyUrl);
             } else {
-                this.hideAgencyButton();
+                this.agencyUrl = null;
                 console.log('No agency_url found in agency.txt');
             }
+            this.showAgencyInfo();
+            this.displayFeedInfo(gtfsData);
         } else {
-            this.hideAgencyButton();
+            this.hideAgencyInfo();
             console.log('No agency.txt file found');
         }
     }
 
-    showAgencyButton() {
-        const agencyInfo = document.getElementById('agencyInfo');
-        if (agencyInfo) {
-            agencyInfo.style.display = 'block';
+    displayFeedInfo(gtfsData) {
+        // Display agency name
+        const agencyName = document.getElementById('agencyName');
+        if (gtfsData['agency.txt'] && gtfsData['agency.txt'].length > 0) {
+            const agencyData = gtfsData['agency.txt'][0];
+            agencyName.textContent = agencyData.agency_name || 'Unknown Agency';
+        } else {
+            agencyName.textContent = 'No Agency Data';
+        }
+
+        // Display feed dates from feed_info.txt
+        const feedDates = document.getElementById('feedDates');
+        const formatDate = (dateStr) => {
+            if (dateStr && dateStr.length === 8) {
+                return `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
+            }
+            return dateStr;
+        };
+        
+        if (gtfsData['feed_info.txt'] && gtfsData['feed_info.txt'].length > 0) {
+            const feedInfo = gtfsData['feed_info.txt'][0];
+            const startDate = feedInfo.feed_start_date;
+            const endDate = feedInfo.feed_end_date;
+            
+            if (startDate && endDate) {
+                feedDates.textContent = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+            } else if (startDate) {
+                feedDates.textContent = `From ${formatDate(startDate)}`;
+            } else if (endDate) {
+                feedDates.textContent = `Until ${formatDate(endDate)}`;
+            } else {
+                feedDates.textContent = 'No date range specified';
+            }
+        } else {
+            feedDates.textContent = 'No feed info available';
+        }
+
+        // Display route count and types
+        const routeCount = document.getElementById('routeCount');
+        if (gtfsData['routes.txt'] && gtfsData['routes.txt'].length > 0) {
+            const routes = gtfsData['routes.txt'];
+            const routeTypes = {};
+            
+            routes.forEach(route => {
+                const type = route.route_type;
+                const typeName = this.getRouteTypeName(type);
+                routeTypes[typeName] = (routeTypes[typeName] || 0) + 1;
+            });
+
+            const totalRoutes = routes.length;
+            const typesList = Object.entries(routeTypes)
+                .map(([type, count]) => count > 1 ? `${count} ${type}` : `1 ${type}`)
+                .join(', ');
+            
+            routeCount.textContent = `${totalRoutes} route${totalRoutes !== 1 ? 's' : ''} (${typesList})`;
+        } else {
+            routeCount.textContent = 'No routes defined';
+        }
+
+        // Display fare media information
+        const fareInfo = document.getElementById('fareInfo');
+        if (gtfsData['fare_media.txt'] && gtfsData['fare_media.txt'].length > 0) {
+            const fareMedia = gtfsData['fare_media.txt'];
+            const mediaNames = fareMedia.map(media => media.fare_media_name || media.fare_media_id).filter(name => name);
+            
+            if (mediaNames.length > 0) {
+                fareInfo.textContent = mediaNames.join(', ');
+            } else {
+                fareInfo.textContent = `${fareMedia.length} fare media defined`;
+            }
+        } else if (gtfsData['fare_attributes.txt'] && gtfsData['fare_attributes.txt'].length > 0) {
+            // Fallback to fare attributes if no fare media
+            fareInfo.textContent = 'Legacy fare system';
+        } else {
+            fareInfo.textContent = 'No fare data available';
         }
     }
 
-    hideAgencyButton() {
+    getRouteTypeName(routeType) {
+        const routeTypes = {
+            '0': 'Tram',
+            '1': 'Subway',
+            '2': 'Rail',
+            '3': 'Bus',
+            '4': 'Ferry',
+            '5': 'Cable Tram',
+            '6': 'Aerial Lift',
+            '7': 'Funicular',
+            '11': 'Trolleybus',
+            '12': 'Monorail'
+        };
+        return routeTypes[routeType] || `Type ${routeType}`;
+    }
+
+    showAgencyInfo() {
+        const agencyInfo = document.getElementById('agencyInfo');
+        const agencyWebsiteBtn = document.getElementById('agencyWebsiteBtn');
+        
+        if (agencyInfo) {
+            agencyInfo.style.display = 'block';
+        }
+        
+        // Show/hide website button based on whether URL exists
+        if (agencyWebsiteBtn) {
+            agencyWebsiteBtn.style.display = this.agencyUrl ? 'inline-block' : 'none';
+        }
+    }
+
+    hideAgencyInfo() {
         const agencyInfo = document.getElementById('agencyInfo');
         if (agencyInfo) {
             agencyInfo.style.display = 'none';

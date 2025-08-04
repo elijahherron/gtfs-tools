@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Static Data GTFS Editor / Creator</title>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="stylesheet" href="styles.css" />
     <link
       rel="stylesheet"
@@ -27,13 +27,37 @@
         <input type="file" id="gtfsUpload" accept=".zip" />
         <button id="uploadBtn">Upload GTFS</button>
         <div id="uploadStatus"></div>
-        <div id="agencyInfo" style="display: none;">
-          <button id="agencyWebsiteBtn" class="agency-website-btn">Visit Agency Website</button>
+        <div id="agencyInfo" style="display: none">
+          <div id="feedInfoDisplay" class="feed-info-display">
+            <div class="feed-info-grid">
+              <div class="feed-info-item">
+                <span class="feed-info-label">Agency Name:</span>
+                <span id="agencyName" class="feed-info-value">-</span>
+              </div>
+              <div class="feed-info-item">
+                <span class="feed-info-label">feed_info dates:</span>
+                <span id="feedDates" class="feed-info-value">-</span>
+              </div>
+              <div class="feed-info-item">
+                <span class="feed-info-label">Routes:</span>
+                <span id="routeCount" class="feed-info-value">-</span>
+              </div>
+              <div class="feed-info-item">
+                <span class="feed-info-label">fare_media types:</span>
+                <span id="fareInfo" class="feed-info-value">-</span>
+              </div>
+            </div>
+          </div>
+          <button id="agencyWebsiteBtn" class="agency-website-btn">
+            Visit Agency Website
+          </button>
         </div>
       </div>
 
       <div class="editor-section" id="editorSection" style="display: none">
-        <h2 id="editorTitle" style="display: none; margin-bottom: 20px;">Creating New GTFS</h2>
+        <h2 id="editorTitle" style="display: none; margin-bottom: 20px">
+          Creating New GTFS
+        </h2>
 
         <div class="editor-header">
           <div class="file-tabs" id="fileTabs"></div>
@@ -53,450 +77,512 @@
           <div class="map-view" id="mapView" style="display: none">
             <div class="map-toolbar">
               <!-- Route/Trip Filter Dropdown for Uploaded GTFS -->
-              <div class="route-trip-filter" id="routeTripFilter" style="display: none">
+              <div
+                class="route-trip-filter"
+                id="routeTripFilter"
+                style="display: none"
+              >
                 <div class="filter-header" id="filterHeader">
                   <h3>Filter Routes & Trips</h3>
-                  <button class="collapse-filter-btn" id="collapseFilterBtn" title="Collapse/Expand Filter">−</button>
+                  <button
+                    class="collapse-filter-btn"
+                    id="collapseFilterBtn"
+                    title="Collapse/Expand Filter"
+                  >
+                    −
+                  </button>
                 </div>
                 <div class="filter-content" id="filterContent">
-                
-                <div class="filter-section">
-                  <label for="routeFilterSelect">Route:</label>
-                  <select id="routeFilterSelect">
-                    <option value="">All Routes</option>
-                  </select>
-                </div>
-                
-                <div class="filter-section">
-                  <label for="tripFilterSelect">Trip:</label>
-                  <select id="tripFilterSelect" disabled>
-                    <option value="">Select Route First</option>
-                  </select>
-                </div>
-                
-                <div class="filter-actions">
-                  <button id="applyFilterBtn" class="filter-btn">Show on Map</button>
-                  <button id="clearFilterBtn" class="filter-btn secondary">Clear Filter</button>
-                </div>
+                  <div class="filter-section">
+                    <label for="routeFilterSelect">Route:</label>
+                    <select id="routeFilterSelect">
+                      <option value="">All Routes</option>
+                    </select>
+                  </div>
+
+                  <div class="filter-section">
+                    <label for="tripFilterSelect">Trip:</label>
+                    <select id="tripFilterSelect" disabled>
+                      <option value="">Select Route First</option>
+                    </select>
+                  </div>
+
+                  <div class="filter-actions">
+                    <button id="applyFilterBtn" class="filter-btn">
+                      Show on Map
+                    </button>
+                    <button id="clearFilterBtn" class="filter-btn secondary">
+                      Clear Filter
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div class="route-creator">
                 <div class="route-creator-header" id="routeCreatorHeader">
                   <h3>Route & Trip Creator</h3>
-                  <button class="collapse-creator-btn" id="collapseCreatorBtn" title="Collapse/Expand Creator">−</button>
-                </div>
-                <div class="route-creator-content" id="routeCreatorContent">
-
-                <!-- Route Creation Section -->
-                <div class="creator-section" id="routeSection">
-                  <h4>1. Create Route</h4>
-                  <div class="route-inputs">
-                    <div class="input-group">
-                      <label for="routeNameInput">Route Short Name:</label>
-                      <input type="text" id="routeNameInput" placeholder="1" />
-                    </div>
-                    <div class="input-group">
-                      <label for="routeLongNameInput">Route Long Name:</label>
-                      <input
-                        type="text"
-                        id="routeLongNameInput"
-                        placeholder="Main Street Line"
-                      />
-                    </div>
-                    <div class="input-group">
-                      <label for="routeTypeSelect">Type:</label>
-                      <select id="routeTypeSelect">
-                        <option value="3">Bus</option>
-                        <option value="0">Tram/Light Rail</option>
-                        <option value="1">Subway/Metro</option>
-                        <option value="2">Rail</option>
-                        <option value="4">Ferry</option>
-                      </select>
-                    </div>
-                    <div class="input-group">
-                      <label for="routeColorInput">Route Color:</label>
-                      <div class="color-input-group">
-                        <input
-                          type="color"
-                          id="routeColorInput"
-                          value="#4caf50"
-                        />
-                        <input
-                          type="text"
-                          id="routeColorHex"
-                          value="#4caf50"
-                          placeholder="#RRGGBB"
-                          maxlength="7"
-                        />
-                      </div>
-                    </div>
-                    <div class="input-group">
-                      <label for="routeTextColorInput">Text Color:</label>
-                      <div class="color-input-group">
-                        <input
-                          type="color"
-                          id="routeTextColorInput"
-                          value="#ffffff"
-                        />
-                        <input
-                          type="text"
-                          id="routeTextColorHex"
-                          value="#ffffff"
-                          placeholder="#RRGGBB"
-                          maxlength="7"
-                        />
-                      </div>
-                    </div>
-                    <div style="grid-column: span 3; text-align: center; margin-top: 10px;">
-                      <button 
-                        type="button" 
-                        class="contrast-check-btn"
-                        onclick="window.open('https://contrastchecker.com/', '_blank')">
-                        Check Contrast
-                      </button>
-                    </div>
-                  </div>
-                  <div class="route-buttons">
-                    <button id="createRouteBtn">Create Route</button>
-                    <button id="selectExistingRouteBtn">
-                      Use Existing Route
-                    </button>
-                  </div>
-                  <div class="input-group" style="margin-top: 15px;">
-                    <label for="locationSearchInput">Orient Map:</label>
-                    <input
-                      type="text"
-                      id="locationSearchInput"
-                      placeholder="Search city or address to center map..."
-                    />
-                  </div>
-                  <button id="searchLocationBtn" type="button">
-                    Center Map
-                  </button>
-                </div>
-
-                <!-- Route Selection Section -->
-                <div
-                  class="creator-section"
-                  id="routeSelectSection"
-                  style="display: none"
-                >
-                  <h4>Select Existing Route</h4>
-                  <select id="existingRouteSelect">
-                    <option value="">Choose a route...</option>
-                  </select>
-                  <button id="selectRouteBtn">Select Route</button>
-                  <button id="cancelSelectBtn">Cancel</button>
-                </div>
-
-                <!-- Trip Creation Section -->
-                <div
-                  class="creator-section"
-                  id="tripSection"
-                  style="display: none"
-                >
-                  <h4>2. Create Trip</h4>
-                  <div class="trip-inputs">
-                    <div class="input-group">
-                      <label for="tripHeadsignInput">Trip Headsign:</label>
-                      <input
-                        type="text"
-                        id="tripHeadsignInput"
-                        placeholder="Downtown"
-                      />
-                    </div>
-                    <div class="input-group">
-                      <label for="directionSelect">Direction ID:</label>
-                      <select id="directionSelect">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                      </select>
-                    </div>
-                    <div class="input-group">
-                      <label for="tripShortNameInput">Trip Short Name:</label>
-                      <input
-                        type="text"
-                        id="tripShortNameInput"
-                        placeholder="Optional"
-                      />
-                    </div>
-                  </div>
-
-                  <div class="calendar-section">
-                    <h5>Service Calendar</h5>
-                    <div class="calendar-method">
-                      <label for="calendarMethodSelect">Calendar Method:</label>
-                      <select id="calendarMethodSelect" required>
-                        <option value="">Select service option...</option>
-                        <option value="existing">Use existing service</option>
-                        <option value="new">Create new service</option>
-                        <option value="none">
-                          No Service (trips will not run)
-                        </option>
-                      </select>
-                    </div>
-
-                    <div class="calendar-inputs" id="existingCalendarInputs">
-                      <div class="input-group">
-                        <label for="existingServiceSelect"
-                          >Existing Service:</label
-                        >
-                        <select id="existingServiceSelect">
-                          <option value="">Choose a service...</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div
-                      class="calendar-inputs"
-                      id="newCalendarInputs"
-                      style="display: none"
-                    >
-                      <div class="input-group">
-                        <label for="serviceNameInput">Service Name:</label>
-                        <input
-                          type="text"
-                          id="serviceNameInput"
-                          placeholder="weekday_service"
-                        />
-                      </div>
-                      <div class="input-group">
-                        <label>Days of Operation:</label>
-                        <div class="days-checkboxes">
-                          <label>
-                            <input type="checkbox" id="mondayCheck" checked />
-                            Monday
-                          </label>
-                          <label>
-                            <input type="checkbox" id="tuesdayCheck" checked />
-                            Tuesday
-                          </label>
-                          <label>
-                            <input
-                              type="checkbox"
-                              id="wednesdayCheck"
-                              checked
-                            />
-                            Wednesday
-                          </label>
-                          <label>
-                            <input type="checkbox" id="thursdayCheck" checked />
-                            Thursday
-                          </label>
-                          <label>
-                            <input type="checkbox" id="fridayCheck" checked />
-                            Friday
-                          </label>
-                          <label>
-                            <input type="checkbox" id="saturdayCheck" />
-                            Saturday
-                          </label>
-                          <label>
-                            <input type="checkbox" id="sundayCheck" />
-                            Sunday
-                          </label>
-                        </div>
-                      </div>
-                      <div class="date-inputs">
-                        <div class="input-group-inline">
-                          <label for="startDateInput">Start Date:</label>
-                          <input type="date" id="startDateInput" />
-                        </div>
-                        <div class="input-group-inline">
-                          <label for="endDateInput">End Date:</label>
-                          <input type="date" id="endDateInput" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="timing-section">
-                    <h5>Trip Timing</h5>
-                    <div class="timing-method">
-                      <label for="timingMethodSelect">Timing Method:</label>
-                      <select id="timingMethodSelect">
-                        <option value="auto">
-                          Auto-calculate with intervals
-                        </option>
-                        <option value="manual">Set time for each stop</option>
-                      </select>
-                    </div>
-
-                    <div class="timing-inputs" id="autoTimingInputs">
-                      <div class="input-group-inline">
-                        <label for="tripStartTimeInput">Start Time:</label>
-                        <input
-                          type="time"
-                          id="tripStartTimeInput"
-                          value="08:00"
-                        />
-                      </div>
-                      <div class="input-group-inline">
-                        <label for="defaultStopIntervalInput"
-                          >Interval (min):</label
-                        >
-                        <input
-                          type="number"
-                          id="defaultStopIntervalInput"
-                          value="2"
-                          min="1"
-                          max="60"
-                        />
-                      </div>
-                    </div>
-
-                    <div
-                      class="timing-inputs"
-                      id="manualTimingInputs"
-                      style="display: none"
-                    >
-                      <p class="timing-note">
-                        You'll set arrival/departure times when adding each stop
-                      </p>
-                    </div>
-                  </div>
-                  <div class="trip-buttons">
-                    <button id="startTripBtn">Start Creating Trip</button>
-                    <button id="finishTripBtn" disabled>Finish Trip</button>
-                    <button id="clearTripBtn">Clear Trip</button>
-                    <button id="backToRouteBtn">Back to Route</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div id="mapContainer">
-              <div id="mapLoading" class="map-loading">
-                <div class="loading-spinner"></div>
-                <p>Loading map...</p>
-              </div>
-            </div>
-
-            <!-- Map Route Info Panel -->
-            <div
-              class="floating-route-info"
-              id="floatingRouteInfo"
-              style="display: none"
-            >
-              <div class="floating-window-header">
-                <div class="drag-handle">
-                  <span class="window-title">Working on Route</span>
-                </div>
-                <div class="window-controls">
                   <button
-                    class="collapse-btn"
-                    id="collapseRouteInfo"
-                    title="Collapse Panel"
+                    class="collapse-creator-btn"
+                    id="collapseCreatorBtn"
+                    title="Collapse/Expand Creator"
                   >
                     −
                   </button>
-                  <button
-                    class="close-btn"
-                    id="closeRouteInfo"
-                    title="Hide Panel"
-                  >
-                    ×
-                  </button>
                 </div>
-              </div>
-              <div class="floating-window-content" id="floatingWindowContent">
-                <div class="current-route-info">
-                  <div class="route-summary">
-                    <h4><span id="currentRouteName">-</span></h4>
-                    <p>
-                      <strong>Type:</strong>
-                      <span id="currentRouteType">-</span> |
-                      <strong>ID:</strong> <span id="currentRouteId">-</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div class="current-trip-info">
-                  <h5>Current Trip</h5>
-                  <div class="trip-stats">
-                    <div class="stat-item">
-                      <strong>Headsign:</strong>
-                      <span id="currentHeadsign">-</span>
+                <div class="route-creator-content" id="routeCreatorContent">
+                  <!-- Route Creation Section -->
+                  <div class="creator-section" id="routeSection">
+                    <h4>1. Create Route</h4>
+                    <div class="route-inputs">
+                      <div class="input-group">
+                        <label for="routeNameInput">Route Short Name:</label>
+                        <input
+                          type="text"
+                          id="routeNameInput"
+                          placeholder="1"
+                        />
+                      </div>
+                      <div class="input-group">
+                        <label for="routeLongNameInput">Route Long Name:</label>
+                        <input
+                          type="text"
+                          id="routeLongNameInput"
+                          placeholder="Main Street Line"
+                        />
+                      </div>
+                      <div class="input-group">
+                        <label for="routeTypeSelect">Type:</label>
+                        <select id="routeTypeSelect">
+                          <option value="3">Bus</option>
+                          <option value="0">Tram/Light Rail</option>
+                          <option value="1">Subway/Metro</option>
+                          <option value="2">Rail</option>
+                          <option value="4">Ferry</option>
+                        </select>
+                      </div>
+                      <div class="input-group">
+                        <label for="routeColorInput">Route Color:</label>
+                        <div class="color-input-group">
+                          <input
+                            type="color"
+                            id="routeColorInput"
+                            value="#4caf50"
+                          />
+                          <input
+                            type="text"
+                            id="routeColorHex"
+                            value="#4caf50"
+                            placeholder="#RRGGBB"
+                            maxlength="7"
+                          />
+                        </div>
+                      </div>
+                      <div class="input-group">
+                        <label for="routeTextColorInput">Text Color:</label>
+                        <div class="color-input-group">
+                          <input
+                            type="color"
+                            id="routeTextColorInput"
+                            value="#ffffff"
+                          />
+                          <input
+                            type="text"
+                            id="routeTextColorHex"
+                            value="#ffffff"
+                            placeholder="#RRGGBB"
+                            maxlength="7"
+                          />
+                        </div>
+                      </div>
+                      <div
+                        style="
+                          grid-column: span 3;
+                          text-align: center;
+                          margin-top: 10px;
+                        "
+                      >
+                        <button
+                          type="button"
+                          class="contrast-check-btn"
+                          onclick="window.open('https://contrastchecker.com/', '_blank')"
+                        >
+                          Check Contrast
+                        </button>
+                      </div>
                     </div>
-                    <div class="stat-item">
-                      <strong>Direction:</strong>
-                      <span id="currentDirection">-</span>
+                    <div class="route-buttons">
+                      <button id="createRouteBtn">Create Route</button>
+                      <button id="selectExistingRouteBtn">
+                        Use Existing Route
+                      </button>
                     </div>
-                    <div class="stat-item">
-                      <strong>Stops:</strong> <span id="stopCount">0</span>
-                    </div>
-                    <div class="stat-item">
-                      <strong>Distance:</strong>
-                      <span id="routeDistance">0 km</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="stops-list-section">
-                  <h5 style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;" id="stopsListToggle">
-                    Trip Stops
-                    <span id="stopsToggleIcon">▼</span>
-                  </h5>
-                  <div id="stopsListContainer" class="stops-list">
-                    <div id="stopsListEmpty" class="stops-empty">No stops added yet</div>
-                    <ul id="stopsList" style="display: none;"></ul>
-                  </div>
-                </div>
-
-                <!-- Existing Stops Section -->
-                <div class="existing-stops-section" id="existingStopsSection" style="display: none">
-                  <h6>Reuse Existing Stops</h6>
-                  <div class="existing-stops-search">
-                    <input type="text" id="existingStopsSearch" placeholder="Search existing stops..." />
-                  </div>
-                  <div class="existing-stops-list" id="existingStopsList"></div>
-                </div>
-
-                <div class="stop-input-section">
-                  <h6>Add Stop by Coordinates</h6>
-                  <div class="coord-inputs">
-                    <div class="coord-group">
-                      <label for="latInput">Lat:</label>
+                    <div class="input-group" style="margin-top: 15px">
+                      <label for="locationSearchInput">Orient Map:</label>
                       <input
-                        type="number"
-                        id="latInput"
-                        step="0.000001"
-                        placeholder="40.7128"
+                        type="text"
+                        id="locationSearchInput"
+                        placeholder="Search city or address to center map..."
                       />
                     </div>
-                    <div class="coord-group">
-                      <label for="lngInput">Lng:</label>
-                      <input
-                        type="number"
-                        id="lngInput"
-                        step="0.000001"
-                        placeholder="-74.0060"
-                      />
-                    </div>
+                    <button id="searchLocationBtn" type="button">
+                      Center Map
+                    </button>
                   </div>
+
+                  <!-- Route Selection Section -->
                   <div
-                    class="coord-time-inputs"
-                    id="coordTimeInputs"
+                    class="creator-section"
+                    id="routeSelectSection"
                     style="display: none"
                   >
-                    <div class="coord-group">
-                      <label for="coordArrivalInput">Arrival:</label>
-                      <input type="time" id="coordArrivalInput" />
+                    <h4>Select Existing Route</h4>
+                    <select id="existingRouteSelect">
+                      <option value="">Choose a route...</option>
+                    </select>
+                    <button id="selectRouteBtn">Select Route</button>
+                    <button id="cancelSelectBtn">Cancel</button>
+                  </div>
+
+                  <!-- Trip Creation Section -->
+                  <div
+                    class="creator-section"
+                    id="tripSection"
+                    style="display: none"
+                  >
+                    <h4>2. Create Trip</h4>
+                    <div class="trip-inputs">
+                      <div class="input-group">
+                        <label for="tripHeadsignInput">Trip Headsign:</label>
+                        <input
+                          type="text"
+                          id="tripHeadsignInput"
+                          placeholder="Downtown"
+                        />
+                      </div>
+                      <div class="input-group">
+                        <label for="directionSelect">Direction ID:</label>
+                        <select id="directionSelect">
+                          <option value="0">0</option>
+                          <option value="1">1</option>
+                        </select>
+                      </div>
+                      <div class="input-group">
+                        <label for="tripShortNameInput">Trip Short Name:</label>
+                        <input
+                          type="text"
+                          id="tripShortNameInput"
+                          placeholder="Optional"
+                        />
+                      </div>
                     </div>
-                    <div class="coord-group">
-                      <label for="coordDepartureInput">Departure:</label>
-                      <input type="time" id="coordDepartureInput" />
+
+                    <div class="calendar-section">
+                      <h5>Service Calendar</h5>
+                      <div class="calendar-method">
+                        <label for="calendarMethodSelect"
+                          >Calendar Method:</label
+                        >
+                        <select id="calendarMethodSelect" required>
+                          <option value="">Select service option...</option>
+                          <option value="existing">Use existing service</option>
+                          <option value="new">Create new service</option>
+                          <option value="none">
+                            No Service (trips will not run)
+                          </option>
+                        </select>
+                      </div>
+
+                      <div class="calendar-inputs" id="existingCalendarInputs">
+                        <div class="input-group">
+                          <label for="existingServiceSelect"
+                            >Existing Service:</label
+                          >
+                          <select id="existingServiceSelect">
+                            <option value="">Choose a service...</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div
+                        class="calendar-inputs"
+                        id="newCalendarInputs"
+                        style="display: none"
+                      >
+                        <div class="input-group">
+                          <label for="serviceNameInput">Service Name:</label>
+                          <input
+                            type="text"
+                            id="serviceNameInput"
+                            placeholder="weekday_service"
+                          />
+                        </div>
+                        <div class="input-group">
+                          <label>Days of Operation:</label>
+                          <div class="days-checkboxes">
+                            <label>
+                              <input type="checkbox" id="mondayCheck" checked />
+                              Monday
+                            </label>
+                            <label>
+                              <input
+                                type="checkbox"
+                                id="tuesdayCheck"
+                                checked
+                              />
+                              Tuesday
+                            </label>
+                            <label>
+                              <input
+                                type="checkbox"
+                                id="wednesdayCheck"
+                                checked
+                              />
+                              Wednesday
+                            </label>
+                            <label>
+                              <input
+                                type="checkbox"
+                                id="thursdayCheck"
+                                checked
+                              />
+                              Thursday
+                            </label>
+                            <label>
+                              <input type="checkbox" id="fridayCheck" checked />
+                              Friday
+                            </label>
+                            <label>
+                              <input type="checkbox" id="saturdayCheck" />
+                              Saturday
+                            </label>
+                            <label>
+                              <input type="checkbox" id="sundayCheck" />
+                              Sunday
+                            </label>
+                          </div>
+                        </div>
+                        <div class="date-inputs">
+                          <div class="input-group-inline">
+                            <label for="startDateInput">Start Date:</label>
+                            <input type="date" id="startDateInput" />
+                          </div>
+                          <div class="input-group-inline">
+                            <label for="endDateInput">End Date:</label>
+                            <input type="date" id="endDateInput" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="timing-section">
+                      <h5>Trip Timing</h5>
+                      <div class="timing-method">
+                        <label for="timingMethodSelect">Timing Method:</label>
+                        <select id="timingMethodSelect">
+                          <option value="auto">
+                            Auto-calculate with intervals
+                          </option>
+                          <option value="manual">Set time for each stop</option>
+                        </select>
+                      </div>
+
+                      <div class="timing-inputs" id="autoTimingInputs">
+                        <div class="input-group-inline">
+                          <label for="tripStartTimeInput">Start Time:</label>
+                          <input
+                            type="time"
+                            id="tripStartTimeInput"
+                            value="08:00"
+                          />
+                        </div>
+                        <div class="input-group-inline">
+                          <label for="defaultStopIntervalInput"
+                            >Interval (min):</label
+                          >
+                          <input
+                            type="number"
+                            id="defaultStopIntervalInput"
+                            value="2"
+                            min="1"
+                            max="60"
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        class="timing-inputs"
+                        id="manualTimingInputs"
+                        style="display: none"
+                      >
+                        <p class="timing-note">
+                          You'll set arrival/departure times when adding each
+                          stop
+                        </p>
+                      </div>
+                    </div>
+                    <div class="trip-buttons">
+                      <button id="startTripBtn">Start Creating Trip</button>
+                      <button id="finishTripBtn" disabled>Finish Trip</button>
+                      <button id="clearTripBtn">Clear Trip</button>
+                      <button id="backToRouteBtn">Back to Route</button>
                     </div>
                   </div>
-                  <button
-                    id="addStopByCoordBtn"
-                    type="button"
-                    class="add-stop-btn"
-                  >
-                    Add Stop
-                  </button>
                 </div>
-                </div> <!-- Close route-creator-content -->
+              </div>
+              <div id="mapContainer">
+                <div id="mapLoading" class="map-loading">
+                  <div class="loading-spinner"></div>
+                  <p>Loading map...</p>
+                </div>
+              </div>
+
+              <!-- Map Route Info Panel -->
+              <div
+                class="floating-route-info"
+                id="floatingRouteInfo"
+                style="display: none"
+              >
+                <div class="floating-window-header">
+                  <div class="drag-handle">
+                    <span class="window-title">Working on Route</span>
+                  </div>
+                  <div class="window-controls">
+                    <button
+                      class="collapse-btn"
+                      id="collapseRouteInfo"
+                      title="Collapse Panel"
+                    >
+                      −
+                    </button>
+                    <button
+                      class="close-btn"
+                      id="closeRouteInfo"
+                      title="Hide Panel"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <div class="floating-window-content" id="floatingWindowContent">
+                  <div class="current-route-info">
+                    <div class="route-summary">
+                      <h4><span id="currentRouteName">-</span></h4>
+                      <p>
+                        <strong>Type:</strong>
+                        <span id="currentRouteType">-</span> |
+                        <strong>ID:</strong> <span id="currentRouteId">-</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="current-trip-info">
+                    <h5>Current Trip</h5>
+                    <div class="trip-stats">
+                      <div class="stat-item">
+                        <strong>Headsign:</strong>
+                        <span id="currentHeadsign">-</span>
+                      </div>
+                      <div class="stat-item">
+                        <strong>Direction:</strong>
+                        <span id="currentDirection">-</span>
+                      </div>
+                      <div class="stat-item">
+                        <strong>Stops:</strong> <span id="stopCount">0</span>
+                      </div>
+                      <div class="stat-item">
+                        <strong>Distance:</strong>
+                        <span id="routeDistance">0 km</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="stops-list-section">
+                    <h5
+                      style="
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                      "
+                      id="stopsListToggle"
+                    >
+                      Trip Stops
+                      <span id="stopsToggleIcon">▼</span>
+                    </h5>
+                    <div id="stopsListContainer" class="stops-list">
+                      <div id="stopsListEmpty" class="stops-empty">
+                        No stops added yet
+                      </div>
+                      <ul id="stopsList" style="display: none"></ul>
+                    </div>
+                  </div>
+
+                  <!-- Existing Stops Section -->
+                  <div
+                    class="existing-stops-section"
+                    id="existingStopsSection"
+                    style="display: none"
+                  >
+                    <h6>Reuse Existing Stops</h6>
+                    <div class="existing-stops-search">
+                      <input
+                        type="text"
+                        id="existingStopsSearch"
+                        placeholder="Search existing stops..."
+                      />
+                    </div>
+                    <div
+                      class="existing-stops-list"
+                      id="existingStopsList"
+                    ></div>
+                  </div>
+
+                  <div class="stop-input-section">
+                    <h6>Add Stop by Coordinates</h6>
+                    <div class="coord-inputs">
+                      <div class="coord-group">
+                        <label for="latInput">Lat:</label>
+                        <input
+                          type="number"
+                          id="latInput"
+                          step="0.000001"
+                          placeholder="40.7128"
+                        />
+                      </div>
+                      <div class="coord-group">
+                        <label for="lngInput">Lng:</label>
+                        <input
+                          type="number"
+                          id="lngInput"
+                          step="0.000001"
+                          placeholder="-74.0060"
+                        />
+                      </div>
+                    </div>
+                    <div
+                      class="coord-time-inputs"
+                      id="coordTimeInputs"
+                      style="display: none"
+                    >
+                      <div class="coord-group">
+                        <label for="coordArrivalInput">Arrival:</label>
+                        <input type="time" id="coordArrivalInput" />
+                      </div>
+                      <div class="coord-group">
+                        <label for="coordDepartureInput">Departure:</label>
+                        <input type="time" id="coordDepartureInput" />
+                      </div>
+                    </div>
+                    <button
+                      id="addStopByCoordBtn"
+                      type="button"
+                      class="add-stop-btn"
+                    >
+                      Add Stop
+                    </button>
+                  </div>
+                </div>
+                <!-- Close route-creator-content -->
               </div>
             </div>
           </div>
@@ -507,10 +593,10 @@
             <button id="addRowBtn">Add Row</button>
             <button id="deleteRowBtn">Delete Selected</button>
           </div>
-          
+
           <div class="gtfs-actions">
             <button id="downloadBtn">Download GTFS</button>
-            <button id="resetPageBtn" style="display: none;">Reset Page</button>
+            <button id="resetPageBtn" style="display: none">Reset Page</button>
             <a
               href="https://gtfs-validator.mobilitydata.org/"
               target="_blank"
