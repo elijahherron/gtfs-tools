@@ -48,6 +48,10 @@
               </div>
             </div>
           </div>
+          <div id="feedExpirationWarning" class="feed-expiration-warning" style="display: none">
+            <span class="warning-icon">⚠️</span>
+            <span class="warning-text">This feed expires soon!</span>
+          </div>
           <button id="agencyWebsiteBtn" class="agency-website-btn">
             Visit Agency Website
           </button>
@@ -94,17 +98,19 @@
                 </div>
                 <div class="filter-content" id="filterContent">
                   <div class="filter-section">
-                    <label for="routeFilterSelect">Route:</label>
-                    <select id="routeFilterSelect">
-                      <option value="">All Routes</option>
-                    </select>
+                    <label for="routeFilterSearch">Route:</label>
+                    <div class="searchable-select" id="routeSearchContainer">
+                      <input type="text" id="routeFilterSearch" placeholder="Click to select or type to search routes..." autocomplete="off">
+                      <div class="search-dropdown" id="routeSearchDropdown"></div>
+                    </div>
                   </div>
 
                   <div class="filter-section">
-                    <label for="tripFilterSelect">Trip:</label>
-                    <select id="tripFilterSelect" disabled>
-                      <option value="">Select Route First</option>
-                    </select>
+                    <label for="tripFilterSearch">Trip:</label>
+                    <div class="searchable-select" id="tripSearchContainer">
+                      <input type="text" id="tripFilterSearch" placeholder="Select route first..." disabled autocomplete="off">
+                      <div class="search-dropdown" id="tripSearchDropdown"></div>
+                    </div>
                   </div>
 
                   <div class="filter-actions">

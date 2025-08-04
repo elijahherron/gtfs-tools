@@ -494,6 +494,37 @@ td input:focus {
     background-color: #1976d2;
 }
 
+.feed-expiration-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.feed-expiration-warning.critical {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.warning-icon {
+    font-size: 16px;
+}
+
+.warning-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #856404;
+}
+
+.feed-expiration-warning.critical .warning-text {
+    color: #721c24;
+}
+
 .loading {
     display: inline-flex;
     align-items: center;
@@ -642,6 +673,64 @@ td input:focus {
 
 .filter-btn.secondary:hover {
     background: #e9e9e9;
+}
+
+/* Searchable Select Styles */
+.searchable-select {
+    position: relative;
+    width: 100%;
+}
+
+.searchable-select input[type="text"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.searchable-select input[type="text"]:focus {
+    outline: none;
+    border-color: #4caf50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 9999;
+    display: none;
+}
+
+.search-dropdown.show {
+    display: block;
+}
+
+.search-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.search-option:hover {
+    background-color: #f8f9fa;
+}
+
+.search-option.selected {
+    background-color: #4caf50;
+    color: white;
+}
+
+.search-option:last-child {
+    border-bottom: none;
 }
 
 /* View switching - let JavaScript handle this */

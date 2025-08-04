@@ -2708,22 +2708,22 @@ class MapEditor {
     }
     
     if (showAll) {
-      // Show all routes and trips
-      tripsFile.data.forEach(trip => {
-        this.visualizeTrip(trip.trip_id, stopsFile.data, stopTimesFile.data, tripsFile.data, routesFile.data);
-      });
-      
-      // Fit map to show all data
-      if (this.filteredDataGroup.getLayers().length > 0) {
-        this.map.fitBounds(this.filteredDataGroup.getBounds(), { padding: [20, 20] });
-      }
+      // Performance improvement: Don't show all routes at once as it can freeze the browser
+      console.warn('Show all routes disabled to prevent performance issues. Please select a specific route.');
+      return;
     } else if (tripId) {
       // Show specific trip
       this.visualizeTrip(tripId, stopsFile.data, stopTimesFile.data, tripsFile.data, routesFile.data);
     } else if (routeId) {
-      // Show all trips for the route
+      // Show trips for the route (limited to prevent performance issues)
       const routeTrips = tripsFile.data.filter(trip => trip.route_id === routeId);
-      routeTrips.forEach(trip => {
+      const maxTrips = 10; // Limit to 10 trips to prevent freezing
+      
+      if (routeTrips.length > maxTrips) {
+        console.warn(`Route has ${routeTrips.length} trips. Showing only first ${maxTrips} trips to prevent performance issues. Select a specific trip for complete view.`);
+      }
+      
+      routeTrips.slice(0, maxTrips).forEach(trip => {
         this.visualizeTrip(trip.trip_id, stopsFile.data, stopTimesFile.data, tripsFile.data, routesFile.data);
       });
     }
