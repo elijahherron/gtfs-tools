@@ -7,6 +7,7 @@ class GTFSEditor {
         this.mapEditor = null;
         this.files = null; // Store uploaded GTFS files
         this.isNewGTFS = false; // Track if this is a new GTFS creation vs uploaded file
+        this.agencyUrl = null; // Store agency URL from agency.txt
         this.initializeEventListeners();
     }
 
@@ -45,6 +46,9 @@ class GTFSEditor {
         // Filter collapse functionality
         document.getElementById('collapseFilterBtn').addEventListener('click', () => this.toggleRouteFilter());
         document.getElementById('filterHeader').addEventListener('click', () => this.toggleRouteFilter());
+        
+        // Agency website button
+        document.getElementById('agencyWebsiteBtn').addEventListener('click', () => this.visitAgencyWebsite());
     }
 
     async handleFileUpload() {
@@ -83,6 +87,10 @@ class GTFSEditor {
                 
                 // Convert the parsed data into the format expected by the editor
                 this.files = this.convertParsedDataToFiles(result.data, result.files);
+                
+                // Extract agency URL from agency.txt
+                this.extractAgencyUrl(result.data);
+                
                 this.showStatus(`Successfully loaded GTFS with ${result.files.length} files`, 'success');
                 this.showEditor(this.files);
                 this.currentFile = this.files[0]; // Default to first file
@@ -827,6 +835,49 @@ class GTFSEditor {
         
         // Hide reset button
         document.getElementById('resetPageBtn').style.display = 'none';
+    }
+
+    extractAgencyUrl(gtfsData) {
+        // Look for agency.txt file and extract agency_url
+        if (gtfsData['agency.txt'] && gtfsData['agency.txt'].length > 0) {
+            const agencyData = gtfsData['agency.txt'][0]; // Get first agency
+            if (agencyData.agency_url) {
+                this.agencyUrl = agencyData.agency_url;
+                this.showAgencyButton();
+                console.log('Found agency URL:', this.agencyUrl);
+            } else {
+                this.hideAgencyButton();
+                console.log('No agency_url found in agency.txt');
+            }
+        } else {
+            this.hideAgencyButton();
+            console.log('No agency.txt file found');
+        }
+    }
+
+    showAgencyButton() {
+        const agencyInfo = document.getElementById('agencyInfo');
+        if (agencyInfo) {
+            agencyInfo.style.display = 'block';
+        }
+    }
+
+    hideAgencyButton() {
+        const agencyInfo = document.getElementById('agencyInfo');
+        if (agencyInfo) {
+            agencyInfo.style.display = 'none';
+        }
+    }
+
+    visitAgencyWebsite() {
+        if (this.agencyUrl) {
+            // Ensure URL has protocol
+            let url = this.agencyUrl;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            window.open(url, '_blank');
+        }
     }
 
     resetPage() {

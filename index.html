@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Static Data GTFS Editor / Creator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="styles.css" />
     <link
       rel="stylesheet"
@@ -26,6 +27,9 @@
         <input type="file" id="gtfsUpload" accept=".zip" />
         <button id="uploadBtn">Upload GTFS</button>
         <div id="uploadStatus"></div>
+        <div id="agencyInfo" style="display: none;">
+          <button id="agencyWebsiteBtn" class="agency-website-btn">Visit Agency Website</button>
+        </div>
       </div>
 
       <div class="editor-section" id="editorSection" style="display: none">

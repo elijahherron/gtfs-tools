@@ -437,6 +437,26 @@ td input:focus {
     border: 1px solid #f5c6cb;
 }
 
+#agencyInfo {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.agency-website-btn {
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.agency-website-btn:hover {
+    background-color: #1976d2;
+}
+
 .loading {
     display: inline-flex;
     align-items: center;
