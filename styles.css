@@ -327,6 +327,7 @@ button:disabled {
     background-color: #e9e9e9;
 }
 
+
 /* Disable file tabs when in map view */
 .file-tabs.disabled .file-tab {
     background-color: #f0f0f0 !important;
@@ -346,12 +347,7 @@ button:disabled {
 }
 
 .table-container {
-    overflow-x: auto;
     margin-bottom: 20px;
-    max-height: 500px;
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    border-radius: 4px;
 }
 
 table {
@@ -365,6 +361,15 @@ th, td {
     text-align: left;
     border-bottom: 1px solid #ddd;
     min-width: 100px;
+}
+
+th[data-column] {
+    padding-right: 30px;
+    transition: background-color 0.2s;
+}
+
+th[data-column]:hover {
+    background-color: #f8f9fa;
 }
 
 th {
@@ -2036,7 +2041,7 @@ td input:focus {
     padding: 15px;
     display: grid;
     gap: 15px;
-    max-height: 400px;
+    max-height: 800px;
     overflow-y: auto;
 }
 

@@ -363,6 +363,7 @@ class GTFSEditor {
     files.forEach((file, index) => {
       const tab = document.createElement("div");
       tab.className = "file-tab";
+      
       // Handle both old format (strings) and new format (objects)
       if (typeof file === "string") {
         tab.textContent = file.replace(".txt", "");
@@ -409,18 +410,157 @@ class GTFSEditor {
       filename = file.name + ".txt";
       data = file.data;
     }
+    
+    console.log("displayFileContent called with file:", file, "filename:", filename, "data length:", data ? data.length : 0);
 
     const spec = GTFS_SPEC.files[filename];
     const container = document.getElementById("tableContainer");
+    
+    // Clear container to start fresh
+    container.innerHTML = "";
+    
+    // Create wrapper structure: header stays fixed, table area scrolls
+    const headerArea = document.createElement('div');
+    headerArea.style.cssText = `
+      margin-bottom: 10px;
+      background: white;
+      border-bottom: 1px solid #ddd;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    `;
+    
+    const scrollableArea = document.createElement('div');
+    scrollableArea.style.cssText = `
+      max-height: 450px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    `;
+    
+    container.appendChild(headerArea);
+    container.appendChild(scrollableArea);
 
     if (!data || data.length === 0) {
-      container.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #666;">
+      // Add file info header for empty files too
+      const fileInfoDiv = document.createElement('div');
+      fileInfoDiv.style.cssText = `
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        border-left: 3px solid #007bff;
+        font-size: 14px;
+        color: #495057;
+      `;
+      fileInfoDiv.innerHTML = `<strong>${filename}</strong> - No data`;
+      headerArea.appendChild(fileInfoDiv);
+      
+      const emptyDiv = document.createElement('div');
+      emptyDiv.style.cssText = "text-align: center; padding: 40px; color: #666;";
+      emptyDiv.innerHTML = `
                     <p>No data in ${filename}</p>
                     <p>Click "Add Row" to add some data</p>
-                </div>
-            `;
+                `;
+      scrollableArea.appendChild(emptyDiv);
       return;
+    }
+
+    // Performance protection: limit display for large datasets
+    const MAX_SAFE_ROWS = 1000;
+    const EXTREMELY_LARGE_THRESHOLD = 5000000; // 5 million rows - truly massive files
+    
+    console.log("Data length:", data.length, "MAX_SAFE_ROWS:", MAX_SAFE_ROWS);
+    
+    // For extremely large datasets (5M+ rows), don't even attempt to process
+    if (data.length > EXTREMELY_LARGE_THRESHOLD) {
+      console.log("Extremely large dataset detected, showing warning only");
+      
+      // Add file info header even for blocked files
+      const fileInfoDiv = document.createElement('div');
+      fileInfoDiv.style.cssText = `
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        border-left: 3px solid #dc3545;
+        font-size: 14px;
+        color: #495057;
+      `;
+      fileInfoDiv.innerHTML = `<strong>${filename}</strong> - ${data.length.toLocaleString()} rows (blocked)`;
+      headerArea.appendChild(fileInfoDiv);
+      
+      const warningDiv = document.createElement('div');
+      warningDiv.style.cssText = `
+        padding: 20px; 
+        background: #f8d7da; 
+        border: 1px solid #f5c6cb; 
+        border-radius: 8px; 
+        color: #721c24;
+        text-align: center;
+      `;
+      warningDiv.innerHTML = `
+        <h3>🚫 Dataset Too Large to Display</h3>
+        <p><strong>${filename}</strong> contains <strong>${data.length.toLocaleString()}</strong> rows, which is too large for browser display.</p>
+        <p>This file would freeze your browser. Please use:</p>
+        <ul style="text-align: left; max-width: 400px; margin: 15px auto;">
+          <li><strong>Map View:</strong> For creating routes and trips</li>
+          <li><strong>Download GTFS:</strong> To edit this file externally</li>
+          <li><strong>External Tools:</strong> Like Excel, Google Sheets, or database tools</li>
+        </ul>
+      `;
+      scrollableArea.appendChild(warningDiv);
+      return;
+    }
+    
+    let displayData = data;
+    let isLimitedDisplay = false;
+    
+    // Always add file info header first - shows row count for ALL files
+    const fileInfoDiv = document.createElement('div');
+    fileInfoDiv.style.cssText = `
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      border-left: 3px solid #007bff;
+      font-size: 14px;
+      color: #495057;
+    `;
+    
+    const totalRows = data ? data.length : 0;
+    let fileInfoText = `<strong>${filename}</strong>`;
+    
+    if (data.length > MAX_SAFE_ROWS) {
+      displayData = data.slice(0, MAX_SAFE_ROWS);
+      isLimitedDisplay = true;
+      fileInfoText += ` - Showing ${MAX_SAFE_ROWS.toLocaleString()} of ${totalRows.toLocaleString()} rows`;
+    } else {
+      fileInfoText += ` - ${totalRows.toLocaleString()} rows`;
+    }
+    
+    fileInfoDiv.innerHTML = fileInfoText;
+    console.log("Adding file info:", fileInfoText, "to headerArea:", headerArea);
+    headerArea.appendChild(fileInfoDiv);
+    
+    // Add warning for large datasets
+    if (data.length > MAX_SAFE_ROWS) {
+      console.log("Large dataset, limiting to", MAX_SAFE_ROWS, "rows");
+      
+      const warningDiv = document.createElement('div');
+      warningDiv.style.cssText = `
+        padding: 12px; 
+        margin-top: 8px; 
+        background: #fff3cd; 
+        border: 1px solid #ffeaa7; 
+        border-radius: 8px; 
+        color: #856404;
+        text-align: center;
+        font-size: 13px;
+      `;
+      warningDiv.innerHTML = `
+        <strong>⚠️ Large Dataset - Performance Limit Applied</strong><br>
+        <small>This file is too large to display completely. Only the first ${MAX_SAFE_ROWS.toLocaleString()} rows are shown for performance.<br>
+        Use Map View for creating routes, or download the full GTFS file to edit externally.</small>
+      `;
+      headerArea.appendChild(warningDiv);
     }
 
     // Get all unique headers from data and spec
@@ -429,7 +569,7 @@ class GTFSEditor {
       spec.required_fields.forEach((field) => headers.add(field));
       spec.optional_fields.forEach((field) => headers.add(field));
     }
-    data.forEach((row) => {
+    displayData.forEach((row) => {
       Object.keys(row).forEach((key) => headers.add(key));
     });
     headers = Array.from(headers);
@@ -450,12 +590,34 @@ class GTFSEditor {
     headers.forEach((header) => {
       const th = document.createElement("th");
       th.textContent = header;
+      th.style.cursor = "pointer";
+      th.style.userSelect = "none";
+      th.style.position = "relative";
+      th.dataset.column = header;
+      
+      // Add sort indicator
+      const sortIndicator = document.createElement("span");
+      sortIndicator.style.cssText = `
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        color: #999;
+      `;
+      sortIndicator.textContent = "↕";
+      th.appendChild(sortIndicator);
 
       // Mark required fields
       if (spec && spec.required_fields.includes(header)) {
         th.style.backgroundColor = "#fff3cd";
-        th.title = "Required field";
+        th.title = "Required field - Click to sort";
+      } else {
+        th.title = "Click to sort";
       }
+
+      // Add click handler for sorting
+      th.addEventListener("click", () => this.sortTableByColumn(header, table, tbody, displayData, headers));
 
       headerRow.appendChild(th);
     });
@@ -466,7 +628,7 @@ class GTFSEditor {
     // Create body
     const tbody = document.createElement("tbody");
 
-    data.forEach((row, index) => {
+    displayData.forEach((row, index) => {
       const tr = document.createElement("tr");
       tr.dataset.index = index;
 
@@ -511,8 +673,7 @@ class GTFSEditor {
     });
 
     table.appendChild(tbody);
-    container.innerHTML = "";
-    container.appendChild(table);
+    scrollableArea.appendChild(table);
 
     // Add event listeners
     document
@@ -524,6 +685,152 @@ class GTFSEditor {
       );
     });
 
+  }
+
+  sortTableByColumn(columnName, table, tbody, data, headers) {
+    // Track current sort state
+    if (!this.sortState) {
+      this.sortState = {};
+    }
+    
+    const currentSort = this.sortState[columnName] || 'none';
+    let newSort;
+    
+    // Cycle through: none -> asc -> desc -> none
+    if (currentSort === 'none') {
+      newSort = 'asc';
+    } else if (currentSort === 'asc') {
+      newSort = 'desc';
+    } else {
+      newSort = 'none';
+    }
+    
+    // Reset all other column states
+    Object.keys(this.sortState).forEach(key => {
+      if (key !== columnName) {
+        this.sortState[key] = 'none';
+      }
+    });
+    this.sortState[columnName] = newSort;
+    
+    // Update sort indicators
+    table.querySelectorAll('th[data-column] span').forEach(indicator => {
+      const column = indicator.parentElement.dataset.column;
+      if (column === columnName) {
+        if (newSort === 'asc') {
+          indicator.textContent = '↑';
+          indicator.style.color = '#007bff';
+        } else if (newSort === 'desc') {
+          indicator.textContent = '↓';
+          indicator.style.color = '#007bff';
+        } else {
+          indicator.textContent = '↕';
+          indicator.style.color = '#999';
+        }
+      } else {
+        indicator.textContent = '↕';
+        indicator.style.color = '#999';
+      }
+    });
+    
+    // If sorting is reset to 'none', restore original order
+    if (newSort === 'none') {
+      this.rebuildTableBody(tbody, data, headers);
+      return;
+    }
+    
+    // Sort the data
+    const sortedData = [...data].sort((a, b) => {
+      let aVal = a[columnName] || '';
+      let bVal = b[columnName] || '';
+      
+      // Convert to strings for comparison
+      aVal = String(aVal).toLowerCase();
+      bVal = String(bVal).toLowerCase();
+      
+      // Try to parse as numbers if they look numeric
+      const aNum = parseFloat(aVal);
+      const bNum = parseFloat(bVal);
+      
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        // Numeric comparison
+        return newSort === 'asc' ? aNum - bNum : bNum - aNum;
+      } else {
+        // String comparison
+        if (aVal < bVal) return newSort === 'asc' ? -1 : 1;
+        if (aVal > bVal) return newSort === 'asc' ? 1 : -1;
+        return 0;
+      }
+    });
+    
+    // Rebuild table with sorted data
+    this.rebuildTableBody(tbody, sortedData, headers);
+  }
+  
+  rebuildTableBody(tbody, data, headers) {
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    // Rebuild rows with sorted data
+    data.forEach((row, index) => {
+      const tr = document.createElement("tr");
+      tr.dataset.index = index;
+
+      // Add checkbox
+      const checkboxCell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "row-checkbox";
+      checkbox.dataset.index = index;
+      checkboxCell.appendChild(checkbox);
+      tr.appendChild(checkboxCell);
+
+      // Add data cells
+      headers.forEach((header) => {
+        const td = document.createElement("td");
+        const value = row[header] || "";
+        
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = value;
+        input.dataset.field = header;
+        input.dataset.index = index;
+        
+        input.addEventListener("blur", (e) => {
+          const filename = this.currentFile.name ? this.currentFile.name + ".txt" : this.currentFile;
+          this.updateCell(filename, parseInt(e.target.dataset.index), e.target.dataset.field, e.target.value);
+        });
+
+        // Color display for route_color fields
+        if (header === "route_color" && value && value.length === 6) {
+          const colorDiv = document.createElement("div");
+          colorDiv.style.cssText = `
+            width: 20px;
+            height: 20px;
+            background-color: #${value};
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+          `;
+          td.style.cssText = "display: flex; align-items: center;";
+          td.appendChild(colorDiv);
+        }
+
+        td.appendChild(input);
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+    
+    // Re-add event listeners for checkboxes
+    document.querySelectorAll(".row-checkbox").forEach((checkbox) => {
+      checkbox.addEventListener("change", (e) =>
+        this.toggleRow(parseInt(e.target.dataset.index), e.target.checked)
+      );
+    });
   }
 
   updateCell(filename, rowIndex, field, value) {
@@ -1202,6 +1509,12 @@ Longitude: ${stop.stop_lon}`;
     // Show table view
     document.getElementById("tableView").style.display = "block";
     document.getElementById("mapView").style.display = "none";
+
+    // Enable file tabs in table view
+    const fileTabs = document.getElementById("fileTabs");
+    if (fileTabs) {
+      fileTabs.classList.remove("disabled");
+    }
 
     // Show table actions
     document.querySelector(".table-actions").style.display = "block";
