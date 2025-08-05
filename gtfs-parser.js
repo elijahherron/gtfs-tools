@@ -140,6 +140,16 @@ class GTFSParser {
             }
         });
 
+        // Also include commonly used optional files for new GTFS creation
+        const includedOptionalFiles = ['calendar.txt', 'shapes.txt'];
+        includedOptionalFiles.forEach(filename => {
+            const spec = GTFS_SPEC.files[filename];
+            if (spec) {
+                emptyData[filename] = [];
+                fileList.push(filename);
+            }
+        });
+
         this.gtfsData = emptyData;
         this.fileList = fileList;
         return { success: true, data: emptyData, files: fileList };

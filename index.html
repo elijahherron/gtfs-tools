@@ -48,7 +48,11 @@
               </div>
             </div>
           </div>
-          <div id="feedExpirationWarning" class="feed-expiration-warning" style="display: none">
+          <div
+            id="feedExpirationWarning"
+            class="feed-expiration-warning"
+            style="display: none"
+          >
             <span class="warning-icon">⚠️</span>
             <span class="warning-text">This feed expires soon!</span>
           </div>
@@ -62,6 +66,7 @@
         <h2 id="editorTitle" style="display: none; margin-bottom: 20px">
           Creating New GTFS
         </h2>
+
 
         <div class="editor-header">
           <div class="file-tabs" id="fileTabs"></div>
@@ -100,16 +105,33 @@
                   <div class="filter-section">
                     <label for="routeFilterSearch">Route:</label>
                     <div class="searchable-select" id="routeSearchContainer">
-                      <input type="text" id="routeFilterSearch" placeholder="Click to select or type to search routes..." autocomplete="off">
-                      <div class="search-dropdown" id="routeSearchDropdown"></div>
+                      <input
+                        type="text"
+                        id="routeFilterSearch"
+                        placeholder="Click to select or type to search routes..."
+                        autocomplete="off"
+                      />
+                      <div
+                        class="search-dropdown"
+                        id="routeSearchDropdown"
+                      ></div>
                     </div>
                   </div>
 
                   <div class="filter-section">
                     <label for="tripFilterSearch">Trip:</label>
                     <div class="searchable-select" id="tripSearchContainer">
-                      <input type="text" id="tripFilterSearch" placeholder="Select route first..." disabled autocomplete="off">
-                      <div class="search-dropdown" id="tripSearchDropdown"></div>
+                      <input
+                        type="text"
+                        id="tripFilterSearch"
+                        placeholder="Select route first..."
+                        disabled
+                        autocomplete="off"
+                      />
+                      <div
+                        class="search-dropdown"
+                        id="tripSearchDropdown"
+                      ></div>
                     </div>
                   </div>
 
@@ -255,7 +277,33 @@
                     id="tripSection"
                     style="display: none"
                   >
-                    <h4>2. Create Trip</h4>
+                    <h4>2. Create Trip <span id="currentRouteIndicator" style="color: #666; font-weight: normal; font-size: 0.9em;"></span></h4>
+                    
+                    <!-- Trip Creation Method -->
+                    <div class="trip-creation-method">
+                      <div class="input-group">
+                        <label for="tripCreationMethodSelect">Trip Creation Method:</label>
+                        <select id="tripCreationMethodSelect">
+                          <option value="scratch">Create from scratch</option>
+                          <option value="copy">Copy from existing trip</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- Copy Trip Selection -->
+                    <div class="copy-trip-section" id="copyTripSection" style="display: none;">
+                      <div class="input-group">
+                        <label for="copyFromTripSelect">Select Trip to Copy:</label>
+                        <select id="copyFromTripSelect">
+                          <option value="">Choose an existing trip...</option>
+                        </select>
+                      </div>
+                      <button id="loadTripDataBtn" class="secondary-btn" disabled>
+                        Load Trip Data
+                      </button>
+                      <p class="copy-trip-description">This will load all trip details (headsign, direction, stops, shape, timing) which you can then modify and save as a new trip.</p>
+                    </div>
+
                     <div class="trip-inputs">
                       <div class="input-group">
                         <label for="tripHeadsignInput">Trip Headsign:</label>
@@ -326,44 +374,44 @@
                           <label>Days of Operation:</label>
                           <div class="days-checkboxes">
                             <label>
-                              <input type="checkbox" id="mondayCheck" checked />
                               Monday
+                              <input type="checkbox" id="mondayCheck" checked />
                             </label>
                             <label>
+                              Tuesday
                               <input
                                 type="checkbox"
                                 id="tuesdayCheck"
                                 checked
                               />
-                              Tuesday
                             </label>
                             <label>
+                              Wednesday
                               <input
                                 type="checkbox"
                                 id="wednesdayCheck"
                                 checked
                               />
-                              Wednesday
                             </label>
                             <label>
+                              Thursday
                               <input
                                 type="checkbox"
                                 id="thursdayCheck"
                                 checked
                               />
-                              Thursday
                             </label>
                             <label>
-                              <input type="checkbox" id="fridayCheck" checked />
                               Friday
+                              <input type="checkbox" id="fridayCheck" checked />
                             </label>
                             <label>
-                              <input type="checkbox" id="saturdayCheck" />
                               Saturday
+                              <input type="checkbox" id="saturdayCheck" />
                             </label>
                             <label>
-                              <input type="checkbox" id="sundayCheck" />
                               Sunday
+                              <input type="checkbox" id="sundayCheck" />
                             </label>
                           </div>
                         </div>
@@ -383,16 +431,19 @@
                     <div class="timing-section">
                       <h5>Trip Timing</h5>
                       <div class="timing-method">
-                        <label for="timingMethodSelect">Timing Method:</label>
+                        <label for="timingMethodSelect"
+                          >Timing Between Stops:</label
+                        >
                         <select id="timingMethodSelect">
                           <option value="auto">
-                            Auto-calculate with intervals
+                            Auto-calculate with intervals (automatically sets
+                            stop_times between stops)
                           </option>
-                          <option value="manual">Set time for each stop</option>
+                          <option value="manual" selected>Set time for each stop</option>
                         </select>
                       </div>
 
-                      <div class="timing-inputs" id="autoTimingInputs">
+                      <div class="timing-inputs" id="autoTimingInputs" style="display: none">
                         <div class="input-group-inline">
                           <label for="tripStartTimeInput">Start Time:</label>
                           <input
@@ -418,7 +469,6 @@
                       <div
                         class="timing-inputs"
                         id="manualTimingInputs"
-                        style="display: none"
                       >
                         <p class="timing-note">
                           You'll set arrival/departure times when adding each
@@ -502,6 +552,19 @@
                     </div>
                   </div>
 
+                  <!-- Shape Options Section -->
+                  <div class="shape-options-section">
+                    <h6>Shape Options</h6>
+                    <div class="shape-toggle">
+                      <label for="noShapesToggle" class="toggle-label">
+                        <input type="checkbox" id="noShapesToggle" />
+                        <span class="toggle-text">No Shapes (stops only)</span>
+                      </label>
+                      <p class="toggle-description">Disable route shape drawing and create stops only</p>
+                    </div>
+                  </div>
+
+
                   <div class="stops-list-section">
                     <h5
                       style="
@@ -530,17 +593,39 @@
                     style="display: none"
                   >
                     <h6>Reuse Existing Stops</h6>
-                    <div class="existing-stops-search">
-                      <input
-                        type="text"
-                        id="existingStopsSearch"
-                        placeholder="Search existing stops..."
-                      />
+                    <div class="existing-stops-selector">
+                      <div class="searchable-select" id="existingStopsContainer">
+                        <input
+                          type="text"
+                          id="existingStopsSearch"
+                          placeholder="Click to select or type to search stops..."
+                          autocomplete="off"
+                        />
+                        <div
+                          class="search-dropdown"
+                          id="existingStopsDropdown"
+                        ></div>
+                      </div>
+                      <div class="existing-stops-actions">
+                        <button id="addExistingStopBtn" class="add-stop-btn" disabled>
+                          Add Selected Stop
+                        </button>
+                      </div>
                     </div>
-                    <div
-                      class="existing-stops-list"
-                      id="existingStopsList"
-                    ></div>
+                  </div>
+
+                  <!-- Existing Trips Section -->
+                  <div
+                    class="existing-trips-section"
+                    id="existingTripsSection"
+                    style="display: none"
+                  >
+                    <h6>Edit Existing Trips</h6>
+                    <div class="existing-trips-list" id="existingTripsList">
+                      <div class="trips-empty" id="tripsListEmpty">
+                        No trips created yet for this route
+                      </div>
+                    </div>
                   </div>
 
                   <div class="stop-input-section">
@@ -568,7 +653,6 @@
                     <div
                       class="coord-time-inputs"
                       id="coordTimeInputs"
-                      style="display: none"
                     >
                       <div class="coord-group">
                         <label for="coordArrivalInput">Arrival:</label>
@@ -591,6 +675,182 @@
                 <!-- Close route-creator-content -->
               </div>
             </div>
+
+            <!-- Floating Instructions Panel -->
+            <div
+              class="floating-instructions"
+              id="floatingInstructions"
+              style="display: none"
+            >
+              <div class="floating-window-header">
+                <div class="drag-handle">
+                  <span class="window-title">📋 Instructions</span>
+                </div>
+                <div class="window-controls">
+                  <button
+                    class="collapse-btn"
+                    id="collapseInstructions"
+                    title="Collapse Panel"
+                  >
+                    +
+                  </button>
+                  <button
+                    class="close-btn"
+                    id="closeInstructions"
+                    title="Hide Panel"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div class="floating-window-content collapsed" id="instructionsWindowContent">
+                <div class="instructions-intro">
+                  <p><strong>Welcome to the GTFS Creator!</strong> This tool helps you build complete transit feeds with routes, stops, trips, and schedules. Follow these detailed steps to create professional transit data.</p>
+                  <p><a href="https://github.com/google/transit/blob/master/gtfs/spec/en/reference.md" target="_blank" class="gtfs-spec-link">📖 View Official GTFS Specification</a></p>
+                </div>
+
+                <div class="instruction-steps">
+                  <div class="step-section">
+                    <h4>🗺️ Step 1: Switch to Map View</h4>
+                    <p>Click the <strong>"Map View"</strong> button above to access the visual route creator. The map view provides an intuitive interface for designing your transit network.</p>
+                    <ul>
+                      <li><strong>Table View:</strong> Use for editing raw GTFS data, stop times, and detailed information</li>
+                      <li><strong>Map View:</strong> Use for visually creating routes, placing stops, and drawing route shapes</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="step-section">
+                    <h4>🚌 Step 2: Create Your First Route</h4>
+                    <p>Routes represent a single transit line (like "Bus Route 1" or "Blue Line"). In the Route Creator panel:</p>
+                    <ul>
+                      <li><strong>Route Short Name:</strong> Enter a concise identifier (e.g., "1", "A", "Blue")</li>
+                      <li><strong>Route Long Name:</strong> Enter descriptive name (e.g., "Main Street Line", "Downtown Express")</li>
+                      <li><strong>Route Type:</strong> Choose vehicle type - Bus (most common), Tram, Subway, Rail, or Ferry</li>
+                      <li><strong>Route Colors:</strong> Pick brand colors that represent your transit line</li>
+                      <li><strong>Orient Map:</strong> Search for your city/area to center the map on your service area</li>
+                      <li><strong>Contrast Check:</strong> Use the contrast checker to ensure colors meet accessibility standards</li>
+                    </ul>
+                    <p><em>💡 Tip: You can also select existing routes if you're adding trips to established lines.</em></p>
+                  </div>
+                  
+                  <div class="step-section">
+                    <h4>🛣️ Step 3: Set Up Your Trip</h4>
+                    <p>Trips are specific journeys along a route (like "8:00 AM Downtown to Airport"). Configure trip details:</p>
+                    <ul>
+                      <li><strong>Trip Headsign:</strong> Destination shown to passengers (e.g., "Downtown", "Airport", "City Center")</li>
+                      <li><strong>Direction ID:</strong> Use 0 for outbound, 1 for return journey (helps organize opposite directions)</li>
+                      <li><strong>Trip Short Name:</strong> Optional identifier for internal use</li>
+                    </ul>
+                    
+                    <h5>📅 Service Calendar</h5>
+                    <ul>
+                      <li><strong>Use Existing Service:</strong> Select pre-configured service patterns</li>
+                      <li><strong>Create New Service:</strong> Define custom schedule with specific days and date ranges</li>
+                      <li><strong>Days Selection:</strong> Choose which days of the week this trip operates</li>
+                    </ul>
+                    
+                    <h5>⏰ Trip Timing</h5>
+                    <ul>
+                      <li><strong>Set time for each stop (Recommended):</strong> Manually set arrival/departure times for precision</li>
+                      <li><strong>Auto-calculate:</strong> Generate times based on start time and interval between stops</li>
+                    </ul>
+                    
+                    <h5>🎨 Shape Options</h5>
+                    <ul>
+                      <li><strong>Shapes Enabled (Default):</strong> Creates detailed route paths showing actual vehicle movement</li>
+                      <li><strong>"No Shapes" Toggle:</strong> Check this to create only stops without detailed route paths</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="step-section">
+                    <h4>🎯 Step 4: Create Stops and Route Shapes</h4>
+                    <p>Click <strong>"Start Creating Trip"</strong> to begin placing stops and drawing your route. The workflow differs based on your shape settings:</p>
+                    
+                    <h5>📍 With Shapes Enabled (Recommended)</h5>
+                    <ul>
+                      <li><strong>First Click:</strong> Creates your first stop AND starts the route shape automatically</li>
+                      <li><strong>Normal Clicks:</strong> Add shape nodes to trace the actual path vehicles follow (roads, turns, etc.)</li>
+                      <li><strong>Shift + Click:</strong> Add your next stop (shape automatically extends to connect)</li>
+                      <li><strong>Continue:</strong> Keep clicking for shape nodes, Shift+click for stops</li>
+                      <li><strong>Ctrl + Z:</strong> Undo the last shape point if you make a mistake</li>
+                    </ul>
+                    
+                    <h5>📍 With "No Shapes" Mode</h5>
+                    <ul>
+                      <li><strong>First Click:</strong> Creates your first stop</li>
+                      <li><strong>Shift + Click:</strong> Add additional stops along your route</li>
+                      <li><em>No shape drawing - just stop-to-stop connections</em></li>
+                    </ul>
+                    
+                    <h5>⚙️ Additional Stop Options</h5>
+                    <ul>
+                      <li><strong>Reuse Existing Stops:</strong> Select from previously created stops in your network</li>
+                      <li><strong>Manual Coordinates:</strong> Enter precise lat/lng coordinates for exact placement</li>
+                      <li><strong>Drag Stops:</strong> Click and drag any stop to reposition it</li>
+                      <li><strong>Edit Stop Details:</strong> Click on stop markers to modify names, times, and details</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="step-section">
+                    <h4>✏️ Step 5: Edit and Refine</h4>
+                    <p>Fine-tune your trip before finishing:</p>
+                    <ul>
+                      <li><strong>Edit Existing Trips:</strong> Use the "Edit Existing Trips" section to modify completed trips</li>
+                      <li><strong>Adjust Stop Times:</strong> Click stop markers to set precise arrival/departure times</li>
+                      <li><strong>Edit Shape Nodes:</strong> Drag visible shape nodes to adjust route path, double-click nodes to delete them</li>
+                      <li><strong>Add Shape Nodes:</strong> Click directly on shape lines to add new nodes at that position</li>
+                      <li><strong>Clear Trip:</strong> Use "Clear Trip" button to completely restart (removes all stops and shapes)</li>
+                      <li><strong>Preview Work:</strong> Click "Preview GTFS" to visualize your data before finishing</li>
+                    </ul>
+                  </div>
+                  
+                  <div class="step-section">
+                    <h4>💾 Step 6: Save, Export, and Validate</h4>
+                    <p>When your trip is complete:</p>
+                    <ul>
+                      <li><strong>Finish Trip:</strong> Click "Finish Trip" to save the trip to your GTFS feed</li>
+                      <li><strong>Save Work:</strong> Use "Save Work" to backup your progress as a JSON file</li>
+                      <li><strong>Load Previous Work:</strong> Resume work from saved JSON files</li>
+                      <li><strong>Preview GTFS:</strong> Open floating preview window to inspect your data</li>
+                      <li><strong>Download GTFS:</strong> Export complete transit feed as a ZIP file</li>
+                      <li><strong>Validate:</strong> Use MobilityData validator to check GTFS compliance</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div class="instruction-tips">
+                  <h4>🔧 Advanced Features</h4>
+                  <ul>
+                    <li><strong>Multiple Routes:</strong> Create different routes for various transit lines (Route 1, Route 2, etc.)</li>
+                    <li><strong>Bidirectional Service:</strong> Create trips in both directions using Direction ID 0 and 1</li>
+                    <li><strong>Service Patterns:</strong> Set up different service calendars for weekdays, weekends, and holidays</li>
+                    <li><strong>Copy Trip Patterns:</strong> Use "Copy from existing trip" to duplicate stops and shapes from previous trips</li>
+                    <li><strong>Table View Editing:</strong> Switch to Table View for detailed editing of agency info, fares, and schedules</li>
+                    <li><strong>Shape Precision:</strong> Add many shape points to accurately represent vehicle paths around curves and turns</li>
+                    <li><strong>Stop Spacing:</strong> Place stops at realistic intervals (typically 200-800 meters apart for buses)</li>
+                  </ul>
+                  
+                  <h4>💡 Best Practices</h4>
+                  <ul>
+                    <li><strong>Start Simple:</strong> Begin with one route and a few stops, then expand your network</li>
+                    <li><strong>Consistent Naming:</strong> Use clear, consistent naming for routes and stops</li>
+                    <li><strong>Real-world Accuracy:</strong> Place stops at actual bus stop locations using satellite imagery</li>
+                    <li><strong>Shape Detail:</strong> Draw shapes that follow actual roads and paths</li>
+                    <li><strong>Time Realism:</strong> Set realistic travel times between stops</li>
+                    <li><strong>Regular Saving:</strong> Save your work frequently to prevent data loss</li>
+                  </ul>
+                  
+                  <h4>❓ Troubleshooting</h4>
+                  <ul>
+                    <li><strong>Can't see stops:</strong> Make sure you've clicked "Start Creating Trip" first</li>
+                    <li><strong>Shape not appearing:</strong> Check that "No Shapes" toggle is unchecked</li>
+                    <li><strong>Wrong stop location:</strong> Drag the stop marker to reposition it</li>
+                    <li><strong>Need to start over:</strong> Use "Clear Trip" to remove all stops and shapes</li>
+                    <li><strong>GTFS validation errors:</strong> Use the MobilityData validator link for detailed error reports</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -601,21 +861,29 @@
           </div>
 
           <div class="gtfs-actions">
-            <button id="downloadBtn">Download GTFS</button>
-            <button id="resetPageBtn" style="display: none">Reset Page</button>
-            <a
-              href="https://gtfs-validator.mobilitydata.org/"
-              target="_blank"
-              class="validate-link"
-              >Validate with MobilityData</a
-            >
+            <div class="gtfs-export-actions">
+              <button id="saveWorkBtn" class="save-btn">💾 Save Work</button>
+              <button id="previewBtn" class="preview-btn">👁️ Preview GTFS</button>
+              <button id="downloadBtn">Download GTFS</button>
+              <button id="resetPageBtn" style="display: none">Reset Page</button>
+              <a
+                href="https://gtfs-validator.mobilitydata.org/"
+                target="_blank"
+                class="validate-link"
+                >Validate with MobilityData</a
+              >
+            </div>
           </div>
         </div>
       </div>
 
       <div class="create-section">
         <h2>Create New GTFS Feed</h2>
-        <button id="createNewBtn">Create New Feed</button>
+        <div class="create-actions">
+          <button id="createNewBtn">Create New Feed</button>
+          <button id="loadWorkBtn" class="load-btn">Load Previous Work</button>
+          <input type="file" id="loadWorkFile" accept=".json" style="display: none;">
+        </div>
       </div>
 
       <div
@@ -623,6 +891,132 @@
         class="validation-results"
         style="display: none"
       ></div>
+
+      <!-- Floating GTFS Preview Window -->
+      <div
+        class="floating-preview-window"
+        id="floatingPreviewWindow"
+        style="display: none"
+      >
+        <div class="floating-window-header">
+          <div class="drag-handle">
+            <span class="window-title">📊 GTFS Data Preview</span>
+          </div>
+          <div class="window-controls">
+            <button
+              class="collapse-btn"
+              id="collapsePreview"
+              title="Collapse Panel"
+            >
+              −
+            </button>
+            <button
+              class="close-btn"
+              id="closePreview"
+              title="Close Preview"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+        <div class="floating-window-content" id="previewWindowContent">
+          <!-- Agency Info Display (similar to upload section) -->
+          <div id="previewAgencyInfo" class="preview-agency-info">
+            <div class="feed-info-display">
+              <div class="feed-info-grid">
+                <div class="feed-info-item">
+                  <span class="feed-info-label">Agency Name:</span>
+                  <span id="previewAgencyName" class="feed-info-value">-</span>
+                </div>
+                <div class="feed-info-item">
+                  <span class="feed-info-label">feed_info dates:</span>
+                  <span id="previewFeedDates" class="feed-info-value">-</span>
+                </div>
+                <div class="feed-info-item">
+                  <span class="feed-info-label">Routes:</span>
+                  <span id="previewRouteCount" class="feed-info-value">-</span>
+                </div>
+                <div class="feed-info-item">
+                  <span class="feed-info-label">fare_media types:</span>
+                  <span id="previewFareInfo" class="feed-info-value">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Route/Trip Filter for Preview -->
+          <div class="preview-route-filter" id="previewRouteFilter">
+            <div class="filter-header">
+              <h3>Filter Routes & Trips</h3>
+            </div>
+            <div class="filter-content">
+              <div class="filter-section">
+                <label for="previewRouteSearch">Route:</label>
+                <div class="searchable-select" id="previewRouteContainer">
+                  <input
+                    type="text"
+                    id="previewRouteSearch"
+                    placeholder="Click to select or type to search routes..."
+                    autocomplete="off"
+                  />
+                  <div class="search-dropdown" id="previewRouteDropdown"></div>
+                </div>
+              </div>
+              <div class="filter-section">
+                <label for="previewTripSearch">Trip:</label>
+                <div class="searchable-select" id="previewTripContainer">
+                  <input
+                    type="text"
+                    id="previewTripSearch"
+                    placeholder="Select route first..."
+                    disabled
+                    autocomplete="off"
+                  />
+                  <div class="search-dropdown" id="previewTripDropdown"></div>
+                </div>
+              </div>
+              <div class="filter-actions">
+                <button id="previewApplyFilter" class="filter-btn">Show on Map</button>
+                <button id="previewClearFilter" class="filter-btn secondary">Clear Filter</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview Map Container -->
+          <div id="previewMapContainer" style="height: 400px; width: 100%; margin: 10px 0;"></div>
+
+          <!-- File Statistics -->
+          <div class="preview-stats">
+            <h4>📈 Data Summary</h4>
+            <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+              <div class="stat-item">
+                <div class="stat-value" id="previewStatsAgencies">0</div>
+                <div class="stat-label">Agencies</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value" id="previewStatsRoutes">0</div>
+                <div class="stat-label">Routes</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value" id="previewStatsTrips">0</div>
+                <div class="stat-label">Trips</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value" id="previewStatsStops">0</div>
+                <div class="stat-label">Stops</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value" id="previewStatsStopTimes">0</div>
+                <div class="stat-label">Stop Times</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value" id="previewStatsServices">0</div>
+                <div class="stat-label">Services</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

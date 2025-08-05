@@ -17,26 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const editor = new GTFSEditor();
     console.log('GTFS Editor initialized');
     console.log('Leaflet version:', L.version);
-});
 
-// Load JSZip library if not available
-function loadJSZip() {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    script.onload = function() {
-        console.log('JSZip loaded from CDN');
-        const editor = new GTFSEditor();
-        console.log('GTFS Editor initialized');
-    };
-    script.onerror = function() {
-        console.error('Failed to load JSZip library');
-        alert('Failed to load required libraries. Please check your internet connection.');
-    };
-    document.head.appendChild(script);
-}
-
-// Add drag and drop functionality
-document.addEventListener('DOMContentLoaded', function() {
+    // Initialize drag and drop functionality
     const uploadSection = document.querySelector('.upload-section');
     
     // Prevent default drag behaviors
@@ -86,10 +68,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-});
 
-// Add keyboard shortcuts
-document.addEventListener('keydown', function(e) {
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
     // Ctrl/Cmd + S to download
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -121,13 +102,40 @@ document.addEventListener('keydown', function(e) {
             selectAllCheckbox.dispatchEvent(new Event('change'));
         }
     }
+    
+    // Ctrl/Cmd + Z to undo last shape point
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        // Only prevent default and handle undo if we're in map view and creating a trip
+        if (window.mapEditor && window.mapEditor.isCreatingTrip && 
+            document.getElementById('mapView').style.display !== 'none') {
+            e.preventDefault();
+            window.mapEditor.undoLastShapePoint();
+        }
+    }
+    });
+
+    // Add error handling for uncaught errors
+    window.addEventListener('error', function(e) {
+        console.error('Application error:', e.error);
+    });
+
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('Unhandled promise rejection:', e.reason);
+    });
 });
 
-// Add error handling for uncaught errors
-window.addEventListener('error', function(e) {
-    console.error('Application error:', e.error);
-});
-
-window.addEventListener('unhandledrejection', function(e) {
-    console.error('Unhandled promise rejection:', e.reason);
-});
+// Load JSZip library if not available
+function loadJSZip() {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    script.onload = function() {
+        console.log('JSZip loaded from CDN');
+        const editor = new GTFSEditor();
+        console.log('GTFS Editor initialized');
+    };
+    script.onerror = function() {
+        console.error('Failed to load JSZip library');
+        alert('Failed to load required libraries. Please check your internet connection.');
+    };
+    document.head.appendChild(script);
+}

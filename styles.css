@@ -43,6 +43,32 @@ header h1 {
     color: #4caf50;
 }
 
+.create-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Ensure create section buttons match the standard button style */
+.create-actions button {
+    background-color: #1c7f49;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-right: 0;
+    margin-bottom: 0;
+}
+
+.create-actions button:hover {
+    background-color: #45a049;
+}
+
 input[type="file"] {
     margin-bottom: 10px;
     padding: 8px;
@@ -129,12 +155,14 @@ button:hover {
 
 .days-checkboxes label {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-size: 14px;
     white-space: nowrap;
     cursor: pointer;
     position: relative;
+    text-align: center;
 }
 
 .days-checkboxes input[type="checkbox"] {
@@ -297,6 +325,24 @@ button:disabled {
 
 .file-tab:hover {
     background-color: #e9e9e9;
+}
+
+/* Disable file tabs when in map view */
+.file-tabs.disabled .file-tab {
+    background-color: #f0f0f0 !important;
+    color: #999 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+}
+
+.file-tabs.disabled .file-tab:hover {
+    background-color: #f0f0f0 !important;
+}
+
+.file-tabs.disabled .file-tab.active {
+    background-color: #e8e8e8 !important;
+    color: #999 !important;
 }
 
 .table-container {
@@ -1656,12 +1702,234 @@ td input:focus {
     margin-bottom: 10px;
 }
 
-.existing-stops-search input {
+.existing-stops-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Existing Trips Section */
+.existing-trips-section {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.existing-trips-section h6 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    color: #2196f3;
+    font-weight: 600;
+}
+
+.existing-trips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.trips-empty {
+    font-size: 12px;
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
+.trip-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.trip-info {
+    flex: 1;
+    font-size: 12px;
+}
+
+.trip-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.trip-details {
+    color: #666;
+    margin-top: 2px;
+}
+
+.trip-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.edit-trip-btn {
+    padding: 4px 8px;
+    background: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.edit-trip-btn:hover {
+    background: #1976d2;
+}
+
+/* Shape Options Section */
+.shape-options-section {
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.shape-options-section h6 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    color: #2196f3;
+    font-weight: 600;
+}
+
+.shape-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #333;
+}
+
+.toggle-label input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.toggle-text {
+    font-weight: 500;
+}
+
+.toggle-description {
+    font-size: 11px;
+    color: #666;
+    margin: 0;
+    margin-left: 20px;
+    font-style: italic;
+}
+
+/* Trip Creation Method Section */
+.trip-creation-method {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.copy-trip-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #ff9800;
+}
+
+.copy-trip-section .input-group {
+    margin-bottom: 10px;
+}
+
+.copy-trip-description {
+    font-size: 12px;
+    color: #666;
+    margin: 8px 0 0 0;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+#loadTripDataBtn {
+    margin-top: 10px;
+}
+
+.secondary-btn {
+    padding: 8px 16px;
+    background: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: #f57c00;
+}
+
+.secondary-btn:disabled {
+    background: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+/* Shape Drag Handles */
+.shape-drag-handle-marker {
+    cursor: move !important;
+}
+
+.shape-drag-circle {
+    cursor: move !important;
+    transition: transform 0.2s ease;
+    position: relative;
+}
+
+.shape-drag-circle:hover {
+    transform: scale(1.3) !important;
+}
+
+.existing-stops-selector .searchable-select {
+    position: relative;
+}
+
+.existing-stops-selector input {
     width: 100%;
-    padding: 6px 8px;
+    padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 12px;
+    box-sizing: border-box;
+}
+
+.existing-stops-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.existing-stops-actions .add-stop-btn {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.existing-stops-actions .add-stop-btn:hover:not(:disabled) {
+    background: #45a049;
+}
+
+.existing-stops-actions .add-stop-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
 }
 
 .existing-stops-list {
@@ -1698,6 +1966,189 @@ td input:focus {
     color: #666;
     font-family: monospace;
     font-size: 11px;
+}
+
+.existing-stop-actions {
+    margin-top: 5px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.copy-stop-info {
+    background: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.copy-stop-info:hover {
+    background: #1976d2;
+}
+
+
+/* Floating Instructions Panel */
+.floating-instructions {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 320px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    border: 1px solid #e0e0e0;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.instructions-intro {
+    padding: 15px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 0 0 8px 8px;
+}
+
+.instructions-intro p {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.instructions-intro p:last-child {
+    margin-bottom: 0;
+}
+
+.gtfs-spec-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.gtfs-spec-link:hover {
+    text-decoration: underline;
+}
+
+.floating-instructions .instruction-steps {
+    padding: 15px;
+    display: grid;
+    gap: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.floating-instructions .step-section {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #4caf50;
+}
+
+.floating-instructions .step-section h4 {
+    margin: 0 0 8px 0;
+    color: #2e7d32;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.floating-instructions .step-section p {
+    margin: 0 0 8px 0;
+    color: #333;
+    line-height: 1.4;
+    font-size: 13px;
+}
+
+.floating-instructions .step-section ul {
+    margin: 0;
+    padding-left: 16px;
+    color: #555;
+}
+
+.floating-instructions .step-section li {
+    margin-bottom: 4px;
+    line-height: 1.3;
+    font-size: 12px;
+}
+
+.floating-instructions .instruction-tips {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 0 15px 15px 15px;
+}
+
+.floating-instructions .instruction-tips h4 {
+    margin: 0 0 8px 0;
+    color: #856404;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.floating-instructions .instruction-tips ul {
+    margin: 0;
+    padding-left: 16px;
+    color: #856404;
+}
+
+.floating-instructions .instruction-tips li {
+    margin-bottom: 6px;
+    line-height: 1.3;
+    font-size: 12px;
+}
+
+.floating-instructions .instruction-tips strong {
+    color: #533f03;
+}
+
+/* Collapsed state for instructions */
+.floating-instructions .floating-window-content.collapsed {
+    display: none;
+}
+
+.floating-instructions .floating-window-content:not(.collapsed) {
+    display: block;
+}
+
+/* Save/Load and Preview Actions */
+.gtfs-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.save-load-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.gtfs-export-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Consistent button styling for all main action buttons */
+.save-btn, .load-btn, .preview-btn, #downloadBtn, #resetPageBtn {
+    background-color: #1c7f49;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.save-btn:hover, .load-btn:hover, .preview-btn:hover, #downloadBtn:hover, #resetPageBtn:hover {
+    background-color: #45a049;
 }
 
 .stop-input-section {
@@ -1780,6 +2231,12 @@ td input:focus {
         bottom: 10px;
     }
     
+    .floating-instructions {
+        width: 300px;
+        left: 10px;
+        bottom: 10px;
+    }
+    
     .floating-window-content {
         padding: 12px;
     }
@@ -1803,9 +2260,297 @@ td input:focus {
 
 @media (max-width: 480px) {
     .floating-route-info {
-        width: calc(100vw - 20px);
+        width: calc(50vw - 15px);
         right: 10px;
+        bottom: 10px;
+    }
+    
+    .floating-instructions {
+        width: calc(50vw - 15px);
         left: 10px;
         bottom: 10px;
     }
+    
+    .floating-preview-window {
+        width: calc(60vw - 20px);
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) !important;
+    }
+}
+
+/* Floating Preview Window Styles */
+.floating-preview-window {
+    position: fixed;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    max-width: 90vw;
+    max-height: 80vh;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    overflow: hidden;
+}
+
+.floating-preview-window .floating-window-header {
+    background: linear-gradient(135deg, #2c5aa0 0%, #3b7bc6 100%);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    user-select: none;
+}
+
+.floating-preview-window .window-title {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.floating-preview-window .window-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.floating-preview-window .floating-window-content {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+    max-height: calc(80vh - 60px);
+}
+
+.floating-preview-window .collapse-btn,
+.floating-preview-window .close-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(4px);
+}
+
+.floating-preview-window .collapse-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.05);
+}
+
+.floating-preview-window .close-btn:hover {
+    background: rgba(220, 53, 69, 0.9);
+    border-color: rgba(220, 53, 69, 1);
+    transform: scale(1.05);
+}
+
+/* Preview Agency Info */
+.preview-agency-info {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.preview-agency-info .feed-info-display {
+    margin: 0;
+}
+
+.preview-agency-info .feed-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.preview-agency-info .feed-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.preview-agency-info .feed-info-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.preview-agency-info .feed-info-value {
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+/* Preview Route Filter */
+.preview-route-filter {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+}
+
+.preview-route-filter .filter-header h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #495057;
+}
+
+.preview-route-filter .filter-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preview-route-filter .filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.preview-route-filter .filter-section label {
+    font-weight: 500;
+    color: #495057;
+    font-size: 13px;
+}
+
+.preview-route-filter .searchable-select {
+    position: relative;
+}
+
+.preview-route-filter .searchable-select input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.preview-route-filter .search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ced4da;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.preview-route-filter .search-dropdown.show {
+    display: block;
+}
+
+.preview-route-filter .search-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.preview-route-filter .search-option:hover {
+    background: #f8f9fa;
+}
+
+.preview-route-filter .filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.preview-route-filter .filter-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.preview-route-filter .filter-btn:not(.secondary) {
+    background: #007bff;
+    color: white;
+}
+
+.preview-route-filter .filter-btn:not(.secondary):hover {
+    background: #0056b3;
+}
+
+.preview-route-filter .filter-btn.secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.preview-route-filter .filter-btn.secondary:hover {
+    background: #545b62;
+}
+
+/* Preview Map Container */
+#previewMapContainer {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Preview Statistics */
+.preview-stats {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.preview-stats h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #495057;
+}
+
+.preview-stats .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+}
+
+.preview-stats .stat-item {
+    text-align: center;
+    padding: 12px 8px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.preview-stats .stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 4px;
+}
+
+.preview-stats .stat-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: 500;
 }

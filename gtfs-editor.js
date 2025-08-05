@@ -59,12 +59,8 @@ class GTFSEditor {
       .getElementById("clearFilterBtn")
       .addEventListener("click", () => this.clearMapFilter());
 
-    // Existing stops functionality
-    document
-      .getElementById("existingStopsSearch")
-      .addEventListener("input", (e) =>
-        this.filterExistingStops(e.target.value)
-      );
+    // Existing stops functionality - Note: actual event listeners are set up in initializeExistingStopsEvents()
+    // when the existing stops selector is initialized
 
     // Route creator collapse functionality
     document
@@ -86,6 +82,28 @@ class GTFSEditor {
     document
       .getElementById("agencyWebsiteBtn")
       .addEventListener("click", () => this.visitAgencyWebsite());
+
+    // Instructions panel buttons
+    document
+      .getElementById("closeInstructions")
+      .addEventListener("click", () => this.closeInstructions());
+    document
+      .getElementById("collapseInstructions")
+      .addEventListener("click", () => this.toggleInstructions());
+
+    // Save/Load/Preview buttons
+    document
+      .getElementById("saveWorkBtn")
+      .addEventListener("click", () => this.saveWork());
+    document
+      .getElementById("loadWorkBtn")
+      .addEventListener("click", () => this.loadWork());
+    document
+      .getElementById("loadWorkFile")
+      .addEventListener("change", (e) => this.handleLoadWorkFile(e));
+    document
+      .getElementById("previewBtn")
+      .addEventListener("click", () => this.previewGTFS());
   }
 
   initializeSearchableSelectors() {
@@ -306,6 +324,9 @@ class GTFSEditor {
       this.currentFile = this.files[0];
       this.displayFileContent(this.currentFile);
 
+      // Show instructions panel for new GTFS
+      this.showInstructions();
+
       // For new GTFS creation, start with map view
       this.activateMapView();
       // Hide route filter (no routes to filter yet)
@@ -332,7 +353,12 @@ class GTFSEditor {
 
   createFileTabs(files) {
     const tabsContainer = document.getElementById("fileTabs");
+    // Preserve disabled state when recreating tabs
+    const wasDisabled = tabsContainer.classList.contains("disabled");
     tabsContainer.innerHTML = "";
+    if (wasDisabled) {
+      tabsContainer.classList.add("disabled");
+    }
 
     files.forEach((file, index) => {
       const tab = document.createElement("div");
@@ -373,6 +399,7 @@ class GTFSEditor {
   }
 
   displayFileContent(file) {
+
     // Handle both old format (strings) and new format (objects)
     let data, filename;
     if (typeof file === "string") {
@@ -496,6 +523,7 @@ class GTFSEditor {
         this.toggleRow(parseInt(e.target.dataset.index), e.target.checked)
       );
     });
+
   }
 
   updateCell(filename, rowIndex, field, value) {
@@ -537,7 +565,15 @@ class GTFSEditor {
   addRow() {
     if (!this.currentFile) return;
 
-    const newRow = this.parser.addRow(this.currentFile);
+    // Handle both old format (strings) and new format (objects)
+    let filename;
+    if (typeof this.currentFile === "string") {
+      filename = this.currentFile;
+    } else {
+      filename = this.currentFile.name + ".txt";
+    }
+
+    this.parser.addRow(filename);
     this.displayFileContent(this.currentFile);
     this.showStatus("Row added", "success");
   }
@@ -551,8 +587,16 @@ class GTFSEditor {
     // Sort indices in descending order to delete from end to beginning
     const indices = Array.from(this.selectedRows).sort((a, b) => b - a);
 
+    // Handle both old format (strings) and new format (objects)
+    let filename;
+    if (typeof this.currentFile === "string") {
+      filename = this.currentFile;
+    } else {
+      filename = this.currentFile.name + ".txt";
+    }
+
     indices.forEach((index) => {
-      this.parser.deleteRow(this.currentFile, index);
+      this.parser.deleteRow(filename, index);
     });
 
     this.selectedRows.clear();
@@ -590,7 +634,10 @@ class GTFSEditor {
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "gtfs-feed.zip";
+      // Generate filename with current date: gtfs_YYYY-MM-DD.zip
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      a.download = `gtfs_${dateStr}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -732,6 +779,32 @@ class GTFSEditor {
     });
   }
 
+  initializeRouteOptions(gtfsData) {
+    // Initialize route options from the GTFS data for filtering
+    if (!gtfsData["routes.txt"]) {
+      this.routeOptions = [];
+      return;
+    }
+
+    const routes = gtfsData["routes.txt"];
+    this.routeOptions = routes.map((route) => {
+      const routeText = `${route.route_short_name || route.route_long_name || route.route_id} - ${route.route_long_name || route.route_short_name || "Unnamed Route"}`;
+      return {
+        value: route.route_id,
+        text: routeText,
+        searchText: `${route.route_short_name || ""} ${route.route_long_name || ""} ${route.route_id}`.toLowerCase(),
+      };
+    });
+
+    // Sort routes alphabetically
+    this.routeOptions.sort((a, b) => a.text.localeCompare(b.text));
+  }
+
+  initializeTripOptions(gtfsData) {
+    // Initialize trip options - they will be populated when a route is selected
+    this.tripOptions = [];
+  }
+
   onRouteFilterChange(routeId) {
     const tripSearch = document.getElementById("tripFilterSearch");
 
@@ -822,87 +895,244 @@ class GTFSEditor {
   }
 
   showExistingStops() {
+    console.log("showExistingStops called");
+    console.log("this.files:", this.files);
+    
     if (!this.files || this.files.length === 0) {
+      console.log("No files available for existing stops");
       document.getElementById("existingStopsSection").style.display = "none";
       return;
     }
 
     const stopsFile = this.files.find((f) => f.name === "stops");
-    if (!stopsFile) {
+    console.log("stopsFile:", stopsFile);
+    
+    if (!stopsFile || !stopsFile.data || stopsFile.data.length === 0) {
+      console.log("No stops file or no stops data");
       document.getElementById("existingStopsSection").style.display = "none";
       return;
     }
 
+    console.log("Showing existing stops section with", stopsFile.data.length, "stops");
     document.getElementById("existingStopsSection").style.display = "block";
-    this.populateExistingStops(stopsFile.data);
+    this.initializeExistingStopsSelector(stopsFile.data);
   }
 
-  populateExistingStops(stops) {
-    const stopsList = document.getElementById("existingStopsList");
-    stopsList.innerHTML = "";
-
-    stops.forEach((stop) => {
-      const stopItem = document.createElement("div");
-      stopItem.className = "existing-stop-item";
-      stopItem.dataset.stopId = stop.stop_id;
-      stopItem.dataset.lat = stop.stop_lat;
-      stopItem.dataset.lng = stop.stop_lon;
-
-      stopItem.innerHTML = `
-                <div class="existing-stop-name">${
-                  stop.stop_name || stop.stop_id
-                }</div>
-                <div class="existing-stop-coords">${parseFloat(
-                  stop.stop_lat
-                ).toFixed(6)}, ${parseFloat(stop.stop_lon).toFixed(6)}</div>
-            `;
-
-      stopItem.addEventListener("click", () => {
-        this.addExistingStopToTrip(stop);
-      });
-
-      stopsList.appendChild(stopItem);
+  initializeExistingStopsSelector(stops) {
+    console.log("initializeExistingStopsSelector called with", stops.length, "stops");
+    
+    // Store stops for the selector
+    this.existingStopsOptions = stops.map((stop) => {
+      // Fix NaN issue by providing fallback values and validation
+      const lat = parseFloat(stop.stop_lat);
+      const lng = parseFloat(stop.stop_lon);
+      const hasValidCoords = !isNaN(lat) && !isNaN(lng);
+      
+      const stopName = stop.stop_name || stop.stop_id || "Unnamed Stop";
+      const coordsText = hasValidCoords 
+        ? `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+        : "No coordinates";
+      
+      return {
+        stop: stop,
+        value: stop.stop_id,
+        text: `${stopName} (${coordsText})`,
+        searchText: `${stopName} ${stop.stop_id} ${coordsText}`.toLowerCase(),
+      };
     });
+
+    console.log("Created", this.existingStopsOptions.length, "existing stops options");
+    this.selectedExistingStop = null;
+    
+    // Initialize event listeners for the existing stops selector
+    this.initializeExistingStopsEvents();
   }
 
-  filterExistingStops(searchTerm) {
-    const stopItems = document.querySelectorAll(".existing-stop-item");
-    const term = searchTerm.toLowerCase();
+  initializeExistingStopsEvents() {
+    console.log("initializeExistingStopsEvents called");
+    
+    const searchInput = document.getElementById("existingStopsSearch");
+    const dropdown = document.getElementById("existingStopsDropdown");
+    const addButton = document.getElementById("addExistingStopBtn");
 
-    stopItems.forEach((item) => {
-      const stopName = item
-        .querySelector(".existing-stop-name")
-        .textContent.toLowerCase();
-      const coords = item
-        .querySelector(".existing-stop-coords")
-        .textContent.toLowerCase();
+    console.log("Elements found:", {
+      searchInput: !!searchInput,
+      dropdown: !!dropdown,
+      addButton: !!addButton
+    });
 
-      if (stopName.includes(term) || coords.includes(term)) {
-        item.style.display = "block";
-      } else {
-        item.style.display = "none";
+    if (!searchInput || !dropdown) {
+      console.error("Required elements not found for existing stops events");
+      return;
+    }
+
+    // Remove existing event listeners to avoid duplicates
+    searchInput.replaceWith(searchInput.cloneNode(true));
+    const newSearchInput = document.getElementById("existingStopsSearch");
+    
+    newSearchInput.addEventListener("input", (e) => {
+      console.log("Search input changed:", e.target.value);
+      this.filterExistingStopsOptions(e.target.value);
+    });
+    newSearchInput.addEventListener("focus", () => {
+      console.log("Search input focused");
+      this.showAllExistingStopsOptions();
+    });
+    newSearchInput.addEventListener("blur", (e) => {
+      setTimeout(() => this.hideExistingStopsDropdown(), 150);
+    });
+
+    // Add button event listener
+    if (addButton) {
+      addButton.replaceWith(addButton.cloneNode(true));
+      const newAddButton = document.getElementById("addExistingStopBtn");
+      newAddButton.addEventListener("click", () => this.addSelectedExistingStop());
+    }
+
+    // Click outside to close dropdown
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("#existingStopsContainer")) {
+        this.hideExistingStopsDropdown();
       }
     });
+    
+    console.log("Existing stops events initialized successfully");
+  }
+
+  filterExistingStopsOptions(searchTerm) {
+    const dropdown = document.getElementById("existingStopsDropdown");
+
+    if (!this.existingStopsOptions) return;
+
+    const filteredOptions =
+      searchTerm.trim() === ""
+        ? this.existingStopsOptions
+        : this.existingStopsOptions.filter((option) =>
+            option.searchText.includes(searchTerm.toLowerCase())
+          );
+
+    this.renderExistingStopsDropdown(dropdown, filteredOptions);
+
+    if (filteredOptions.length > 0) {
+      this.showExistingStopsDropdown();
+    } else {
+      this.hideExistingStopsDropdown();
+    }
+  }
+
+  renderExistingStopsDropdown(dropdown, options) {
+    dropdown.innerHTML = "";
+
+    options.forEach((option) => {
+      const optionEl = document.createElement("div");
+      optionEl.className = "search-option";
+      optionEl.textContent = option.text;
+      optionEl.addEventListener("click", () => this.selectExistingStop(option));
+      dropdown.appendChild(optionEl);
+    });
+  }
+
+  selectExistingStop(option) {
+    this.selectedExistingStop = option.stop;
+    document.getElementById("existingStopsSearch").value = option.text;
+    document.getElementById("addExistingStopBtn").disabled = false;
+    this.hideExistingStopsDropdown();
+  }
+
+  showAllExistingStopsOptions() {
+    if (this.existingStopsOptions && this.existingStopsOptions.length > 0) {
+      const dropdown = document.getElementById("existingStopsDropdown");
+      this.renderExistingStopsDropdown(dropdown, this.existingStopsOptions);
+      this.showExistingStopsDropdown();
+    }
+  }
+
+  showExistingStopsDropdown() {
+    document.getElementById("existingStopsDropdown").classList.add("show");
+  }
+
+  hideExistingStopsDropdown() {
+    document.getElementById("existingStopsDropdown").classList.remove("show");
+  }
+
+  addSelectedExistingStop() {
+    if (!this.selectedExistingStop) {
+      this.showStatus("Please select a stop first", "error");
+      return;
+    }
+
+    this.addExistingStopToTrip(this.selectedExistingStop);
+    
+    // Clear selection after adding
+    document.getElementById("existingStopsSearch").value = "";
+    document.getElementById("addExistingStopBtn").disabled = true;
+    this.selectedExistingStop = null;
   }
 
   addExistingStopToTrip(stop) {
     // Add the existing stop to the current trip being created
-    if (this.mapEditor && this.mapEditor.currentTrip) {
+    if (this.mapEditor && this.mapEditor.currentTrip && this.mapEditor.isCreatingTrip) {
       const lat = parseFloat(stop.stop_lat);
       const lng = parseFloat(stop.stop_lon);
 
-      // Use the map editor's method to add the stop
-      this.mapEditor.addStopToTrip(lat, lng, {
-        stop_name: stop.stop_name || stop.stop_id,
+      // Validate coordinates
+      if (isNaN(lat) || isNaN(lng)) {
+        this.showStatus("Stop has invalid coordinates and cannot be added", "error");
+        return;
+      }
+
+      // Use the map editor's addExistingStop method
+      this.mapEditor.addExistingStop(lat, lng, {
         stop_id: stop.stop_id,
-        isExistingStop: true,
+        stop_name: stop.stop_name || stop.stop_id,
+        stop_code: stop.stop_code || "",
+        stop_desc: stop.stop_desc || "",
+        zone_id: stop.zone_id || "",
+        stop_url: stop.stop_url || "",
+        location_type: stop.location_type || "0",
+        parent_station: stop.parent_station || "",
+        wheelchair_boarding: stop.wheelchair_boarding || ""
       });
+      
+      this.showStatus(`Added existing stop: ${stop.stop_name || stop.stop_id}`, "success");
+    } else {
+      this.showStatus("Please start creating a trip first", "error");
+    }
+  }
+
+  copyStopInfo(stop) {
+    const stopInfo = `Name: ${stop.stop_name || stop.stop_id}
+ID: ${stop.stop_id}
+Latitude: ${stop.stop_lat}
+Longitude: ${stop.stop_lon}`;
+    
+    // Try to copy to clipboard
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(stopInfo).then(() => {
+        this.showStatus("Stop information copied to clipboard", "success");
+      }).catch(() => {
+        this.showStatus("Could not copy to clipboard", "error");
+      });
+    } else {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = stopInfo;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        this.showStatus("Stop information copied to clipboard", "success");
+      } catch (err) {
+        this.showStatus("Could not copy to clipboard", "error");
+      }
+      document.body.removeChild(textArea);
     }
   }
 
   hideExistingStops() {
     document.getElementById("existingStopsSection").style.display = "none";
   }
+  
 
   toggleRouteCreator() {
     const content = document.getElementById("routeCreatorContent");
@@ -976,9 +1206,10 @@ class GTFSEditor {
     // Show table actions
     document.querySelector(".table-actions").style.display = "block";
 
-    // Hide route filter and existing stops
+    // Hide route filter and existing stops by default
     this.hideRouteFilter();
     this.hideExistingStops();
+    
   }
 
   activateMapView() {
@@ -998,7 +1229,13 @@ class GTFSEditor {
     if (this.isNewGTFS) {
       // New GTFS creation mode - optimize for creating routes
       this.hideRouteFilter();
-      this.hideExistingStops();
+      // Check if we have existing stops even in new GTFS mode
+      const stopsFile = this.files ? this.files.find((f) => f.name === "stops") : null;
+      if (stopsFile && stopsFile.data && stopsFile.data.length > 0) {
+        this.showExistingStops();
+      } else {
+        this.hideExistingStops();
+      }
       this.expandRouteCreator();
     } else {
       // Uploaded GTFS editing mode - optimize for editing existing data
@@ -1017,7 +1254,12 @@ class GTFSEditor {
 
   updateFileTabs() {
     const fileTabs = document.getElementById("fileTabs");
+    // Preserve disabled state when recreating tabs
+    const wasDisabled = fileTabs.classList.contains("disabled");
     fileTabs.innerHTML = "";
+    if (wasDisabled) {
+      fileTabs.classList.add("disabled");
+    }
 
     // Add a special tab for the current trip view
     const tab = document.createElement("button");
@@ -1304,4 +1546,788 @@ class GTFSEditor {
     // Reload the page to start fresh
     window.location.reload();
   }
+
+  showInstructions() {
+    document.getElementById("floatingInstructions").style.display = "block";
+  }
+
+  closeInstructions() {
+    document.getElementById("floatingInstructions").style.display = "none";
+  }
+
+  toggleInstructions() {
+    const content = document.getElementById("instructionsWindowContent");
+    const collapseBtn = document.getElementById("collapseInstructions");
+    
+    if (content.classList.contains("collapsed")) {
+      content.classList.remove("collapsed");
+      collapseBtn.textContent = "−";
+      collapseBtn.title = "Collapse Panel";
+    } else {
+      content.classList.add("collapsed");
+      collapseBtn.textContent = "+";
+      collapseBtn.title = "Expand Panel";
+    }
+  }
+
+  // Method to refresh existing stops visibility (called from map editor)
+  refreshExistingStopsVisibility() {
+    if (this.isNewGTFS) {
+      // Check if we have existing stops now
+      const stopsFile = this.files ? this.files.find((f) => f.name === "stops") : null;
+      if (stopsFile && stopsFile.data && stopsFile.data.length > 0) {
+        console.log("Refreshing existing stops - found", stopsFile.data.length, "stops");
+        this.showExistingStops();
+      } else {
+        console.log("Refreshing existing stops - no stops found, hiding");
+        this.hideExistingStops();
+      }
+    }
+  }
+
+  // Save/Load/Preview functionality
+  saveWork() {
+    try {
+      const workData = {
+        version: "1.0",
+        timestamp: new Date().toISOString(),
+        isNewGTFS: this.isNewGTFS,
+        files: this.files,
+        gtfsData: this.parser.gtfsData,
+        currentFile: this.currentFile,
+        agencyUrl: this.agencyUrl
+      };
+
+      // Save to localStorage as backup
+      localStorage.setItem('gtfs-work-backup', JSON.stringify(workData));
+
+      // Download as file
+      const blob = new Blob([JSON.stringify(workData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gtfs-work-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.showStatus("Work saved successfully!", "success");
+    } catch (error) {
+      console.error("Error saving work:", error);
+      this.showStatus("Error saving work: " + error.message, "error");
+    }
+  }
+
+  loadWork() {
+    document.getElementById('loadWorkFile').click();
+  }
+
+  handleLoadWorkFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const workData = JSON.parse(e.target.result);
+        this.restoreWork(workData);
+      } catch (error) {
+        console.error("Error loading work:", error);
+        this.showStatus("Error loading work: Invalid file format", "error");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  restoreWork(workData) {
+    try {
+      // Validate work data
+      if (!workData.version || !workData.files || !workData.gtfsData) {
+        throw new Error("Invalid work file format");
+      }
+
+      // Restore state
+      this.isNewGTFS = workData.isNewGTFS || false;
+      this.files = workData.files;
+      this.parser.gtfsData = workData.gtfsData;
+      this.currentFile = workData.currentFile || this.files[0];
+      this.agencyUrl = workData.agencyUrl || null;
+
+      // Update UI
+      if (this.isNewGTFS) {
+        this.updateUIForCreationMode();
+      } else {
+        this.updateUIForEditingMode();
+      }
+
+      // Show editor and restore file display
+      this.showEditor(this.files);
+      this.displayFileContent(this.currentFile);
+
+      // Extract and display agency info if available
+      if (workData.gtfsData["agency.txt"]) {
+        this.extractAgencyUrl(workData.gtfsData);
+      }
+
+      // Refresh existing stops visibility
+      this.refreshExistingStopsVisibility();
+
+      // Clear map editor state and switch to appropriate view
+      if (this.mapEditor) {
+        this.mapEditor.clearAllData();
+      }
+
+      this.showStatus("Work loaded successfully!", "success");
+
+      // Reset file input
+      document.getElementById('loadWorkFile').value = '';
+    } catch (error) {
+      console.error("Error restoring work:", error);
+      this.showStatus("Error restoring work: " + error.message, "error");
+    }
+  }
+
+  // Auto-save functionality
+  autoSave() {
+    if (this.files && this.files.length > 0) {
+      try {
+        const workData = {
+          version: "1.0",
+          timestamp: new Date().toISOString(),
+          isNewGTFS: this.isNewGTFS,
+          files: this.files,
+          gtfsData: this.parser.gtfsData,
+          currentFile: this.currentFile,
+          agencyUrl: this.agencyUrl,
+          isAutoSave: true
+        };
+        localStorage.setItem('gtfs-work-autosave', JSON.stringify(workData));
+      } catch (error) {
+        console.warn("Auto-save failed:", error);
+      }
+    }
+  }
+
+  // Check for auto-saved work on startup
+  checkForAutoSave() {
+    const autoSave = localStorage.getItem('gtfs-work-autosave');
+    if (autoSave) {
+      try {
+        const workData = JSON.parse(autoSave);
+        const timeDiff = new Date() - new Date(workData.timestamp);
+        const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+        // Only offer to restore if less than 24 hours old
+        if (hoursDiff < 24) {
+          const restore = confirm(
+            `Found auto-saved work from ${new Date(workData.timestamp).toLocaleString()}.\n\nWould you like to restore it?`
+          );
+          if (restore) {
+            this.restoreWork(workData);
+            return true;
+          }
+        }
+      } catch (error) {
+        console.warn("Error checking auto-save:", error);
+      }
+    }
+    return false;
+  }
+
+  previewGTFS() {
+    // Show the floating preview window
+    this.showFloatingPreview();
+  }
+
+  showFloatingPreview() {
+    const gtfsData = this.parser.gtfsData;
+    const previewWindow = document.getElementById("floatingPreviewWindow");
+    
+    // Initialize the preview window
+    this.initializePreviewWindow();
+    
+    // Populate the preview data
+    this.populatePreviewData(gtfsData);
+    
+    // Show the window
+    previewWindow.style.display = "flex";
+    
+    // Initialize the preview map after a short delay
+    setTimeout(() => {
+      this.initializePreviewMap(gtfsData);
+    }, 300);
+  }
+
+  initializePreviewWindow() {
+    const closeBtn = document.getElementById("closePreview");
+    const collapseBtn = document.getElementById("collapsePreview");
+    
+    // Remove existing event listeners to avoid duplicates
+    closeBtn.replaceWith(closeBtn.cloneNode(true));
+    collapseBtn.replaceWith(collapseBtn.cloneNode(true));
+    
+    // Add fresh event listeners
+    document.getElementById("closePreview").addEventListener("click", () => {
+      this.closeFloatingPreview();
+    });
+    
+    document.getElementById("collapsePreview").addEventListener("click", () => {
+      this.togglePreviewCollapse();
+    });
+    
+    // Initialize preview route/trip filtering
+    this.initializePreviewFiltering();
+  }
+  
+  populatePreviewData(gtfsData) {
+    // Populate agency info
+    this.populatePreviewAgencyInfo(gtfsData);
+    
+    // Populate statistics
+    this.populatePreviewStats(gtfsData);
+    
+    // Initialize route options for the preview filter
+    this.previewRouteOptions = [];
+    this.previewTripOptions = [];
+    
+    if (gtfsData["routes.txt"]) {
+      const routes = gtfsData["routes.txt"];
+      this.previewRouteOptions = routes.map((route) => {
+        const routeText = `${route.route_short_name || route.route_long_name || route.route_id} - ${route.route_long_name || route.route_short_name || "Unnamed Route"}`;
+        return {
+          value: route.route_id,
+          text: routeText,
+          searchText: `${route.route_short_name || ""} ${route.route_long_name || ""} ${route.route_id}`.toLowerCase(),
+        };
+      });
+      this.previewRouteOptions.sort((a, b) => a.text.localeCompare(b.text));
+    }
+  }
+  
+  populatePreviewAgencyInfo(gtfsData) {
+    // Agency name
+    const agencyName = document.getElementById("previewAgencyName");
+    if (gtfsData["agency.txt"] && gtfsData["agency.txt"].length > 0) {
+      const agencyData = gtfsData["agency.txt"][0];
+      agencyName.textContent = agencyData.agency_name || "Unknown Agency";
+    } else {
+      agencyName.textContent = "No Agency Data";
+    }
+
+    // Feed dates
+    const feedDates = document.getElementById("previewFeedDates");
+    const formatDate = (dateStr) => {
+      if (dateStr && dateStr.length === 8) {
+        return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+      }
+      return dateStr;
+    };
+
+    if (gtfsData["feed_info.txt"] && gtfsData["feed_info.txt"].length > 0) {
+      const feedInfo = gtfsData["feed_info.txt"][0];
+      const startDate = feedInfo.feed_start_date;
+      const endDate = feedInfo.feed_end_date;
+
+      if (startDate && endDate) {
+        feedDates.textContent = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+      } else if (startDate) {
+        feedDates.textContent = `From ${formatDate(startDate)}`;
+      } else if (endDate) {
+        feedDates.textContent = `Until ${formatDate(endDate)}`;
+      } else {
+        feedDates.textContent = "No date range specified";
+      }
+    } else {
+      feedDates.textContent = "No feed info available";
+    }
+
+    // Route count
+    const routeCount = document.getElementById("previewRouteCount");
+    if (gtfsData["routes.txt"] && gtfsData["routes.txt"].length > 0) {
+      const routes = gtfsData["routes.txt"];
+      const routeTypes = {};
+
+      routes.forEach((route) => {
+        const type = route.route_type;
+        const typeName = this.getRouteTypeName(type);
+        routeTypes[typeName] = (routeTypes[typeName] || 0) + 1;
+      });
+
+      const totalRoutes = routes.length;
+      const typesList = Object.entries(routeTypes)
+        .map(([type, count]) => (count > 1 ? `${count} ${type}` : `1 ${type}`))
+        .join(", ");
+
+      routeCount.textContent = `${totalRoutes} route${totalRoutes !== 1 ? "s" : ""} (${typesList})`;
+    } else {
+      routeCount.textContent = "No routes defined";
+    }
+
+    // Fare info
+    const fareInfo = document.getElementById("previewFareInfo");
+    if (gtfsData["fare_media.txt"] && gtfsData["fare_media.txt"].length > 0) {
+      const fareMedia = gtfsData["fare_media.txt"];
+      const mediaNames = fareMedia
+        .map((media) => media.fare_media_name || media.fare_media_id)
+        .filter((name) => name);
+
+      if (mediaNames.length > 0) {
+        fareInfo.textContent = mediaNames.join(", ");
+      } else {
+        fareInfo.textContent = `${fareMedia.length} fare media defined`;
+      }
+    } else if (gtfsData["fare_attributes.txt"] && gtfsData["fare_attributes.txt"].length > 0) {
+      fareInfo.textContent = "Legacy fare system";
+    } else {
+      fareInfo.textContent = "No fare data available";
+    }
+  }
+  
+  populatePreviewStats(gtfsData) {
+    const stats = {
+      agencies: gtfsData["agency.txt"] ? gtfsData["agency.txt"].length : 0,
+      routes: gtfsData["routes.txt"] ? gtfsData["routes.txt"].length : 0,
+      trips: gtfsData["trips.txt"] ? gtfsData["trips.txt"].length : 0,
+      stops: gtfsData["stops.txt"] ? gtfsData["stops.txt"].length : 0,
+      stopTimes: gtfsData["stop_times.txt"] ? gtfsData["stop_times.txt"].length : 0,
+      services: gtfsData["calendar.txt"] ? gtfsData["calendar.txt"].length : 0
+    };
+    
+    document.getElementById("previewStatsAgencies").textContent = stats.agencies;
+    document.getElementById("previewStatsRoutes").textContent = stats.routes;
+    document.getElementById("previewStatsTrips").textContent = stats.trips;
+    document.getElementById("previewStatsStops").textContent = stats.stops;
+    document.getElementById("previewStatsStopTimes").textContent = stats.stopTimes;
+    document.getElementById("previewStatsServices").textContent = stats.services;
+  }
+  
+  initializePreviewMap(gtfsData) {
+    const container = document.getElementById("previewMapContainer");
+    if (!container) return;
+    
+    // Clear any existing map
+    container.innerHTML = "";
+    
+    // Create the preview map
+    try {
+      this.previewMap = L.map(container).setView([40.7128, -74.006], 12);
+      
+      // Add tiles
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 19,
+        opacity: 0.7,
+      }).addTo(this.previewMap);
+      
+      // Force map to recognize container size
+      setTimeout(() => {
+        if (this.previewMap) {
+          this.previewMap.invalidateSize(true);
+          // Show initial instruction message
+          this.showPreviewMapMessage("Select a route and optionally a trip, then click 'Show on Map' to visualize");
+        }
+      }, 100);
+      
+    } catch (error) {
+      console.error("Error initializing preview map:", error);
+      container.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">Map failed to load: ${error.message}</div>`;
+    }
+  }
+  
+  
+  initializePreviewFiltering() {
+    // Initialize filter event listeners
+    const routeSearch = document.getElementById("previewRouteSearch");
+    const tripSearch = document.getElementById("previewTripSearch");
+    const applyBtn = document.getElementById("previewApplyFilter");
+    const clearBtn = document.getElementById("previewClearFilter");
+    
+    // Route search functionality
+    routeSearch.addEventListener("input", (e) => this.filterPreviewRouteOptions(e.target.value));
+    routeSearch.addEventListener("focus", () => this.showPreviewRouteOptions());
+    routeSearch.addEventListener("blur", (e) => {
+      setTimeout(() => this.hidePreviewRouteDropdown(), 150);
+    });
+    
+    // Trip search functionality  
+    tripSearch.addEventListener("input", (e) => this.filterPreviewTripOptions(e.target.value));
+    tripSearch.addEventListener("focus", () => this.showPreviewTripOptions());
+    tripSearch.addEventListener("blur", (e) => {
+      setTimeout(() => this.hidePreviewTripDropdown(), 150);
+    });
+    
+    // Filter buttons
+    applyBtn.addEventListener("click", () => this.applyPreviewFilter());
+    clearBtn.addEventListener("click", () => this.clearPreviewFilter());
+  }
+  
+  filterPreviewRouteOptions(searchTerm) {
+    const dropdown = document.getElementById("previewRouteDropdown");
+    const filteredOptions = searchTerm.trim() === "" 
+      ? this.previewRouteOptions 
+      : this.previewRouteOptions.filter((option) => option.searchText.includes(searchTerm.toLowerCase()));
+    
+    this.renderPreviewDropdownOptions(dropdown, filteredOptions, (option) => {
+      this.selectPreviewRoute(option.value, option.text);
+    });
+    
+    if (filteredOptions.length > 0) {
+      dropdown.classList.add("show");
+    } else {
+      dropdown.classList.remove("show");
+    }
+  }
+  
+  showPreviewRouteOptions() {
+    if (this.previewRouteOptions.length > 0) {
+      const dropdown = document.getElementById("previewRouteDropdown");
+      this.renderPreviewDropdownOptions(dropdown, this.previewRouteOptions, (option) => {
+        this.selectPreviewRoute(option.value, option.text);
+      });
+      dropdown.classList.add("show");
+    }
+  }
+  
+  hidePreviewRouteDropdown() {
+    document.getElementById("previewRouteDropdown").classList.remove("show");
+  }
+  
+  selectPreviewRoute(routeId, routeText) {
+    this.selectedPreviewRouteId = routeId;
+    document.getElementById("previewRouteSearch").value = routeText;
+    this.hidePreviewRouteDropdown();
+    
+    // Update trip options based on selected route
+    this.updatePreviewTripOptions(routeId);
+  }
+  
+  updatePreviewTripOptions(routeId) {
+    const tripSearch = document.getElementById("previewTripSearch");
+    
+    if (!routeId) {
+      this.previewTripOptions = [];
+      tripSearch.value = "";
+      tripSearch.placeholder = "Select route first...";
+      tripSearch.disabled = true;
+      return;
+    }
+    
+    const gtfsData = this.parser.gtfsData;
+    const trips = gtfsData["trips.txt"] || [];
+    const routeTrips = trips.filter((trip) => trip.route_id === routeId);
+    
+    this.previewTripOptions = routeTrips.map((trip) => {
+      const tripText = `${trip.trip_headsign || "No destination"} (Dir ${trip.direction_id || "0"}) - ${trip.trip_id}`;
+      return {
+        value: trip.trip_id,
+        text: tripText,
+        searchText: `${trip.trip_headsign || "no destination"} ${trip.trip_id} dir${trip.direction_id || "0"}`.toLowerCase(),
+      };
+    });
+    
+    tripSearch.value = "";
+    tripSearch.placeholder = "Click to select or type to search trips...";
+    tripSearch.disabled = false;
+  }
+  
+  renderPreviewDropdownOptions(dropdown, options, onSelectCallback) {
+    dropdown.innerHTML = "";
+    options.forEach((option) => {
+      const optionEl = document.createElement("div");
+      optionEl.className = "search-option";
+      optionEl.textContent = option.text;
+      optionEl.addEventListener("click", () => onSelectCallback(option));
+      dropdown.appendChild(optionEl);
+    });
+  }
+  
+  applyPreviewFilter() {
+    if (!this.previewMap) {
+      console.warn("Preview map not initialized");
+      return;
+    }
+
+    const routeId = this.selectedPreviewRouteId;
+    const tripId = this.selectedPreviewTripId;
+    
+    console.log("Applying preview filter - routeId:", routeId, "tripId:", tripId);
+    
+    // Clear existing map layers first
+    this.clearPreviewMapLayers();
+    
+    const gtfsData = this.parser.gtfsData;
+    
+    if (!routeId && !tripId) {
+      // No filter selected - show message
+      this.showPreviewMapMessage("Select a route and optionally a trip, then click 'Show on Map' to visualize");
+      return;
+    }
+    
+    // Filter and display the selected route/trip
+    this.displayPreviewFilteredData(gtfsData, routeId, tripId);
+  }
+  
+  clearPreviewMapLayers() {
+    if (!this.previewMap) return;
+    
+    // Remove all markers and polylines
+    this.previewMap.eachLayer((layer) => {
+      if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+        this.previewMap.removeLayer(layer);
+      }
+    });
+    
+    // Clear any existing message overlay
+    const existingMessage = document.querySelector('.preview-map-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+  }
+  
+  showPreviewMapMessage(message) {
+    const container = document.getElementById("previewMapContainer");
+    
+    // Remove existing message
+    const existingMessage = container.querySelector('.preview-map-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+    
+    // Add new message overlay
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'preview-map-message';
+    messageDiv.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      max-width: 250px;
+      z-index: 1000;
+      border: 1px solid #e9ecef;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    `;
+    messageDiv.textContent = message;
+    
+    container.style.position = 'relative';
+    container.appendChild(messageDiv);
+  }
+  
+  displayPreviewFilteredData(gtfsData, routeId, tripId) {
+    const routes = gtfsData["routes.txt"] || [];
+    const trips = gtfsData["trips.txt"] || [];
+    const stops = gtfsData["stops.txt"] || [];
+    const stopTimes = gtfsData["stop_times.txt"] || [];
+    const shapes = gtfsData["shapes.txt"] || [];
+    
+    // Find the selected route
+    const selectedRoute = routes.find(r => r.route_id === routeId);
+    if (!selectedRoute) {
+      this.showPreviewMapMessage("Selected route not found");
+      return;
+    }
+    
+    // Get trips for this route (or specific trip if selected)
+    let filteredTrips;
+    if (tripId) {
+      filteredTrips = trips.filter(t => t.trip_id === tripId && t.route_id === routeId);
+    } else {
+      filteredTrips = trips.filter(t => t.route_id === routeId);
+    }
+    
+    if (filteredTrips.length === 0) {
+      this.showPreviewMapMessage("No trips found for selected route");
+      return;
+    }
+    
+    // Get all stops for these trips
+    const tripIds = filteredTrips.map(t => t.trip_id);
+    const filteredStopTimes = stopTimes.filter(st => tripIds.includes(st.trip_id));
+    const stopIds = [...new Set(filteredStopTimes.map(st => st.stop_id))];
+    const filteredStops = stops.filter(s => stopIds.includes(s.stop_id));
+    
+    // Display stops
+    const validStops = [];
+    filteredStops.forEach((stop) => {
+      if (stop.stop_lat && stop.stop_lon) {
+        const lat = parseFloat(stop.stop_lat);
+        const lng = parseFloat(stop.stop_lon);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+              className: "existing-stop-marker",
+              html: '<div class="stop-marker-content"></div>',
+              iconSize: [14, 14],
+              iconAnchor: [7, 7],
+            }),
+          }).addTo(this.previewMap);
+          
+          marker.bindPopup(`
+            <div>
+              <h4>${stop.stop_name || "Unnamed Stop"}</h4>
+              <p><strong>ID:</strong> ${stop.stop_id}</p>
+              <p><strong>Route:</strong> ${selectedRoute.route_short_name || selectedRoute.route_long_name}</p>
+              <p><strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+            </div>
+          `);
+          
+          validStops.push(L.marker([lat, lng]));
+        }
+      }
+    });
+    
+    // Display shapes for these trips
+    const shapeIds = [...new Set(filteredTrips.map(t => t.shape_id).filter(Boolean))];
+    this.displayPreviewShapes(gtfsData, shapeIds, selectedRoute);
+    
+    // Fit map to show all data
+    if (validStops.length > 0) {
+      const group = new L.featureGroup(validStops);
+      this.previewMap.fitBounds(group.getBounds().pad(0.1));
+    } else if (shapeIds.length === 0) {
+      this.showPreviewMapMessage("No geographic data found for selected route/trip");
+    }
+    
+    // Show success message
+    const itemCount = validStops.length;
+    const shapeCount = shapeIds.length;
+    console.log(`Displayed ${itemCount} stops and ${shapeCount} shapes for route ${routeId}`);
+  }
+  
+  displayPreviewShapes(gtfsData, shapeIds, selectedRoute) {
+    const shapes = gtfsData["shapes.txt"] || [];
+    
+    if (shapes.length === 0 || shapeIds.length === 0) return;
+    
+    // Group shapes by shape_id
+    const shapeGroups = {};
+    shapes.forEach((shape) => {
+      if (shapeIds.includes(shape.shape_id)) {
+        if (!shapeGroups[shape.shape_id]) {
+          shapeGroups[shape.shape_id] = [];
+        }
+        shapeGroups[shape.shape_id].push({
+          lat: parseFloat(shape.shape_pt_lat),
+          lng: parseFloat(shape.shape_pt_lon),
+          sequence: parseInt(shape.shape_pt_sequence),
+        });
+      }
+    });
+    
+    // Get route color
+    let color = "#4caf50"; // default
+    if (selectedRoute.route_color && selectedRoute.route_color.length === 6) {
+      color = "#" + selectedRoute.route_color;
+    }
+    
+    const routeName = selectedRoute.route_short_name || selectedRoute.route_long_name || selectedRoute.route_id;
+    
+    // Draw each shape
+    Object.keys(shapeGroups).forEach((shapeId) => {
+      const shapePoints = shapeGroups[shapeId];
+      shapePoints.sort((a, b) => a.sequence - b.sequence);
+      
+      const validPoints = shapePoints.filter((p) => !isNaN(p.lat) && !isNaN(p.lng));
+      if (validPoints.length < 2) return;
+      
+      const latlngs = validPoints.map((p) => [p.lat, p.lng]);
+      const polyline = L.polyline(latlngs, {
+        color: color,
+        weight: 5,
+        opacity: 0.8,
+      }).addTo(this.previewMap);
+      
+      polyline.bindPopup(`
+        <div>
+          <h4>${routeName}</h4>
+          <p><strong>Shape ID:</strong> ${shapeId}</p>
+          <p><strong>Points:</strong> ${validPoints.length}</p>
+          <p><strong>Route Type:</strong> ${this.getRouteTypeName(selectedRoute.route_type)}</p>
+        </div>
+      `);
+    });
+  }
+  
+  filterPreviewTripOptions(searchTerm) {
+    const dropdown = document.getElementById("previewTripDropdown");
+    const filteredOptions = searchTerm.trim() === "" 
+      ? this.previewTripOptions 
+      : this.previewTripOptions.filter((option) => option.searchText.includes(searchTerm.toLowerCase()));
+    
+    this.renderPreviewDropdownOptions(dropdown, filteredOptions, (option) => {
+      this.selectPreviewTrip(option.value, option.text);
+    });
+    
+    if (filteredOptions.length > 0) {
+      dropdown.classList.add("show");
+    } else {
+      dropdown.classList.remove("show");
+    }
+  }
+  
+  showPreviewTripOptions() {
+    if (this.previewTripOptions.length > 0) {
+      const dropdown = document.getElementById("previewTripDropdown");
+      this.renderPreviewDropdownOptions(dropdown, this.previewTripOptions, (option) => {
+        this.selectPreviewTrip(option.value, option.text);
+      });
+      dropdown.classList.add("show");
+    }
+  }
+  
+  hidePreviewTripDropdown() {
+    document.getElementById("previewTripDropdown").classList.remove("show");
+  }
+  
+  selectPreviewTrip(tripId, tripText) {
+    this.selectedPreviewTripId = tripId;
+    document.getElementById("previewTripSearch").value = tripText;
+    this.hidePreviewTripDropdown();
+  }
+
+  clearPreviewFilter() {
+    document.getElementById("previewRouteSearch").value = "";
+    document.getElementById("previewTripSearch").value = "";
+    document.getElementById("previewTripSearch").disabled = true;
+    document.getElementById("previewTripSearch").placeholder = "Select route first...";
+    this.selectedPreviewRouteId = "";
+    this.selectedPreviewTripId = "";
+    this.previewTripOptions = [];
+    
+    // Clear the map as well
+    this.clearPreviewMapLayers();
+    this.showPreviewMapMessage("Select a route and optionally a trip, then click 'Show on Map' to visualize");
+  }
+  
+  closeFloatingPreview() {
+    const previewWindow = document.getElementById("floatingPreviewWindow");
+    previewWindow.style.display = "none";
+    
+    // Clean up the preview map
+    if (this.previewMap) {
+      this.previewMap.remove();
+      this.previewMap = null;
+    }
+  }
+  
+  togglePreviewCollapse() {
+    const content = document.getElementById("previewWindowContent");
+    const collapseBtn = document.getElementById("collapsePreview");
+    
+    if (content.style.display === "none") {
+      content.style.display = "block";
+      collapseBtn.textContent = "−";
+    } else {
+      content.style.display = "none";
+      collapseBtn.textContent = "+";
+    }
+  }
+
 }

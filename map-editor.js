@@ -12,6 +12,7 @@ class MapEditor {
     this.stopCounter = 1;
     this.routeCounter = 1;
     this.tripCounter = 1;
+    this.serviceCounter = 1;
     this.workflow = "route"; // 'route', 'trip'
 
     this.initializeEventListeners();
@@ -98,6 +99,17 @@ class MapEditor {
       .getElementById("stopsListToggle")
       .addEventListener("click", () => this.toggleStopsList());
 
+    // Trip creation method listeners
+    document
+      .getElementById("tripCreationMethodSelect")
+      .addEventListener("change", () => this.handleTripCreationMethodChange());
+    document
+      .getElementById("loadTripDataBtn")
+      .addEventListener("click", () => this.loadTripData());
+    document
+      .getElementById("copyFromTripSelect")
+      .addEventListener("change", () => this.handleCopyTripSelectChange());
+
     // Panel collapse listener
     document
       .getElementById("collapseRouteInfo")
@@ -123,10 +135,237 @@ class MapEditor {
 
   showInfoPanel() {
     document.getElementById("floatingRouteInfo").style.display = "block";
+    this.refreshExistingTripsVisibility();
   }
 
   hideInfoPanel() {
     document.getElementById("floatingRouteInfo").style.display = "none";
+  }
+
+  refreshExistingTripsVisibility() {
+    if (!this.currentRoute || !this.gtfsEditor) return;
+
+    const existingTripsSection = document.getElementById("existingTripsSection");
+    const tripsList = document.getElementById("existingTripsList");
+    const emptyState = document.getElementById("tripsListEmpty");
+
+    // Get existing trips for this route
+    const trips = this.getExistingTripsForRoute(this.currentRoute.id);
+    
+    if (trips.length > 0) {
+      existingTripsSection.style.display = "block";
+      emptyState.style.display = "none";
+      
+      // Clear existing trip items
+      const existingItems = tripsList.querySelectorAll(".trip-item");
+      existingItems.forEach(item => item.remove());
+      
+      // Add trip items
+      trips.forEach(trip => {
+        const tripItem = this.createTripItem(trip);
+        tripsList.appendChild(tripItem);
+      });
+    } else {
+      existingTripsSection.style.display = "none";
+    }
+  }
+
+  getExistingTripsForRoute(routeId) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) return [];
+    
+    const tripsData = this.gtfsEditor.parser.getFileData("trips.txt") || [];
+    return tripsData.filter(trip => trip.route_id === routeId);
+  }
+
+  createTripItem(trip) {
+    const tripItem = document.createElement("div");
+    tripItem.className = "trip-item";
+    
+    const direction = trip.direction_id === "0" ? "Dir 0" : "Dir 1";
+    const stops = this.getStopCountForTrip(trip.trip_id);
+    
+    tripItem.innerHTML = `
+      <div class="trip-info">
+        <div class="trip-name">${trip.trip_headsign || trip.trip_id}</div>
+        <div class="trip-details">${direction} • ${stops} stops</div>
+      </div>
+      <div class="trip-actions">
+        <button class="edit-trip-btn" onclick="window.mapEditor.editExistingTrip('${trip.trip_id}')">
+          Edit
+        </button>
+      </div>
+    `;
+    
+    return tripItem;
+  }
+
+  getStopCountForTrip(tripId) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) return 0;
+    
+    const stopTimesData = this.gtfsEditor.parser.getFileData("stop_times.txt") || [];
+    const tripStops = stopTimesData.filter(st => st.trip_id === tripId);
+    return tripStops.length;
+  }
+
+  editExistingTrip(tripId) {
+    if (this.isCreatingTrip) {
+      if (!confirm("You are currently creating a trip. Do you want to discard the current trip and edit the selected one?")) {
+        return;
+      }
+      this.clearCurrentTrip();
+    }
+
+    this.loadTripForEditing(tripId);
+  }
+
+  loadTripForEditing(tripId) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) {
+      alert("No GTFS data available");
+      return;
+    }
+
+    const parser = this.gtfsEditor.parser;
+    
+    // Get trip data
+    const tripsData = parser.getFileData("trips.txt") || [];
+    const trip = tripsData.find(t => t.trip_id === tripId);
+    
+    if (!trip) {
+      alert("Trip not found");
+      return;
+    }
+
+    // Get stop times for this trip
+    const stopTimesData = parser.getFileData("stop_times.txt") || [];
+    const tripStopTimes = stopTimesData
+      .filter(st => st.trip_id === tripId)
+      .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+    if (tripStopTimes.length === 0) {
+      alert("No stops found for this trip");
+      return;
+    }
+
+    // Get stops data
+    const stopsData = parser.getFileData("stops.txt") || [];
+    
+    // Get shape data if exists
+    const shapesData = parser.getFileData("shapes.txt") || [];
+    const tripShape = trip.shape_id ? shapesData.filter(s => s.shape_id === trip.shape_id) : [];
+
+    // Clear any existing trip data
+    this.clearTripData();
+
+    // Set up editing mode
+    this.isCreatingTrip = true;
+    this.currentTrip = {
+      id: trip.trip_id,
+      headsign: trip.trip_headsign,
+      direction: trip.direction_id,
+      shortName: trip.trip_short_name || "",
+      isEditing: true
+    };
+
+    // Populate form fields
+    document.getElementById("tripHeadsignInput").value = trip.trip_headsign || "";
+    document.getElementById("directionSelect").value = trip.direction_id || "0";
+    document.getElementById("tripShortNameInput").value = trip.trip_short_name || "";
+
+    // Set timing method based on stop times data
+    const hasCustomTimes = tripStopTimes.some(st => st.arrival_time && st.departure_time);
+    document.getElementById("timingMethodSelect").value = hasCustomTimes ? "manual" : "auto";
+    this.handleTimingMethodChange();
+
+    // Recreate stops on map
+    this.routeStops = [];
+    tripStopTimes.forEach((stopTime, index) => {
+      const stopData = stopsData.find(s => s.stop_id === stopTime.stop_id);
+      if (stopData) {
+        const stop = {
+          stop_id: stopData.stop_id,
+          stop_name: stopData.stop_name || `Stop ${index + 1}`,
+          stop_code: stopData.stop_code || "",
+          stop_desc: stopData.stop_desc || "",
+          stop_lat: parseFloat(stopData.stop_lat),
+          stop_lon: parseFloat(stopData.stop_lon),
+          sequence: parseInt(stopTime.stop_sequence),
+          arrival_time: stopTime.arrival_time,
+          departure_time: stopTime.departure_time
+        };
+
+        // Create marker for the stop
+        const marker = L.circleMarker([stop.stop_lat, stop.stop_lon], {
+          radius: 8,
+          fillColor: "#4caf50",
+          color: "white",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8,
+        }).addTo(this.map);
+
+        // Make stop draggable
+        this.makeStopDraggable(marker, stop);
+
+        // Add stop name label
+        const label = L.divIcon({
+          html: `<div class="stop-label">${stop.stop_name}</div>`,
+          className: "stop-label-container",
+          iconSize: [null, null],
+          iconAnchor: [0, -5],
+        });
+        const labelMarker = L.marker([stop.stop_lat, stop.stop_lon], {
+          icon: label,
+        }).addTo(this.map);
+
+        stop.marker = marker;
+        stop.label = labelMarker;
+        this.routeStops.push(stop);
+      }
+    });
+
+    // Don't recreate route line - shapes handle route visualization now
+
+    // Recreate shape if exists
+    if (tripShape.length > 0) {
+      this.currentTripShapePoints = tripShape
+        .sort((a, b) => parseInt(a.shape_pt_sequence) - parseInt(b.shape_pt_sequence))
+        .map(point => [parseFloat(point.shape_pt_lat), parseFloat(point.shape_pt_lon)]);
+
+      if (this.currentTripShapePoints.length > 0) {
+        const routeColor = this.currentRoute ? `#${this.currentRoute.color}` : "#4caf50";
+        this.currentTripShape = L.polyline(this.currentTripShapePoints, {
+          color: routeColor,
+          weight: 4,
+          opacity: 0.8,
+        }).addTo(this.map);
+
+        this.makeShapeEditable(this.currentTripShape);
+        // Add visible drag handles immediately for trip editing
+        this.addVisibleDragHandles(this.currentTripShape);
+      }
+    } else {
+      // Initialize empty shape for editing
+      this.initializeTripShape();
+    }
+
+    // Set up UI state
+    document.getElementById("startTripBtn").disabled = true;
+    document.getElementById("finishTripBtn").disabled = false;
+    document.getElementById("mapContainer").style.cursor = "crosshair";
+    
+    // Update trip info display
+    this.updateTripInfo();
+
+    // Show map message
+    this.showMapMessage(`Editing trip: ${trip.trip_headsign}. Click to add shape nodes, Shift+click to add stops.`, "info");
+
+    // Zoom to fit all stops
+    if (this.routeStops.length > 0) {
+      const group = new L.featureGroup(this.routeStops.map(stop => stop.marker));
+      this.map.fitBounds(group.getBounds().pad(0.1));
+    }
+
+    console.log(`Loaded trip ${tripId} for editing with ${this.routeStops.length} stops`);
   }
 
   switchToTableView() {
@@ -134,6 +373,12 @@ class MapEditor {
     document.getElementById("mapView").style.display = "none";
     document.getElementById("tableViewBtn").classList.add("active");
     document.getElementById("mapViewBtn").classList.remove("active");
+    
+    // Enable file tabs in table view
+    const fileTabs = document.getElementById("fileTabs");
+    if (fileTabs) {
+      fileTabs.classList.remove("disabled");
+    }
   }
 
   switchToMapView() {
@@ -141,6 +386,12 @@ class MapEditor {
     document.getElementById("mapView").style.display = "block";
     document.getElementById("tableViewBtn").classList.remove("active");
     document.getElementById("mapViewBtn").classList.add("active");
+    
+    // Disable file tabs in map view
+    const fileTabs = document.getElementById("fileTabs");
+    if (fileTabs) {
+      fileTabs.classList.add("disabled");
+    }
 
     // Use multiple timeouts to ensure proper initialization
     setTimeout(() => {
@@ -300,18 +551,39 @@ class MapEditor {
 
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
+    const noShapes = document.getElementById("noShapesToggle")?.checked || false;
 
-    // Check timing method
-    const timingMethod = document.getElementById("timingMethodSelect").value;
-
-    if (timingMethod === "manual") {
-      this.promptForStopTime(lat, lng);
+    // Check if shift key was held down
+    if (e.originalEvent && e.originalEvent.shiftKey) {
+      // Shift+click = add stop (and extend shape to that stop if shapes enabled)
+      const timingMethod = document.getElementById("timingMethodSelect").value;
+      
+      if (timingMethod === "manual") {
+        this.promptForStopTime(lat, lng, !noShapes);
+      } else {
+        this.addStop(lat, lng, !noShapes);
+      }
     } else {
-      this.addStop(lat, lng);
+      // Normal click behavior depends on whether we have stops yet
+      if (this.routeStops.length === 0) {
+        // First click = add first stop (and start shape if enabled)
+        const timingMethod = document.getElementById("timingMethodSelect").value;
+        
+        if (timingMethod === "manual") {
+          this.promptForStopTime(lat, lng, !noShapes, true);
+        } else {
+          this.addStop(lat, lng, !noShapes, true);
+        }
+      } else {
+        // Subsequent normal clicks = add shape node (only if shapes enabled)
+        if (!noShapes) {
+          this.addShapeNode(lat, lng);
+        }
+      }
     }
   }
 
-  promptForStopTime(lat, lng) {
+  promptForStopTime(lat, lng, extendShape = false, isFirstStop = false) {
     // Create a modal-like prompt for time input
     const arrivalTime = prompt("Enter arrival time (HH:MM):");
     if (!arrivalTime) return;
@@ -332,7 +604,7 @@ class MapEditor {
       departure: departureTime || arrivalTime,
     };
 
-    this.addStop(lat, lng, null, customTimes);
+    this.addStop(lat, lng, extendShape, customTimes, isFirstStop);
   }
 
   handleDrawCreated(e) {
@@ -356,6 +628,14 @@ class MapEditor {
 
       this.routeShape = layer;
       this.drawnItems.addLayer(layer);
+      
+      // Make the shape immediately editable with visible drag handles
+      this.makeShapeEditable(layer);
+      this.addVisibleDragHandles(layer);
+      
+      // Show success message
+      this.showMapMessage("Route shape created! You can drag the visible nodes to edit the shape", "success");
+      
       this.updateRouteInfo();
     }
   }
@@ -385,6 +665,9 @@ class MapEditor {
     const routeColor = document.getElementById("routeColorInput").value;
     const routeTextColor = document.getElementById("routeTextColorInput").value;
 
+    // Clear any existing trip data before creating new route
+    this.clearTripData();
+
     this.currentRoute = {
       id: `route_${this.routeCounter++}`,
       name: routeName,
@@ -394,6 +677,9 @@ class MapEditor {
       textColor: routeTextColor.substring(1), // Remove # for GTFS format
       isNew: true,
     };
+
+    // Enable shape drawing for the new route
+    this.enableRouteShapeDrawing();
 
     this.showTripSection();
   }
@@ -431,6 +717,9 @@ class MapEditor {
     const selectedRoute = routes.find((r) => r.route_id === routeId);
 
     if (selectedRoute) {
+      // Clear any existing trip data before selecting route
+      this.clearTripData();
+      
       this.currentRoute = {
         id: selectedRoute.route_id,
         name: selectedRoute.route_short_name || selectedRoute.route_long_name,
@@ -479,8 +768,17 @@ class MapEditor {
     document.getElementById("currentRouteId").textContent =
       this.currentRoute.id;
 
+    // Update trip section route indicator
+    const routeIndicator = document.getElementById("currentRouteIndicator");
+    if (routeIndicator) {
+      routeIndicator.innerHTML = `for Route Short Name: <span style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px; font-weight: bold; color: #1976d2;">${this.currentRoute.name}</span>`;
+    }
+
     // Initialize calendar UI
     this.handleCalendarMethodChange();
+
+    // Populate existing trips for copying
+    this.populateCopyTripSelector();
   }
 
   backToRouteCreation() {
@@ -492,15 +790,24 @@ class MapEditor {
   }
 
   startNewTrip() {
-    if (this.isCreatingTrip) {
-      this.clearCurrentTrip();
-    }
-
+    // Validate inputs BEFORE clearing existing trip data
     const headsign = document.getElementById("tripHeadsignInput").value.trim();
     if (!headsign) {
       alert("Please enter a trip headsign");
       return;
     }
+
+    // Store form values before clearing
+    const direction = document.getElementById("directionSelect").value;
+    const shortName = document.getElementById("tripShortNameInput").value.trim();
+
+    // Always clear any existing trip data (whether in progress or finished)
+    this.clearCurrentTrip();
+
+    // Restore form values after clearing
+    document.getElementById("tripHeadsignInput").value = headsign;
+    document.getElementById("directionSelect").value = direction;
+    document.getElementById("tripShortNameInput").value = shortName;
 
     // Validate service calendar selection is required
     const calendarMethod = document.getElementById(
@@ -572,6 +879,14 @@ class MapEditor {
     this.showInfoPanel();
 
     this.updateTripInfo();
+
+    // Refresh existing stops visibility when starting a new trip
+    if (this.gtfsEditor) {
+      this.gtfsEditor.refreshExistingStopsVisibility();
+    }
+
+    // Initialize trip shape automatically
+    this.initializeTripShape();
 
     // Change cursor to crosshair
     document.getElementById("mapContainer").style.cursor = "crosshair";
@@ -706,7 +1021,9 @@ class MapEditor {
     }
 
     // Add the stop at the specified coordinates
-    this.addStop(lat, lng, null, customTimes);
+    const noShapes = document.getElementById("noShapesToggle")?.checked || false;
+    const isFirst = this.routeStops.length === 0;
+    this.addStop(lat, lng, !noShapes, customTimes, isFirst);
 
     // Clear the input fields
     document.getElementById("latInput").value = "";
@@ -961,7 +1278,9 @@ class MapEditor {
       const serviceName =
         document.getElementById("serviceNameInput").value.trim() ||
         "custom_service";
-      const serviceId = `${serviceName}_${Date.now()}`;
+      // Generate simple service ID (e.g., "weekday_1", "weekend_2", etc.)
+      const serviceId = `${serviceName}_${this.serviceCounter || 1}`;
+      this.serviceCounter = (this.serviceCounter || 1) + 1;
 
       const startDate = document
         .getElementById("startDateInput")
@@ -994,7 +1313,9 @@ class MapEditor {
       return serviceId;
     } else if (calendarMethod === "none") {
       // Create a "no service" entry - all days set to 0
-      const serviceId = `no_service_${Date.now()}`;
+      // Generate simple "no service" ID
+      const serviceId = `no_service_${this.serviceCounter || 1}`;
+      this.serviceCounter = (this.serviceCounter || 1) + 1;
       const today = new Date();
       const nextYear = new Date(
         today.getFullYear() + 1,
@@ -1023,13 +1344,54 @@ class MapEditor {
     }
   }
 
-  addStop(lat, lng, existingStop = null, customTimes = null) {
-    const stopId = existingStop
-      ? existingStop.stop_id
-      : `stop_${this.stopCounter++}`;
-    const stopName = existingStop
-      ? existingStop.stop_name
-      : `Stop ${this.routeStops.length + 1}`;
+  addExistingStop(lat, lng, existingStopData) {
+    // Handle shape creation/extension if enabled
+    const noShapes = document.getElementById("noShapesToggle")?.checked || false;
+    const isFirst = this.routeStops.length === 0;
+    
+    if (!noShapes) {
+      if (isFirst) {
+        // Initialize shape for first stop
+        this.initializeTripShape();
+        this.addShapeNode(lat, lng);
+      } else {
+        // Extend shape to this stop location
+        this.addShapeNode(lat, lng);
+      }
+    }
+
+    const stop = {
+      stop_id: existingStopData.stop_id,
+      stop_name: existingStopData.stop_name || existingStopData.stop_id,
+      stop_code: existingStopData.stop_code || "",
+      stop_desc: existingStopData.stop_desc || "",
+      stop_lat: lat.toFixed(6),
+      stop_lon: lng.toFixed(6),
+      stop_sequence: this.routeStops.length + 1,
+    };
+
+    // Add timing information for existing stops
+    this.addTimingToStop(stop, null);
+
+    // Continue with the rest of the stop creation logic
+    this.createStopMarkerAndFinalize(stop);
+  }
+
+  addStop(lat, lng, extendShape = false, customTimes = null, isFirstStop = false) {
+    const stopId = `stop_${this.stopCounter++}`;
+    const stopName = `Stop ${this.routeStops.length + 1}`;
+
+    // Handle shape creation/extension if enabled
+    if (extendShape) {
+      if (isFirstStop) {
+        // Initialize shape for first stop
+        this.initializeTripShape();
+        this.addShapeNode(lat, lng);
+      } else {
+        // Extend shape to this stop location
+        this.addShapeNode(lat, lng);
+      }
+    }
 
     const stop = {
       stop_id: stopId,
@@ -1039,94 +1401,11 @@ class MapEditor {
       stop_sequence: this.routeStops.length + 1,
     };
 
-    // Add timing information based on method
-    const timingMethod =
-      document.getElementById("timingMethodSelect")?.value || "auto";
-    if (timingMethod === "manual" && customTimes) {
-      stop.arrival_time = this.convertToGTFSTime(customTimes.arrival);
-      stop.departure_time = this.convertToGTFSTime(customTimes.departure);
-    } else if (timingMethod === "auto") {
-      // Auto-calculate times based on interval
-      const defaultInterval = parseInt(
-        document.getElementById("defaultStopIntervalInput")?.value || 2
-      );
-      const startTime =
-        document.getElementById("tripStartTimeInput")?.value || "08:00";
-      const calculatedTime = this.calculateStopTime(
-        startTime,
-        (stop.stop_sequence - 1) * defaultInterval
-      );
-      const gtfsTime = this.convertToGTFSTime(calculatedTime);
-      
-      // For new stops, just use calculated time (validation will happen after stop is added)
-      stop.arrival_time = gtfsTime;
-      stop.departure_time = gtfsTime;
-    }
+    // Add timing information
+    this.addTimingToStop(stop, customTimes);
 
-    // Update previous stops to show as "previous" (muted)
-    this.routeStops.forEach((prevStop) => {
-      if (prevStop.marker) {
-        prevStop.marker.setStyle({
-          radius: 6,
-          fillColor: "#9e9e9e",
-          color: "white",
-          weight: 2,
-          opacity: 0.7,
-          fillOpacity: 0.7,
-        });
-      }
-    });
-
-    // Create marker for current stop with emphasis
-    const marker = L.circleMarker([lat, lng], {
-      radius: 10,
-      fillColor: "#ff5722",
-      color: "white",
-      weight: 3,
-      opacity: 1,
-      fillOpacity: 0.9,
-    }).addTo(this.map);
-
-    // Add permanent label above the marker
-    const label = L.marker([lat, lng], {
-      icon: L.divIcon({
-        className: 'stop-label',
-        html: `<div class="stop-label-text">${stopName}</div>`,
-        iconSize: [120, 20],
-        iconAnchor: [60, 30] // Position label above marker
-      })
-    }).addTo(this.map);
-
-    // Add pulsing effect to current stop
-    const pulseInterval = setInterval(() => {
-      if (marker._map && this.isCreatingTrip) {
-        const currentRadius = marker.getRadius();
-        marker.setRadius(currentRadius === 10 ? 12 : 10);
-      } else {
-        clearInterval(pulseInterval);
-      }
-    }, 1000);
-
-    // Create popup for editing stop details
-    const popupContent = this.createStopPopup(stop, marker);
-    marker.bindPopup(popupContent);
-
-    stop.marker = marker;
-    stop.label = label;
-    stop.pulseInterval = pulseInterval;
-    this.routeStops.push(stop);
-
-    // After adding the stop, validate and fix any time conflicts
-    this.validateAndFixStopTimes(stop.stop_id);
-
-    this.updateRouteInfo();
-
-    // Connect stops with a line if we have more than one
-    if (this.routeStops.length > 1) {
-      this.updateRouteLine();
-    }
-
-    this.updateTripInfo();
+    // Continue with marker creation
+    this.createStopMarkerAndFinalize(stop);
   }
 
   createStopPopup(stop) {
@@ -1145,25 +1424,26 @@ class MapEditor {
     );
     const defaultDepartureTime = defaultArrivalTime;
 
+    // Helper function to escape HTML attributes
+    const escapeHtml = (text) => {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML.replace(/"/g, '&quot;');
+    };
+
     div.innerHTML = `
             <h4>Edit Stop #${stop.stop_sequence}</h4>
             <div class="popup-field">
                 <label>Stop Name:</label>
-                <input type="text" id="stopName_${stop.stop_id}" value="${
-      stop.stop_name
-    }" placeholder="Stop Name">
+                <input type="text" id="stopName_${escapeHtml(stop.stop_id)}" value="${escapeHtml(stop.stop_name)}" placeholder="Stop Name">
             </div>
             <div class="popup-field">
                 <label>Stop Code:</label>
-                <input type="text" id="stopCode_${stop.stop_id}" value="${
-      stop.stop_code || ""
-    }" placeholder="Optional">
+                <input type="text" id="stopCode_${escapeHtml(stop.stop_id)}" value="${escapeHtml(stop.stop_code || "")}" placeholder="Optional">
             </div>
             <div class="popup-field">
                 <label>Stop Description:</label>
-                <input type="text" id="stopDesc_${stop.stop_id}" value="${
-      stop.stop_desc || ""
-    }" placeholder="Optional">
+                <input type="text" id="stopDesc_${escapeHtml(stop.stop_id)}" value="${escapeHtml(stop.stop_desc || "")}" placeholder="Optional">
             </div>
             <div class="popup-time-section">
                 <h5>Schedule Times</h5>
@@ -1331,28 +1611,14 @@ class MapEditor {
   }
 
   updateRouteLine() {
-    // Remove existing route line
+    // Remove existing route line if it exists
     if (this.routeLine) {
       this.map.removeLayer(this.routeLine);
+      this.routeLine = null;
     }
 
-    if (this.routeStops.length < 2) return;
-
-    // Create line connecting all stops
-    const latlngs = this.routeStops.map((stop) => [
-      parseFloat(stop.stop_lat),
-      parseFloat(stop.stop_lon),
-    ]);
-
-    const routeColor = this.currentRoute
-      ? `#${this.currentRoute.color}`
-      : "#4caf50";
-    this.routeLine = L.polyline(latlngs, {
-      color: routeColor,
-      weight: 3,
-      opacity: 0.6,
-      dashArray: "5, 10",
-    }).addTo(this.map);
+    // Don't create dotted line between stops during trip creation
+    // Shapes now handle the route visualization
   }
 
   updateTripInputs() {
@@ -1909,7 +2175,13 @@ class MapEditor {
     });
 
     // Generate GTFS data from the visual trip
-    this.generateGTFSFromTrip();
+    try {
+      this.generateGTFSFromTrip();
+    } catch (error) {
+      console.error("Error generating GTFS from trip:", error);
+      alert("Error saving trip data: " + error.message);
+      return;
+    }
 
     // Reset UI for creating another trip on the same route
     this.isCreatingTrip = false;
@@ -1926,15 +2198,31 @@ class MapEditor {
     document.getElementById("tripStartTimeInput").value = "08:00";
     document.getElementById("defaultStopIntervalInput").value = "2";
 
+    // Refresh existing stops visibility in case new stops were added
+    if (this.gtfsEditor) {
+      this.gtfsEditor.refreshExistingStopsVisibility();
+    }
+
+    // Refresh existing trips list
+    this.refreshExistingTripsVisibility();
+
+    const actionText = this.currentTrip && this.currentTrip.isEditing ? "updated" : "created";
     alert(
-      `Trip "${this.currentTrip.headsign}" on route "${this.currentRoute.name}" created successfully!\n\nYou can now create another trip on the same route or switch to table view to see the data.`
+      `Trip "${this.currentTrip.headsign}" on route "${this.currentRoute.name}" ${actionText} successfully!\n\nYou can now create another trip on the same route or switch to table view to see the data.`
     );
 
     this.currentTrip = null;
+
+    // Refresh the trip selector now that a new trip has been fully saved
+    setTimeout(() => {
+      console.log("Refreshing trip selector after successful trip creation");
+      this.populateCopyTripSelector();
+    }, 500); // Increased delay to ensure data is fully saved
   }
 
   generateGTFSFromTrip() {
     const parser = this.gtfsEditor.parser;
+    const isEditing = this.currentTrip && this.currentTrip.isEditing;
 
     // 1. Add Agency (if doesn't exist)
     let agencyData = parser.getFileData("agency.txt");
@@ -1993,7 +2281,30 @@ class MapEditor {
       return; // Exit if service creation failed
     }
 
-    // 5. Add Trip
+    // 5. Save Trip Shape (if drawn)
+    let shapeId = null;
+    if (this.currentTripShape && this.currentTripShapePoints && this.currentTripShapePoints.length > 0) {
+      shapeId = `shape_${this.currentTrip.id}_${Date.now()}`;
+      
+      // Add shape points to shapes.txt
+      this.currentTripShapePoints.forEach((point, index) => {
+        // Handle both array format [lat, lng] and LatLng object format
+        const lat = Array.isArray(point) ? point[0] : point.lat;
+        const lng = Array.isArray(point) ? point[1] : point.lng;
+        
+        parser.addRow("shapes.txt", {
+          shape_id: shapeId,
+          shape_pt_lat: lat,
+          shape_pt_lon: lng,
+          shape_pt_sequence: index + 1,
+          shape_dist_traveled: "" // Optional field
+        });
+      });
+      
+      console.log(`Saved shape ${shapeId} with ${this.currentTripShapePoints.length} points`);
+    }
+
+    // 6. Handle Trip (add or update)
     const tripData = {
       route_id: this.currentRoute.id,
       service_id: serviceId,
@@ -2002,13 +2313,44 @@ class MapEditor {
       direction_id: this.currentTrip.direction,
     };
 
+    // Add shape_id if we have a shape
+    if (shapeId) {
+      tripData.shape_id = shapeId;
+    }
+
     if (this.currentTrip.shortName) {
       tripData.trip_short_name = this.currentTrip.shortName;
     }
 
-    parser.addRow("trips.txt", tripData);
+    if (isEditing) {
+      // Update existing trip
+      const tripsData = parser.getFileData("trips.txt");
+      const existingTripIndex = tripsData.findIndex(t => t.trip_id === this.currentTrip.id);
+      if (existingTripIndex !== -1) {
+        tripsData[existingTripIndex] = tripData;
+        console.log(`Updated existing trip ${this.currentTrip.id}`);
+      }
+    } else {
+      // Add new trip
+      parser.addRow("trips.txt", tripData);
+      console.log("Added new trip to trips.txt:", tripData);
+      
+      // Verify it was added
+      const allTrips = parser.getFileData("trips.txt");
+      console.log("Total trips after addition:", allTrips?.length);
+      console.log("Last trip in data:", allTrips?.[allTrips.length - 1]);
+    }
 
-    // 6. Add Stop Times (use custom times if available)
+    // 7. Handle Stop Times (add or update)
+    if (isEditing) {
+      // Remove existing stop times for this trip
+      const stopTimesData = parser.getFileData("stop_times.txt");
+      const filteredStopTimes = stopTimesData.filter(st => st.trip_id !== this.currentTrip.id);
+      parser.gtfsData["stop_times.txt"] = filteredStopTimes;
+      console.log(`Removed ${stopTimesData.length - filteredStopTimes.length} existing stop times for trip ${this.currentTrip.id}`);
+    }
+
+    // Add updated stop times
     this.routeStops.forEach((stop, index) => {
       const arrivalTime = stop.arrival_time || this.generateDefaultTime(index);
       const departureTime = stop.departure_time || arrivalTime;
@@ -2018,31 +2360,22 @@ class MapEditor {
         arrival_time: arrivalTime,
         departure_time: departureTime,
         stop_id: stop.stop_id,
-        stop_sequence: stop.stop_sequence,
+        stop_sequence: stop.sequence || (index + 1),
       });
     });
 
-    // 7. Add Shape (if drawn)
-    if (this.routeShape) {
-      const shapeId = `shape_${this.currentTrip.id}`;
-      const latlngs = this.routeShape.getLatLngs();
-
-      // Update trip with shape_id
-      const trips = parser.getFileData("trips.txt");
-      const trip = trips.find((t) => t.trip_id === this.currentTrip.id);
-      if (trip) {
-        trip.shape_id = shapeId;
+    // 8. Handle Shape updates for editing (shapes were already handled above in step 5)
+    if (isEditing && shapeId) {
+      // Remove existing shape data for the old shape_id if it exists
+      const tripsData = parser.getFileData("trips.txt");
+      const existingTrip = tripsData.find(t => t.trip_id === this.currentTrip.id);
+      if (existingTrip && existingTrip.shape_id && existingTrip.shape_id !== shapeId) {
+        // Remove old shape points
+        const shapesData = parser.getFileData("shapes.txt");
+        const filteredShapes = shapesData.filter(s => s.shape_id !== existingTrip.shape_id);
+        parser.gtfsData["shapes.txt"] = filteredShapes;
+        console.log(`Removed old shape data for ${existingTrip.shape_id}`);
       }
-
-      // Add shape points
-      latlngs.forEach((latlng, index) => {
-        parser.addRow("shapes.txt", {
-          shape_id: shapeId,
-          shape_pt_lat: latlng.lat.toFixed(6),
-          shape_pt_lon: latlng.lng.toFixed(6),
-          shape_pt_sequence: index + 1,
-        });
-      });
     }
   }
 
@@ -2114,6 +2447,39 @@ class MapEditor {
       this.routeShape = null;
     }
 
+    // Remove current trip shape
+    if (this.currentTripShape) {
+      // Remove visible drag handles before removing the shape
+      this.removeVisibleDragHandles(this.currentTripShape);
+      this.map.removeLayer(this.currentTripShape);
+      this.currentTripShape = null;
+    }
+    this.currentTripShapePoints = [];
+    this.shapePointsHistory = []; // Clear shape undo history
+
+    // Remove route shape drag handles too
+    if (this.routeShape) {
+      this.removeVisibleDragHandles(this.routeShape);
+    }
+
+    // Clear any lingering map layers (more comprehensive cleanup)
+    if (this.map) {
+      this.map.eachLayer((layer) => {
+        // Don't remove base tiles, drawnItems, or other permanent layers
+        if (layer !== this.drawnItems && 
+            layer.options && 
+            !layer._url && // Don't remove tile layers
+            !layer._isBaseLayer) { // Don't remove base layers
+          // Check if this layer looks like a stop marker, shape line, or other trip/route element
+          if (layer._latlng || // Markers have _latlng
+              layer._latlngs || // Polylines have _latlngs
+              (layer.options && (layer.options.className === 'leaflet-div-icon' || layer.options.color))) {
+            this.map.removeLayer(layer);
+          }
+        }
+      });
+    }
+
     // Reset stops array
     this.routeStops = [];
   }
@@ -2121,6 +2487,45 @@ class MapEditor {
   clearCurrentRoute() {
     // Legacy method - redirect to trip clearing
     this.clearCurrentTrip();
+  }
+
+  clearAllData() {
+    // Clear all map data and reset state
+    this.clearCurrentTrip();
+    
+    // Safety cleanup for any remaining intervals
+    if (this.routeStops) {
+      this.routeStops.forEach((stop) => {
+        if (stop.pulseInterval) {
+          clearInterval(stop.pulseInterval);
+        }
+      });
+    }
+    
+    // Clear all map layers
+    if (this.map) {
+      this.map.eachLayer((layer) => {
+        if (layer !== this.drawnItems && 
+            layer.options && 
+            !layer._url) { // Don't remove tile layers
+          this.map.removeLayer(layer);
+        }
+      });
+    }
+    
+    // Reset route state
+    this.currentRoute = null;
+    this.isCreatingTrip = false;
+    
+    // Hide panels
+    this.hideInfoPanel();
+    
+    // Reset UI state
+    document.getElementById("routeSection").style.display = "block";
+    document.getElementById("tripSection").style.display = "none";
+    document.getElementById("mapContainer").style.cursor = "";
+    
+    console.log("All map data cleared");
   }
 
   loadExistingData() {
@@ -3003,6 +3408,962 @@ class MapEditor {
     if (this.gtfsEditor) {
       this.gtfsEditor.applyMapFilter();
     }
+  }
+
+  enableRouteShapeDrawing() {
+    if (!this.map || !this.currentRoute) return;
+
+    // Show instruction message
+    this.showMapMessage("Draw the route shape by clicking points on the map, or use the drawing tools on the right", "info");
+    
+    // Update the drawing control color to match the route
+    const routeColor = `#${this.currentRoute.color}`;
+    this.updateDrawingControlColor(routeColor);
+    
+    // Enable polyline drawing mode
+    this.enablePolylineDrawing();
+  }
+
+  showMapMessage(message, type = "info") {
+    // Remove any existing message
+    const existingMessage = document.querySelector('.map-instruction-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+
+    // Create new message overlay
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'map-instruction-message';
+    
+    const bgColor = type === "info" ? "rgba(33, 150, 243, 0.9)" : "rgba(76, 175, 80, 0.9)";
+    const textColor = "white";
+    
+    messageDiv.style.cssText = `
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${bgColor};
+      color: ${textColor};
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      max-width: 400px;
+      text-align: center;
+    `;
+    messageDiv.textContent = message;
+
+    const mapContainer = document.getElementById('mapContainer');
+    if (mapContainer) {
+      mapContainer.style.position = 'relative';
+      mapContainer.appendChild(messageDiv);
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        if (messageDiv && messageDiv.parentNode) {
+          messageDiv.remove();
+        }
+      }, 5000);
+    }
+  }
+
+  updateDrawingControlColor(color) {
+    // Update the polyline drawing options to use the route color
+    if (this.map && this.map.drawControl) {
+      const drawControl = this.map.drawControl;
+      if (drawControl.options.draw.polyline) {
+        drawControl.options.draw.polyline.shapeOptions.color = color;
+      }
+    }
+  }
+
+  enablePolylineDrawing() {
+    // This enables the drawing toolbar - users can click the polyline tool
+    console.log("Shape drawing enabled for route:", this.currentRoute.name);
+  }
+
+  makeShapeEditable(polyline) {
+    if (!polyline) return;
+
+    // Enable editing on the polyline
+    polyline.editing.enable();
+    
+    // Store reference for future use
+    polyline.isEditable = true;
+    
+    // Add event listeners for shape editing
+    polyline.on('edit', () => {
+      this.onShapeEdited(polyline);
+    });
+    
+    // Add click handler to show edit controls
+    polyline.on('click', () => {
+      this.showShapeEditTooltip(polyline);
+    });
+
+    // Make shape nodes draggable by adding vertex drag handlers
+    polyline.on('editable:vertex:dragstart', (e) => {
+      this.onShapeVertexDragStart(e);
+    });
+
+    polyline.on('editable:vertex:drag', (e) => {
+      this.onShapeVertexDrag(e);
+    });
+
+    polyline.on('editable:vertex:dragend', (e) => {
+      this.onShapeVertexDragEnd(e);
+    });
+    
+    console.log("Shape is now editable with draggable nodes");
+  }
+
+  onShapeEdited(polyline) {
+    // Update route info when shape is edited
+    this.updateRouteInfo();
+    
+    // Auto-save the shape data
+    this.saveShapeToRoute(polyline);
+  }
+
+  saveShapeToRoute(polyline) {
+    if (!polyline || !this.currentRoute) return;
+    
+    // Store the shape points in the current route
+    this.currentRoute.shapePoints = polyline.getLatLngs().map((latlng, index) => ({
+      lat: latlng.lat.toFixed(6),
+      lng: latlng.lng.toFixed(6),
+      sequence: index + 1
+    }));
+    
+    console.log("Shape saved to route:", this.currentRoute.shapePoints.length, "points");
+  }
+
+  showShapeEditTooltip(polyline) {
+    // Show a temporary tooltip with editing instructions
+    const tooltip = L.tooltip({
+      permanent: false,
+      direction: 'top',
+      offset: [0, -10]
+    })
+    .setContent('Drag the nodes to edit the shape. Right-click nodes to delete.')
+    .setLatLng(polyline.getBounds().getCenter());
+    
+    tooltip.addTo(this.map);
+    
+    // Auto-remove tooltip after 3 seconds
+    setTimeout(() => {
+      this.map.removeLayer(tooltip);
+    }, 3000);
+  }
+
+  onShapeVertexDragStart(e) {
+    // Visual feedback when vertex drag starts
+    const vertex = e.vertex;
+    if (vertex) {
+      this.showMapMessage("Dragging shape node...", "info");
+    }
+  }
+
+  onShapeVertexDrag(e) {
+    // Update position during drag - visual feedback
+    // The shape automatically redraws during the drag
+  }
+
+  onShapeVertexDragEnd(e) {
+    // Handle when vertex drag ends
+    const polyline = e.layer;
+    this.showMapMessage("Shape node moved! Changes will be saved with trip.", "success");
+    
+    // Update the shape data if this is the current trip shape
+    if (polyline === this.currentTripShape) {
+      this.currentTripShapePoints = polyline.getLatLngs().map(latlng => [latlng.lat, latlng.lng]);
+      console.log("Updated trip shape points:", this.currentTripShapePoints.length);
+    }
+    
+    // Auto-save if this is a route shape
+    if (polyline !== this.currentTripShape) {
+      this.saveShapeToRoute(polyline);
+    }
+
+    // Update visible drag handles after the shape changes
+    this.updateVisibleDragHandles(polyline);
+  }
+
+  addVisibleDragHandles(polyline) {
+    if (!polyline || !polyline.getLatLngs) return;
+
+    // Remove any existing drag handles for this polyline
+    this.removeVisibleDragHandles(polyline);
+
+    // Create array to store drag handles
+    polyline._dragHandles = [];
+
+    const latlngs = polyline.getLatLngs();
+    const shapeColor = polyline.options.color || '#4caf50';
+
+    latlngs.forEach((latlng, index) => {
+      // Create a draggable marker for each vertex using a simple colored circle
+      const dragHandle = L.marker(latlng, {
+        draggable: true,
+        icon: L.divIcon({
+          className: 'shape-drag-handle-marker',
+          html: `<div class="shape-drag-circle" style="background-color: ${shapeColor}; border: 2px solid white; border-radius: 50%; width: 12px; height: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.4);"></div>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
+        })
+      });
+
+      // Add tooltip
+      dragHandle.bindTooltip(`Shape node ${index + 1} - Drag to move, double-click to delete`, {
+        permanent: false,
+        direction: 'top',
+        offset: [0, -10]
+      });
+
+      // Add double-click to delete node (Mac compatible)
+      dragHandle.on('dblclick', (e) => {
+        e.originalEvent.preventDefault();
+        e.originalEvent.stopPropagation();
+        this.deleteShapeNode(polyline, index);
+      });
+
+      // Make the handle draggable using Leaflet's built-in dragging
+      dragHandle.on('dragstart', () => {
+        this.showMapMessage("Dragging shape node...", "info");
+      });
+
+      dragHandle.on('drag', () => {
+        // Update the polyline vertex in real-time
+        const latlngs = polyline.getLatLngs();
+        latlngs[index] = dragHandle.getLatLng();
+        polyline.setLatLngs(latlngs);
+      });
+
+      dragHandle.on('dragend', () => {
+        this.showMapMessage("Shape node moved! Changes will be saved with trip.", "success");
+        
+        // Update the shape data if this is the current trip shape
+        if (polyline === this.currentTripShape) {
+          this.currentTripShapePoints = polyline.getLatLngs().map(latlng => [latlng.lat, latlng.lng]);
+          console.log("Updated trip shape points:", this.currentTripShapePoints.length);
+        }
+        
+        // Auto-save if this is a route shape
+        if (polyline !== this.currentTripShape) {
+          this.saveShapeToRoute(polyline);
+        }
+
+        // Update all drag handles after moving one
+        this.updateVisibleDragHandles(polyline);
+      });
+
+      // Visual feedback on hover - simpler approach
+      dragHandle.on('mouseover', () => {
+        const element = dragHandle.getElement();
+        if (element) {
+          const circle = element.querySelector('.shape-drag-circle');
+          if (circle) {
+            circle.style.transform = 'scale(1.3)';
+            circle.style.zIndex = '1000';
+          }
+        }
+      });
+
+      dragHandle.on('mouseout', () => {
+        const element = dragHandle.getElement();
+        if (element) {
+          const circle = element.querySelector('.shape-drag-circle');
+          if (circle) {
+            circle.style.transform = 'scale(1)';
+            circle.style.zIndex = '';
+          }
+        }
+      });
+
+      dragHandle.addTo(this.map);
+      polyline._dragHandles.push(dragHandle);
+    });
+
+    console.log(`Added ${latlngs.length} visible drag handles to shape`);
+
+    // Add click handler to polyline for adding new nodes
+    if (!polyline._hasClickHandler) {
+      polyline.on('click', (e) => {
+        // Only add nodes if we're actively creating/editing a trip
+        if (this.isCreatingTrip && polyline === this.currentTripShape) {
+          // Prevent event from bubbling up to the map click handler
+          e.originalEvent.preventDefault();
+          e.originalEvent.stopPropagation();
+          this.addShapeNodeAtPosition(polyline, e.latlng);
+        }
+      });
+      polyline._hasClickHandler = true;
+    }
+  }
+
+  removeVisibleDragHandles(polyline) {
+    if (polyline && polyline._dragHandles) {
+      polyline._dragHandles.forEach(handle => {
+        this.map.removeLayer(handle);
+      });
+      polyline._dragHandles = [];
+    }
+  }
+
+  updateVisibleDragHandles(polyline) {
+    // Remove existing handles and add new ones based on current shape
+    this.removeVisibleDragHandles(polyline);
+    this.addVisibleDragHandles(polyline);
+  }
+
+  deleteShapeNode(polyline, nodeIndex) {
+    if (!polyline || nodeIndex < 0) return;
+
+    const latlngs = polyline.getLatLngs();
+    
+    // Don't allow deletion if only 2 points left (minimum for a line)
+    if (latlngs.length <= 2) {
+      this.showMapMessage("Cannot delete - shape must have at least 2 points", "error");
+      return;
+    }
+
+    // Confirm deletion
+    if (confirm(`Delete shape node ${nodeIndex + 1}?`)) {
+      // Remove the point from the polyline
+      latlngs.splice(nodeIndex, 1);
+      polyline.setLatLngs(latlngs);
+
+      // Update the shape data if this is the current trip shape
+      if (polyline === this.currentTripShape) {
+        this.currentTripShapePoints = latlngs.map(latlng => [latlng.lat, latlng.lng]);
+        console.log("Deleted shape node, remaining points:", this.currentTripShapePoints.length);
+      }
+
+      // Auto-save if this is a route shape
+      if (polyline !== this.currentTripShape) {
+        this.saveShapeToRoute(polyline);
+      }
+
+      // Update drag handles
+      this.updateVisibleDragHandles(polyline);
+      
+      this.showMapMessage(`Deleted shape node ${nodeIndex + 1}`, "success");
+    }
+  }
+
+  addShapeNodeAtPosition(polyline, latlng) {
+    if (!polyline || !latlng) return;
+
+    const latlngs = polyline.getLatLngs();
+    
+    // Find the best position to insert the new point (closest line segment)
+    let insertIndex = latlngs.length; // Default to end
+    let minDistance = Infinity;
+    
+    for (let i = 0; i < latlngs.length - 1; i++) {
+      const segmentStart = latlngs[i];
+      const segmentEnd = latlngs[i + 1];
+      
+      // Calculate distance from click point to this line segment
+      const distance = this.distanceToLineSegment(latlng, segmentStart, segmentEnd);
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        insertIndex = i + 1; // Insert after the start of the closest segment
+      }
+    }
+
+    // Insert the new point
+    latlngs.splice(insertIndex, 0, latlng);
+    polyline.setLatLngs(latlngs);
+
+    // Update the shape data if this is the current trip shape
+    if (polyline === this.currentTripShape) {
+      this.currentTripShapePoints = latlngs.map(latlng => [latlng.lat, latlng.lng]);
+      console.log("Added shape node, total points:", this.currentTripShapePoints.length);
+    }
+
+    // Auto-save if this is a route shape
+    if (polyline !== this.currentTripShape) {
+      this.saveShapeToRoute(polyline);
+    }
+
+    // Update drag handles
+    this.updateVisibleDragHandles(polyline);
+    
+    this.showMapMessage(`Added shape node at position ${insertIndex + 1}`, "success");
+  }
+
+  distanceToLineSegment(point, lineStart, lineEnd) {
+    // Calculate distance from a point to a line segment
+    const A = point.lng - lineStart.lng;
+    const B = point.lat - lineStart.lat;
+    const C = lineEnd.lng - lineStart.lng;
+    const D = lineEnd.lat - lineStart.lat;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    
+    if (lenSq === 0) return Math.sqrt(A * A + B * B);
+    
+    let param = dot / lenSq;
+    
+    let xx, yy;
+    
+    if (param < 0) {
+      xx = lineStart.lng;
+      yy = lineStart.lat;
+    } else if (param > 1) {
+      xx = lineEnd.lng;
+      yy = lineEnd.lat;
+    } else {
+      xx = lineStart.lng + param * C;
+      yy = lineStart.lat + param * D;
+    }
+
+    const dx = point.lng - xx;
+    const dy = point.lat - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+
+  makeStopDraggable(marker, stop) {
+    if (!marker || !stop) return;
+
+    // Convert CircleMarker to draggable Marker for better drag experience
+    const dragMarker = L.marker([marker.getLatLng().lat, marker.getLatLng().lng], {
+      draggable: true,
+      icon: L.divIcon({
+        className: 'draggable-stop-marker',
+        html: `<div class="draggable-stop-content" style="background: #ff5722; border: 3px solid white; border-radius: 50%; width: 20px; height: 20px; cursor: move; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      })
+    });
+
+    // Replace the original marker
+    this.map.removeLayer(marker);
+    dragMarker.addTo(this.map);
+
+    // Update references
+    stop.marker = dragMarker;
+    
+    // Add drag event handlers
+    dragMarker.on('dragstart', () => {
+      this.onStopDragStart(dragMarker, stop);
+    });
+
+    dragMarker.on('drag', () => {
+      this.onStopDrag(dragMarker, stop);
+    });
+
+    dragMarker.on('dragend', () => {
+      this.onStopDragEnd(dragMarker, stop);
+    });
+
+    // Show tooltip on first creation
+    if (this.routeStops.length === 1) {
+      setTimeout(() => {
+        this.showMapMessage("Stops can be dragged to reposition them!", "success");
+      }, 1000);
+    }
+
+    console.log("Stop made draggable:", stop.stop_name);
+  }
+
+  onStopDragStart(marker, stop) {
+    // Visual feedback when drag starts
+    marker.setOpacity(0.7);
+    
+    // Store original position in case we need to revert
+    stop.originalPosition = marker.getLatLng();
+  }
+
+  onStopDrag(marker, stop) {
+    // Update the label position as the marker moves
+    if (stop.label) {
+      stop.label.setLatLng(marker.getLatLng());
+    }
+    
+    // Update the route line if it exists
+    this.updateRouteLineForDrag();
+  }
+
+  onStopDragEnd(marker, stop) {
+    // Restore opacity
+    marker.setOpacity(1);
+    
+    // Update stop coordinates
+    const newPos = marker.getLatLng();
+    stop.stop_lat = newPos.lat.toFixed(6);
+    stop.stop_lon = newPos.lng.toFixed(6);
+    
+    // Update label position
+    if (stop.label) {
+      stop.label.setLatLng(newPos);
+    }
+    
+    // Update route line
+    this.updateRouteInfo();
+    
+    // Show feedback
+    this.showMapMessage(`Stop "${stop.stop_name}" moved to new location`, "success");
+    
+    console.log(`Stop ${stop.stop_name} moved to:`, newPos.lat.toFixed(6), newPos.lng.toFixed(6));
+  }
+
+  updateRouteLineForDrag() {
+    // Update the route line to show the current positions during drag
+    if (this.routeLine && this.routeStops.length > 1) {
+      const latlngs = this.routeStops.map(stop => stop.marker.getLatLng());
+      this.routeLine.setLatLngs(latlngs);
+    }
+  }
+
+  addShapeNode(lat, lng) {
+    if (!this.isCreatingTrip) return;
+
+    // Initialize trip shape if it doesn't exist
+    if (!this.currentTripShape) {
+      this.initializeTripShape();
+    }
+
+    // Save current state to history before adding new point
+    if (!this.shapePointsHistory) {
+      this.shapePointsHistory = [];
+    }
+    this.shapePointsHistory.push([...this.currentTripShapePoints]);
+
+    // Add the new point to the shape
+    const newPoint = [lat, lng];
+    this.currentTripShapePoints.push(newPoint);
+
+    // Update the polyline
+    if (this.currentTripShape) {
+      this.currentTripShape.setLatLngs(this.currentTripShapePoints);
+      // Update existing drag handles when adding new points
+      this.updateVisibleDragHandles(this.currentTripShape);
+    } else {
+      // Create the shape polyline
+      const routeColor = this.currentRoute ? `#${this.currentRoute.color}` : "#4caf50";
+      this.currentTripShape = L.polyline(this.currentTripShapePoints, {
+        color: routeColor,
+        weight: 4,
+        opacity: 0.8,
+      }).addTo(this.map);
+
+      // Make it editable with visible drag handles
+      this.makeShapeEditable(this.currentTripShape);
+      this.addVisibleDragHandles(this.currentTripShape);
+    }
+
+    // Show visual feedback
+    const tempMarker = L.circleMarker([lat, lng], {
+      radius: 4,
+      fillColor: "#2196f3",
+      color: "white",
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.8,
+    }).addTo(this.map);
+
+    // Remove temp marker after 1 second
+    setTimeout(() => {
+      this.map.removeLayer(tempMarker);
+    }, 1000);
+
+    console.log(`Added shape node ${this.currentTripShapePoints.length} at`, lat.toFixed(6), lng.toFixed(6));
+  }
+
+  initializeTripShape() {
+    this.currentTripShapePoints = [];
+    this.currentTripShape = null;
+    this.shapePointsHistory = []; // Track shape points for undo functionality
+    
+    // Show instruction message
+    const noShapes = document.getElementById("noShapesToggle")?.checked || false;
+    if (noShapes) {
+      this.showMapMessage("Shapes disabled. Click to add first stop, then Shift+click to add more stops.", "info");
+    } else {
+      this.showMapMessage("Click to add first stop (starts shape), then click for shape nodes or Shift+click for stops. Ctrl+Z to undo.", "info");
+    }
+  }
+
+  undoLastShapePoint() {
+    if (!this.isCreatingTrip || !this.shapePointsHistory || this.shapePointsHistory.length === 0) {
+      this.showMapMessage("No shape points to undo", "warning");
+      return;
+    }
+
+    // Restore previous state
+    this.currentTripShapePoints = this.shapePointsHistory.pop();
+
+    // Update the polyline
+    if (this.currentTripShape) {
+      if (this.currentTripShapePoints.length > 0) {
+        this.currentTripShape.setLatLngs(this.currentTripShapePoints);
+        // Update drag handles after undo
+        this.updateVisibleDragHandles(this.currentTripShape);
+      } else {
+        // Remove the shape if no points left
+        this.removeVisibleDragHandles(this.currentTripShape);
+        this.map.removeLayer(this.currentTripShape);
+        this.currentTripShape = null;
+      }
+    }
+
+    this.showMapMessage(`Undid last shape point (${this.currentTripShapePoints.length} points remaining)`, "info");
+    console.log(`Undid shape point, ${this.currentTripShapePoints.length} points remaining`);
+  }
+
+  displayAllRoutes(gtfsData) {
+    // This method displays all routes and stops on the map like the upload visualizer
+    if (!this.map) {
+      console.warn("Map not initialized yet");
+      return;
+    }
+
+    // Use the existing loadExistingData method to display all GTFS data
+    this.loadExistingData();
+  }
+
+  // Helper methods for stop creation
+  addTimingToStop(stop, customTimes) {
+    const timingMethod =
+      document.getElementById("timingMethodSelect")?.value || "auto";
+    if (timingMethod === "manual" && customTimes) {
+      stop.arrival_time = this.convertToGTFSTime(customTimes.arrival);
+      stop.departure_time = this.convertToGTFSTime(customTimes.departure);
+    } else if (timingMethod === "auto") {
+      // Auto-calculate times based on interval
+      const defaultInterval = parseInt(
+        document.getElementById("defaultStopIntervalInput")?.value || 2
+      );
+      const startTime =
+        document.getElementById("tripStartTimeInput")?.value || "08:00";
+      const calculatedTime = this.calculateStopTime(
+        startTime,
+        (stop.stop_sequence - 1) * defaultInterval
+      );
+      const gtfsTime = this.convertToGTFSTime(calculatedTime);
+      
+      // For new stops, just use calculated time (validation will happen after stop is added)
+      stop.arrival_time = gtfsTime;
+      stop.departure_time = gtfsTime;
+    }
+  }
+
+  createStopMarkerAndFinalize(stop) {
+    const lat = parseFloat(stop.stop_lat);
+    const lng = parseFloat(stop.stop_lon);
+
+    // Update previous stops to show as "previous" (muted)
+    this.routeStops.forEach((prevStop) => {
+      if (prevStop.marker) {
+        prevStop.marker.setStyle({
+          radius: 6,
+          fillColor: "#9e9e9e",
+          color: "white",
+          weight: 2,
+          opacity: 0.7,
+          fillOpacity: 0.7,
+        });
+      }
+    });
+
+    // Create marker for current stop with emphasis
+    const marker = L.circleMarker([lat, lng], {
+      radius: 10,
+      fillColor: "#ff5722",
+      color: "white",
+      weight: 3,
+      opacity: 1,
+      fillOpacity: 0.9,
+      draggable: false, // Will be made draggable after creation
+    }).addTo(this.map);
+
+    // Make the stop draggable during trip creation
+    this.makeStopDraggable(marker, stop);
+
+    // Add permanent label above the marker
+    const label = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: 'stop-label',
+        html: `<div class="stop-label-text">${stop.stop_name}</div>`,
+        iconSize: [120, 20],
+        iconAnchor: [60, 30] // Position label above marker
+      })
+    }).addTo(this.map);
+
+    // Add pulsing effect to current stop
+    const pulseInterval = setInterval(() => {
+      if (marker._map && this.isCreatingTrip) {
+        const currentRadius = marker.getRadius();
+        marker.setRadius(currentRadius === 10 ? 12 : 10);
+      } else {
+        clearInterval(pulseInterval);
+      }
+    }, 1000);
+
+    // Create popup for editing stop details
+    const popupContent = this.createStopPopup(stop, marker);
+    marker.bindPopup(popupContent);
+
+    stop.marker = marker;
+    stop.label = label;
+    stop.pulseInterval = pulseInterval;
+    this.routeStops.push(stop);
+
+    // After adding the stop, validate and fix any time conflicts
+    this.validateAndFixStopTimes(stop.stop_id);
+
+    this.updateRouteInfo();
+
+    // Connect stops with a line if we have more than one
+    if (this.routeStops.length > 1) {
+      this.updateRouteLine();
+    }
+
+    this.updateTripInfo();
+  }
+
+  // Trip Creation Method functionality
+  handleTripCreationMethodChange() {
+    const methodSelect = document.getElementById("tripCreationMethodSelect");
+    const copySection = document.getElementById("copyTripSection");
+    
+    if (!methodSelect || !copySection) return;
+
+    if (methodSelect.value === "copy") {
+      copySection.style.display = "block";
+      // Refresh the trip selector when switching to copy mode
+      this.populateCopyTripSelector();
+    } else {
+      copySection.style.display = "none";
+      // Clear any loaded trip data when switching back to scratch
+      this.resetTripForm();
+    }
+  }
+
+  populateCopyTripSelector() {
+    const tripSelect = document.getElementById("copyFromTripSelect");
+    if (!tripSelect) return;
+
+    // Clear existing options
+    tripSelect.innerHTML = '<option value="">Choose an existing trip...</option>';
+    
+    if (!this.currentRoute) {
+      console.log("Copy trip selector: No current route");
+      tripSelect.disabled = true;
+      return;
+    }
+
+    if (!this.gtfsEditor) {
+      console.log("Copy trip selector: No GTFS editor");
+      tripSelect.disabled = true;
+      return;
+    }
+
+    if (!this.gtfsEditor.parser) {
+      console.log("Copy trip selector: No parser in GTFS editor");
+      tripSelect.disabled = true;
+      return;
+    }
+
+    if (typeof this.gtfsEditor.parser.getFileData !== 'function') {
+      console.log("Copy trip selector: getFileData method not available");
+      tripSelect.disabled = true;
+      return;
+    }
+
+    // Get existing trips for the current route
+    const tripsData = this.gtfsEditor.parser.getFileData("trips.txt");
+    
+    if (!tripsData || tripsData.length === 0) {
+      console.log("Copy trip selector: No trips data found");
+      tripSelect.disabled = true;
+      return;
+    }
+
+    // Filter trips for current route
+    const routeTrips = tripsData.filter(trip => trip.route_id === this.currentRoute.id);
+    
+    if (routeTrips.length === 0) {
+      console.log(`Copy trip selector: No trips found for route ${this.currentRoute.id}. Available trips:`, tripsData.map(t => `${t.trip_id}(${t.route_id})`));
+      tripSelect.disabled = true;
+      return;
+    }
+
+    // Populate the select with trips
+    routeTrips.forEach(trip => {
+      const option = document.createElement("option");
+      option.value = trip.trip_id;
+      option.textContent = `${trip.trip_headsign || trip.trip_id} (Dir ${trip.direction_id || "0"})`;
+      tripSelect.appendChild(option);
+    });
+
+    tripSelect.disabled = false;
+    console.log(`Copy trip selector: Populated with ${routeTrips.length} trips for route ${this.currentRoute.id}`);
+  }
+
+  handleCopyTripSelectChange() {
+    const tripSelect = document.getElementById("copyFromTripSelect");
+    const loadBtn = document.getElementById("loadTripDataBtn");
+    
+    if (!tripSelect || !loadBtn) return;
+
+    loadBtn.disabled = tripSelect.value === "";
+  }
+
+  loadTripData() {
+    const tripSelect = document.getElementById("copyFromTripSelect");
+    if (!tripSelect || !tripSelect.value) return;
+
+    const selectedTripId = tripSelect.value;
+    
+    try {
+      // Get trip data
+      const tripsData = this.gtfsEditor.parser.getFileData("trips.txt");
+      const selectedTrip = tripsData.find(trip => trip.trip_id === selectedTripId);
+      
+      if (!selectedTrip) {
+        this.showMapMessage("Selected trip not found", "error");
+        return;
+      }
+
+      // Clear current trip data completely to start fresh
+      this.clearTripData();
+
+      // Load trip basic info into form
+      document.getElementById("tripHeadsignInput").value = selectedTrip.trip_headsign || "";
+      document.getElementById("directionSelect").value = selectedTrip.direction_id || "0";
+      document.getElementById("tripShortNameInput").value = selectedTrip.trip_short_name || "";
+
+      // Create new trip object for the copied trip (with new ID)
+      this.currentTrip = {
+        id: `trip_${this.currentRoute.id}_${this.tripCounter++}`,
+        headsign: selectedTrip.trip_headsign || "",
+        direction: selectedTrip.direction_id || "0",
+        shortName: selectedTrip.trip_short_name || "",
+        isNew: true // Mark as new trip since we're copying
+      };
+
+      // Load service info if available
+      if (selectedTrip.service_id) {
+        const calendarMethodSelect = document.getElementById("calendarMethodSelect");
+        const existingServiceSelect = document.getElementById("existingServiceSelect");
+        
+        calendarMethodSelect.value = "existing";
+        this.handleCalendarMethodChange(); // Show existing service selector
+        
+        // Set the service
+        existingServiceSelect.value = selectedTrip.service_id;
+      }
+
+      // Get stop times for the selected trip
+      const stopTimesData = this.gtfsEditor.parser.getFileData("stop_times.txt");
+      const tripStopTimes = stopTimesData
+        .filter(st => st.trip_id === selectedTripId)
+        .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+      if (tripStopTimes.length > 0) {
+        // Get stops data
+        const stopsData = this.gtfsEditor.parser.getFileData("stops.txt");
+        
+        console.log("Loading", tripStopTimes.length, "stops from copied trip");
+        
+        // Load stops
+        tripStopTimes.forEach((stopTime, index) => {
+          const stopData = stopsData.find(stop => stop.stop_id === stopTime.stop_id);
+          if (stopData) {
+            const stopInfo = {
+              stop_id: stopData.stop_id,
+              stop_name: stopData.stop_name,
+              stop_lat: parseFloat(stopData.stop_lat),
+              stop_lon: parseFloat(stopData.stop_lon),
+              arrival_time: stopTime.arrival_time,
+              departure_time: stopTime.departure_time,
+              stop_sequence: index + 1,
+              timepoint: stopTime.timepoint || 0
+            };
+
+            // Create marker on map (this will also add the stop to routeStops array)
+            this.createStopMarkerAndFinalize(stopInfo, [stopInfo.stop_lat, stopInfo.stop_lon], {
+              arrival: stopTime.arrival_time,
+              departure: stopTime.departure_time
+            });
+          }
+        });
+      }
+
+      // Load shape if exists
+      if (selectedTrip.shape_id) {
+        const shapesData = this.gtfsEditor.parser.getFileData("shapes.txt");
+        const shapePoints = shapesData
+          .filter(shape => shape.shape_id === selectedTrip.shape_id)
+          .sort((a, b) => parseInt(a.shape_pt_sequence) - parseInt(b.shape_pt_sequence))
+          .map(point => [parseFloat(point.shape_pt_lat), parseFloat(point.shape_pt_lon)]);
+
+        if (shapePoints.length > 0) {
+          this.currentTripShapePoints = shapePoints;
+          console.log("Loading shape with", shapePoints.length, "points");
+          
+          // Create the shape polyline
+          const routeColor = this.currentRoute ? `#${this.currentRoute.color}` : "#4caf50";
+          this.currentTripShape = L.polyline(this.currentTripShapePoints, {
+            color: routeColor,
+            weight: 4,
+            opacity: 0.8,
+          }).addTo(this.map);
+
+          console.log("Created shape polyline on map");
+
+          // Make it editable (but don't show drag handles initially when copying)
+          this.makeShapeEditable(this.currentTripShape);
+          console.log("Made copied shape editable");
+        } else {
+          console.log("No shape points found for trip", selectedTrip.shape_id);
+        }
+      }
+
+      // Update UI state for editing the copied trip
+      this.isCreatingTrip = true;
+      document.getElementById("startTripBtn").disabled = true;
+      document.getElementById("finishTripBtn").disabled = false;
+      document.getElementById("mapContainer").style.cursor = "crosshair";
+      
+      this.updateRouteInfo();
+      this.updateTripInfo();
+      this.showInfoPanel();
+
+      // Fit map to show all loaded stops
+      if (this.routeStops.length > 0) {
+        const bounds = new L.LatLngBounds();
+        this.routeStops.forEach(stop => {
+          bounds.extend([stop.stop_lat, stop.stop_lon]);
+        });
+        this.map.fitBounds(bounds, { padding: [20, 20] });
+      }
+
+      this.showMapMessage(`Loaded trip data: ${this.routeStops.length} stops. You can now modify and save as a new trip.`, "success");
+      console.log(`Loaded trip data from ${selectedTripId}:`, this.routeStops.length, "stops");
+
+    } catch (error) {
+      console.error("Error loading trip data:", error);
+      this.showMapMessage("Error loading trip data", "error");
+    }
+  }
+
+  resetTripForm() {
+    // Reset form to default values
+    document.getElementById("tripHeadsignInput").value = "";
+    document.getElementById("directionSelect").value = "0";
+    document.getElementById("tripShortNameInput").value = "";
+    document.getElementById("calendarMethodSelect").value = "";
+    this.handleCalendarMethodChange();
   }
 }
 
