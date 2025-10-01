@@ -180,22 +180,31 @@ class MapEditor {
   createTripItem(trip) {
     const tripItem = document.createElement("div");
     tripItem.className = "trip-item";
-    
+
     const direction = trip.direction_id === "0" ? "Dir 0" : "Dir 1";
     const stops = this.getStopCountForTrip(trip.trip_id);
-    
+
+    // Check if trip has frequencies
+    const hasFrequencies = this.gtfsEditor && this.gtfsEditor.parser.tripUsesFrequencies(trip.trip_id);
+    const frequencyCount = hasFrequencies ? this.gtfsEditor.parser.getFrequenciesForTrip(trip.trip_id).length : 0;
+    const frequencyText = hasFrequencies ? ` • ${frequencyCount} freq periods` : '';
+
     tripItem.innerHTML = `
       <div class="trip-info">
         <div class="trip-name">${trip.trip_headsign || trip.trip_id}</div>
-        <div class="trip-details">${direction} • ${stops} stops</div>
+        <div class="trip-details">${direction} • ${stops} stops${frequencyText}</div>
       </div>
       <div class="trip-actions">
         <button class="edit-trip-btn" onclick="window.mapEditor.editExistingTrip('${trip.trip_id}')">
           Edit
         </button>
+        <button class="frequencies-btn" onclick="window.mapEditor.manageFrequencies('${trip.trip_id}')"
+                title="Manage frequency-based service">
+          ${hasFrequencies ? '🕐 Edit' : '🕐 Add'} Freq
+        </button>
       </div>
     `;
-    
+
     return tripItem;
   }
 
@@ -779,6 +788,15 @@ class MapEditor {
 
     // Populate existing trips for copying
     this.populateCopyTripSelector();
+
+    // Show the route info panel
+    this.showInfoPanel();
+
+    // Update route info display
+    this.updateRouteInfo();
+
+    // Update existing trips display
+    this.refreshExistingTripsVisibility();
   }
 
   backToRouteCreation() {
@@ -2377,6 +2395,16 @@ class MapEditor {
         console.log(`Removed old shape data for ${existingTrip.shape_id}`);
       }
     }
+
+    // 9. Apply frequencies if enabled
+    if (this.gtfsEditor && this.gtfsEditor.currentFrequencyPeriods &&
+        this.gtfsEditor.currentFrequencyPeriods.length > 0 &&
+        !isEditing) { // Only apply frequencies for new trips
+      const frequencyApplied = this.gtfsEditor.applyFrequenciesToTrip(this.currentTrip.id);
+      if (frequencyApplied) {
+        console.log(`Trip ${this.currentTrip.id} configured with frequency-based service`);
+      }
+    }
   }
 
   addMinutesToTime(timeStr, minutes) {
@@ -2418,6 +2446,11 @@ class MapEditor {
     // Clear trip inputs
     document.getElementById("tripHeadsignInput").value = "";
     document.getElementById("tripShortNameInput").value = "";
+
+    // Clear frequency periods
+    if (this.gtfsEditor) {
+      this.gtfsEditor.clearFrequencyPeriods();
+    }
   }
 
   clearTripData() {
@@ -4364,6 +4397,172 @@ class MapEditor {
     document.getElementById("tripShortNameInput").value = "";
     document.getElementById("calendarMethodSelect").value = "";
     this.handleCalendarMethodChange();
+  }
+
+  manageFrequencies(tripId) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) {
+      alert("No GTFS data available");
+      return;
+    }
+
+    // Get existing frequencies for this trip
+    const existingFrequencies = this.gtfsEditor.parser.getFrequenciesForTrip(tripId);
+
+    // Create a modal dialog for managing frequencies
+    const modal = document.createElement('div');
+    modal.className = 'frequency-modal';
+    modal.innerHTML = `
+      <div class="frequency-modal-content">
+        <div class="frequency-modal-header">
+          <h3>Manage Frequencies for Trip ${tripId}</h3>
+          <button class="close-modal" onclick="this.closest('.frequency-modal').remove()">×</button>
+        </div>
+        <div class="frequency-modal-body">
+          <div class="existing-frequencies">
+            <h4>Current Frequency Periods</h4>
+            <div class="frequency-list" id="modalFrequencyList">
+              ${existingFrequencies.length === 0 ? '<p class="no-frequencies">No frequency periods defined</p>' : ''}
+            </div>
+          </div>
+          <div class="add-frequency">
+            <h4>Add New Frequency Period</h4>
+            <div class="frequency-inputs">
+              <div class="input-group">
+                <label>Start Time:</label>
+                <input type="time" id="modalStartTime" value="06:00">
+              </div>
+              <div class="input-group">
+                <label>End Time:</label>
+                <input type="time" id="modalEndTime" value="22:00">
+              </div>
+              <div class="input-group">
+                <label>Headway (minutes):</label>
+                <input type="number" id="modalHeadway" value="15" min="1" max="120">
+              </div>
+              <div class="input-group">
+                <label>Timing:</label>
+                <select id="modalExactTimes">
+                  <option value="0">Exact times</option>
+                  <option value="1">Approximate times</option>
+                </select>
+              </div>
+            </div>
+            <button onclick="window.mapEditor.addFrequencyToTrip('${tripId}')" class="add-freq-btn">
+              Add Frequency Period
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Populate existing frequencies
+    this.updateModalFrequencyList(tripId, existingFrequencies);
+
+    // Make modal closable by clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  updateModalFrequencyList(tripId, frequencies) {
+    const list = document.getElementById('modalFrequencyList');
+    if (!list) return;
+
+    if (frequencies.length === 0) {
+      list.innerHTML = '<p class="no-frequencies">No frequency periods defined</p>';
+      return;
+    }
+
+    list.innerHTML = frequencies.map((freq, index) => {
+      const headwayMins = Math.floor(parseInt(freq.headway_secs) / 60);
+      const exactText = freq.exact_times === "0" ? "exact" : "approx";
+
+      return `
+        <div class="modal-frequency-item">
+          <div class="freq-info">
+            <span class="freq-time">${freq.start_time} - ${freq.end_time}</span>
+            <span class="freq-headway">Every ${headwayMins} min (${exactText})</span>
+          </div>
+          <button onclick="window.mapEditor.deleteFrequencyFromTrip('${tripId}', '${freq.start_time}')"
+                  class="delete-freq-btn">Delete</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  addFrequencyToTrip(tripId) {
+    const startTime = document.getElementById('modalStartTime').value;
+    const endTime = document.getElementById('modalEndTime').value;
+    const headwayMins = parseInt(document.getElementById('modalHeadway').value);
+    const exactTimes = document.getElementById('modalExactTimes').value;
+
+    if (!startTime || !endTime || !headwayMins) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    if (startTime >= endTime) {
+      alert("End time must be after start time");
+      return;
+    }
+
+    // Add the frequency
+    this.gtfsEditor.parser.addFrequency(
+      tripId,
+      startTime,
+      endTime,
+      headwayMins * 60, // Convert to seconds
+      parseInt(exactTimes)
+    );
+
+    // Refresh the display
+    const updatedFrequencies = this.gtfsEditor.parser.getFrequenciesForTrip(tripId);
+    this.updateModalFrequencyList(tripId, updatedFrequencies);
+
+    // Clear inputs
+    document.getElementById('modalStartTime').value = "06:00";
+    document.getElementById('modalEndTime').value = "22:00";
+    document.getElementById('modalHeadway').value = "15";
+    document.getElementById('modalExactTimes').value = "0";
+
+    // Refresh existing trips list to show updated frequency count
+    this.updateExistingTripsDisplay();
+
+    // Refresh table view if frequencies.txt is currently displayed
+    if (this.gtfsEditor && this.gtfsEditor.currentFile === 'frequencies.txt') {
+      this.gtfsEditor.displayFileContent('frequencies.txt');
+    }
+
+    alert("Frequency period added successfully!");
+  }
+
+  deleteFrequencyFromTrip(tripId, startTime) {
+    if (confirm("Are you sure you want to delete this frequency period?")) {
+      this.gtfsEditor.parser.deleteFrequency(tripId, startTime);
+
+      // Refresh the display
+      const updatedFrequencies = this.gtfsEditor.parser.getFrequenciesForTrip(tripId);
+      this.updateModalFrequencyList(tripId, updatedFrequencies);
+
+      // Refresh existing trips list to show updated frequency count
+      this.updateExistingTripsDisplay();
+
+      // Refresh table view if frequencies.txt is currently displayed
+      if (this.gtfsEditor && this.gtfsEditor.currentFile === 'frequencies.txt') {
+        this.gtfsEditor.displayFileContent('frequencies.txt');
+      }
+
+      alert("Frequency period deleted successfully!");
+    }
+  }
+
+  updateExistingTripsDisplay() {
+    // This method refreshes the existing trips display - just call the existing method
+    this.refreshExistingTripsVisibility();
   }
 }
 

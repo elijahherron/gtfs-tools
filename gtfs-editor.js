@@ -104,6 +104,14 @@ class GTFSEditor {
     document
       .getElementById("previewBtn")
       .addEventListener("click", () => this.previewGTFS());
+
+    // Frequency controls
+    document
+      .getElementById("useFrequenciesToggle")
+      .addEventListener("change", (e) => this.toggleFrequencies(e.target.checked));
+    document
+      .getElementById("addFrequencyPeriodBtn")
+      .addEventListener("click", () => this.addFrequencyPeriod());
   }
 
   initializeSearchableSelectors() {
@@ -288,6 +296,9 @@ class GTFSEditor {
         // Convert the parsed data into the format expected by the editor
         this.files = this.convertParsedDataToFiles(result.data, result.files);
 
+        // Ensure frequencies.txt is available even if not in original GTFS
+        this.ensureFrequenciesFile();
+
         // Extract agency URL from agency.txt
         this.extractAgencyUrl(result.data);
 
@@ -406,11 +417,16 @@ class GTFSEditor {
     if (typeof file === "string") {
       filename = file;
       data = this.parser.getFileData(filename);
+      console.log(`Getting data for filename: ${filename} from parser.gtfsData`);
     } else {
       filename = file.name + ".txt";
-      data = file.data;
+      // Always get live data from parser instead of stale file.data
+      data = this.parser.getFileData(filename);
+      console.log(`Getting live data for object file ${filename} from parser`);
     }
-    
+
+    console.log(`Parser gtfsData keys:`, Object.keys(this.parser.gtfsData));
+    console.log(`Data for ${filename}:`, data);
     console.log("displayFileContent called with file:", file, "filename:", filename, "data length:", data ? data.length : 0);
 
     const spec = GTFS_SPEC.files[filename];
@@ -1586,12 +1602,12 @@ Longitude: ${stop.stop_lon}`;
     const term = searchTerm.toLowerCase();
 
     routeItems.forEach((item) => {
-      const shortName = item
+      const shortName = (item
         .querySelector(".route-short-name")
-        .textContent.toLowerCase();
-      const longName = item
+        ?.textContent || '').toLowerCase();
+      const longName = (item
         .querySelector(".route-long-name")
-        .textContent.toLowerCase();
+        ?.textContent || '').toLowerCase();
 
       if (shortName.includes(term) || longName.includes(term)) {
         item.style.display = "block";
@@ -1606,10 +1622,10 @@ Longitude: ${stop.stop_lon}`;
     const term = searchTerm.toLowerCase();
 
     tripItems.forEach((item) => {
-      const headsign = item
+      const headsign = (item
         .querySelector(".trip-headsign")
-        .textContent.toLowerCase();
-      const tripId = item.querySelector(".trip-id").textContent.toLowerCase();
+        ?.textContent || '').toLowerCase();
+      const tripId = (item.querySelector(".trip-id")?.textContent || '').toLowerCase();
 
       if (headsign.includes(term) || tripId.includes(term)) {
         item.style.display = "block";
@@ -1964,8 +1980,17 @@ Longitude: ${stop.stop_lon}`;
       this.isNewGTFS = workData.isNewGTFS || false;
       this.files = workData.files;
       this.parser.gtfsData = workData.gtfsData;
+
+      // Update parser's file list to match the files
+      this.parser.fileList = this.files.map(file =>
+        typeof file === 'string' ? file : file.name
+      );
+
       this.currentFile = workData.currentFile || this.files[0];
       this.agencyUrl = workData.agencyUrl || null;
+
+      // Ensure frequencies.txt is available after loading
+      this.ensureFrequenciesFile();
 
       // Update UI
       if (this.isNewGTFS) {
@@ -1986,9 +2011,23 @@ Longitude: ${stop.stop_lon}`;
       // Refresh existing stops visibility
       this.refreshExistingStopsVisibility();
 
-      // Clear map editor state and switch to appropriate view
-      if (this.mapEditor) {
+      // Initialize map editor if needed and refresh with loaded data
+      if (!this.mapEditor) {
+        this.mapEditor = new MapEditor(this);
+        window.mapEditor = this.mapEditor;
+      } else {
+        // Clear and refresh map editor with new data
         this.mapEditor.clearAllData();
+      }
+
+      // If we're in creation mode and have routes/trips, refresh displays
+      if (this.isNewGTFS) {
+        setTimeout(() => {
+          // Allow UI to update first, then refresh displays
+          if (this.mapEditor) {
+            this.mapEditor.refreshExistingTripsVisibility();
+          }
+        }, 100);
       }
 
       this.showStatus("Work loaded successfully!", "success");
@@ -2633,13 +2672,220 @@ Longitude: ${stop.stop_lon}`;
   togglePreviewCollapse() {
     const content = document.getElementById("previewWindowContent");
     const collapseBtn = document.getElementById("collapsePreview");
-    
+
     if (content.style.display === "none") {
       content.style.display = "block";
       collapseBtn.textContent = "−";
     } else {
       content.style.display = "none";
       collapseBtn.textContent = "+";
+    }
+  }
+
+  // Frequency-related methods
+  toggleFrequencies(enabled) {
+    const frequencyInputs = document.getElementById("frequencyInputs");
+    frequencyInputs.style.display = enabled ? "block" : "none";
+
+    if (enabled) {
+      // Initialize with default frequency period
+      this.updateFrequencyDisplay();
+      this.updateTripButtonsForFrequencies();
+    } else {
+      this.updateTripButtonsForFrequencies();
+    }
+  }
+
+  addFrequencyPeriod() {
+    const startTime = document.getElementById("frequencyStartInput").value;
+    const endTime = document.getElementById("frequencyEndInput").value;
+    const headwayMins = parseInt(document.getElementById("headwaySecsInput").value);
+    const exactTimes = document.getElementById("exactTimesSelect").value;
+
+    if (!startTime || !endTime || !headwayMins) {
+      alert("Please fill in all frequency period fields");
+      return;
+    }
+
+    if (startTime >= endTime) {
+      alert("End time must be after start time");
+      return;
+    }
+
+    // Store frequency period for use when trip is finished
+    if (!this.currentFrequencyPeriods) {
+      this.currentFrequencyPeriods = [];
+    }
+
+    const period = {
+      start_time: startTime,
+      end_time: endTime,
+      headway_secs: (headwayMins * 60).toString(),
+      exact_times: exactTimes
+    };
+
+    this.currentFrequencyPeriods.push(period);
+    this.updateFrequencyDisplay();
+
+    // Clear inputs
+    document.getElementById("frequencyStartInput").value = "06:00";
+    document.getElementById("frequencyEndInput").value = "22:00";
+    document.getElementById("headwaySecsInput").value = "15";
+    document.getElementById("exactTimesSelect").value = "0";
+  }
+
+  updateFrequencyDisplay() {
+    const list = document.getElementById("frequencyPeriodList");
+    const empty = list.querySelector(".frequency-empty");
+
+    if (!this.currentFrequencyPeriods || this.currentFrequencyPeriods.length === 0) {
+      if (empty) empty.style.display = "block";
+      // Remove all period items
+      const items = list.querySelectorAll(".frequency-period-item");
+      items.forEach(item => item.remove());
+      return;
+    }
+
+    if (empty) empty.style.display = "none";
+
+    // Clear existing items
+    const items = list.querySelectorAll(".frequency-period-item");
+    items.forEach(item => item.remove());
+
+    // Add frequency period items
+    this.currentFrequencyPeriods.forEach((period, index) => {
+      const item = document.createElement("div");
+      item.className = "frequency-period-item";
+
+      const headwayMins = Math.floor(parseInt(period.headway_secs) / 60);
+      const exactText = period.exact_times === "0" ? "exact" : "approx";
+
+      item.innerHTML = `
+        <div class="frequency-period-info">
+          <div class="frequency-period-time">${period.start_time} - ${period.end_time}</div>
+          <div class="frequency-period-headway">Every ${headwayMins} min</div>
+          <div class="frequency-period-exact">${exactText}</div>
+        </div>
+        <div class="frequency-period-actions">
+          <button class="delete-frequency-btn" onclick="gtfsEditor.deleteFrequencyPeriod(${index})">Delete</button>
+        </div>
+      `;
+
+      list.appendChild(item);
+    });
+
+    // Update trip button to reflect frequency status
+    this.updateTripButtonsForFrequencies();
+  }
+
+  deleteFrequencyPeriod(index) {
+    if (this.currentFrequencyPeriods && index >= 0 && index < this.currentFrequencyPeriods.length) {
+      this.currentFrequencyPeriods.splice(index, 1);
+      this.updateFrequencyDisplay();
+    }
+  }
+
+  clearFrequencyPeriods() {
+    this.currentFrequencyPeriods = [];
+    this.updateFrequencyDisplay();
+    document.getElementById("useFrequenciesToggle").checked = false;
+    document.getElementById("frequencyInputs").style.display = "none";
+  }
+
+  // Apply frequencies to a completed trip
+  applyFrequenciesToTrip(tripId) {
+    console.log('applyFrequenciesToTrip called with tripId:', tripId);
+    console.log('currentFrequencyPeriods:', this.currentFrequencyPeriods);
+
+    if (!this.currentFrequencyPeriods || this.currentFrequencyPeriods.length === 0) {
+      console.log('No frequency periods to apply');
+      return false; // No frequencies to apply
+    }
+
+    console.log(`About to apply ${this.currentFrequencyPeriods.length} frequency periods`);
+
+    // Add each frequency period to the GTFS data
+    this.currentFrequencyPeriods.forEach((period, index) => {
+      console.log(`Applying frequency period ${index + 1}:`, period);
+      this.parser.addFrequency(
+        tripId,
+        period.start_time,
+        period.end_time,
+        parseInt(period.headway_secs),
+        parseInt(period.exact_times)
+      );
+    });
+
+    console.log(`Applied ${this.currentFrequencyPeriods.length} frequency periods to trip ${tripId}`);
+
+    // Show success message
+    const periodText = this.currentFrequencyPeriods.length === 1 ? 'period' : 'periods';
+    this.showStatus(
+      `✓ Trip created with ${this.currentFrequencyPeriods.length} frequency ${periodText}. Check frequencies.txt in table view.`,
+      "success"
+    );
+
+    // Refresh table view if frequencies.txt is currently displayed
+    if (this.currentFile === 'frequencies.txt') {
+      setTimeout(() => {
+        this.displayFileContent('frequencies.txt');
+      }, 100); // Small delay to ensure data is fully processed
+    }
+
+    return true; // Successfully applied frequencies
+  }
+
+  // Update trip button text to indicate frequency mode
+  updateTripButtonsForFrequencies() {
+    const useFrequencies = document.getElementById("useFrequenciesToggle").checked;
+    const hasFrequencyPeriods = this.currentFrequencyPeriods && this.currentFrequencyPeriods.length > 0;
+
+    const finishBtn = document.getElementById("finishTripBtn");
+    if (finishBtn) {
+      if (useFrequencies && hasFrequencyPeriods) {
+        finishBtn.textContent = `Finish Trip (🕐 ${this.currentFrequencyPeriods.length} freq periods)`;
+        finishBtn.title = "This trip will use frequency-based service";
+      } else if (useFrequencies) {
+        finishBtn.textContent = "Finish Trip (⚠️ No frequencies)";
+        finishBtn.title = "Enable frequency-based service but no periods defined";
+      } else {
+        finishBtn.textContent = "Finish Trip";
+        finishBtn.title = "Standard trip with fixed stop times";
+      }
+    }
+  }
+
+  // Ensure frequencies.txt is available in the file list and parser
+  ensureFrequenciesFile() {
+    // Check if frequencies.txt already exists in the files list
+    const hasFrequenciesFile = this.files.some(file =>
+      (typeof file === 'string' && file === 'frequencies.txt') ||
+      (typeof file === 'object' && file.name === 'frequencies.txt')
+    );
+
+    // If not present, add it
+    if (!hasFrequenciesFile) {
+      // Add to parser's file list
+      if (!this.parser.fileList.includes('frequencies.txt')) {
+        this.parser.fileList.push('frequencies.txt');
+      }
+
+      // Initialize empty frequencies data if not present
+      if (!this.parser.gtfsData['frequencies.txt']) {
+        this.parser.gtfsData['frequencies.txt'] = [];
+      }
+
+      // Add to the files list for UI (use object format to match other files)
+      this.files.push({
+        name: 'frequencies',
+        data: this.parser.gtfsData['frequencies.txt'] || [],
+        headers: ['trip_id', 'start_time', 'end_time', 'headway_secs', 'exact_times']
+      });
+
+      console.log('Added frequencies.txt to available files');
+
+      // Recreate file tabs to include the new frequencies.txt
+      this.createFileTabs(this.files);
     }
   }
 

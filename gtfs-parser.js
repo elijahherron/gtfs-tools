@@ -114,6 +114,8 @@ class GTFSParser {
         data.forEach(row => {
             const values = headers.map(header => {
                 let value = row[header] || '';
+                // Convert to string to ensure includes method works
+                value = String(value);
                 // Escape quotes and wrap in quotes if necessary
                 if (value.includes(',') || value.includes('"') || value.includes('\n')) {
                     value = '"' + value.replace(/"/g, '""') + '"';
@@ -141,7 +143,7 @@ class GTFSParser {
         });
 
         // Also include commonly used optional files for new GTFS creation
-        const includedOptionalFiles = ['calendar.txt', 'shapes.txt'];
+        const includedOptionalFiles = ['calendar.txt', 'shapes.txt', 'frequencies.txt'];
         includedOptionalFiles.forEach(filename => {
             const spec = GTFS_SPEC.files[filename];
             if (spec) {
@@ -159,6 +161,12 @@ class GTFSParser {
     addRow(filename, rowData = {}) {
         if (!this.gtfsData[filename]) {
             this.gtfsData[filename] = [];
+        }
+
+        // Ensure the file is tracked in fileList for export
+        if (!this.fileList.includes(filename)) {
+            this.fileList.push(filename);
+            console.log(`Added ${filename} to fileList for export tracking`);
         }
 
         const spec = GTFS_SPEC.files[filename];
@@ -283,18 +291,94 @@ class GTFSParser {
         return { errors, warnings };
     }
 
+    // Add frequency for a trip
+    addFrequency(tripId, startTime, endTime, headwaySecs, exactTimes = 0) {
+        console.log('addFrequency called with:', { tripId, startTime, endTime, headwaySecs, exactTimes });
+
+        const frequency = {
+            trip_id: tripId,
+            start_time: startTime,
+            end_time: endTime,
+            headway_secs: headwaySecs.toString(),
+            exact_times: exactTimes.toString()
+        };
+
+        console.log('Creating frequency object:', frequency);
+
+        const result = this.addRow('frequencies.txt', frequency);
+
+        console.log('After adding frequency, frequencies.txt data:', this.gtfsData['frequencies.txt']);
+        console.log('Total frequencies count:', this.gtfsData['frequencies.txt']?.length || 0);
+
+        return result;
+    }
+
+    // Get frequencies for a specific trip
+    getFrequenciesForTrip(tripId) {
+        if (!this.gtfsData['frequencies.txt']) {
+            return [];
+        }
+
+        return this.gtfsData['frequencies.txt'].filter(freq => freq.trip_id === tripId);
+    }
+
+    // Delete frequency by trip and start time
+    deleteFrequency(tripId, startTime) {
+        if (!this.gtfsData['frequencies.txt']) {
+            return false;
+        }
+
+        const index = this.gtfsData['frequencies.txt'].findIndex(
+            freq => freq.trip_id === tripId && freq.start_time === startTime
+        );
+
+        if (index !== -1) {
+            this.gtfsData['frequencies.txt'].splice(index, 1);
+            return true;
+        }
+        return false;
+    }
+
+    // Check if a trip uses frequency-based service
+    tripUsesFrequencies(tripId) {
+        return this.getFrequenciesForTrip(tripId).length > 0;
+    }
+
     // Export GTFS data as ZIP file
     async exportAsZip() {
         const zip = new JSZip();
 
+        console.log('Export debug - fileList before cleanup:', this.fileList);
+        console.log('Export debug - gtfsData keys:', Object.keys(this.gtfsData));
+
+        // Clean up fileList: remove duplicates and ensure proper format
+        let cleanFileList = [];
+
+        // Add files that exist in gtfsData and have .txt extension
+        Object.keys(this.gtfsData).forEach(key => {
+            if (key.endsWith('.txt') && this.gtfsData[key]) {
+                cleanFileList.push(key);
+            }
+        });
+
+        // Remove duplicates
+        cleanFileList = [...new Set(cleanFileList)];
+
+        // Update fileList
+        this.fileList = cleanFileList;
+        console.log('Export debug - cleaned fileList:', this.fileList);
+
         // Add each file to the ZIP
         this.fileList.forEach(filename => {
-            const csvContent = this.arrayToCSV(this.gtfsData[filename], filename);
+            const data = this.gtfsData[filename] || [];
+            const csvContent = this.arrayToCSV(data, filename);
+            console.log(`Adding ${filename} to ZIP, records: ${data.length}, content length: ${csvContent.length}`);
             zip.file(filename, csvContent);
         });
 
         // Generate ZIP file
         const content = await zip.generateAsync({ type: 'blob' });
+        console.log('Generated ZIP size:', content.size);
         return content;
     }
 }

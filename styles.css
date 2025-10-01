@@ -948,6 +948,313 @@ td input:focus {
     padding: 20px;
 }
 
+/* Frequencies Section Styles */
+.frequencies-section {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #d0d7de;
+}
+
+.frequencies-section h5 {
+    margin: 0 0 10px 0;
+    color: #ff9800;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.frequency-toggle {
+    margin-bottom: 15px;
+}
+
+.frequency-inputs {
+    border-top: 1px solid #e1e4e8;
+    padding-top: 15px;
+}
+
+.frequency-note {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+    font-size: 13px;
+    color: #856404;
+}
+
+.frequency-periods h6 {
+    margin: 0 0 10px 0;
+    color: #666;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.frequency-period-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.frequency-empty {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    padding: 20px;
+}
+
+.frequency-period-item {
+    background: white;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.frequency-period-info {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex: 1;
+}
+
+.frequency-period-time {
+    font-weight: 600;
+    color: #24292e;
+}
+
+.frequency-period-headway {
+    color: #666;
+    font-size: 13px;
+}
+
+.frequency-period-exact {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.frequency-period-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.frequency-period-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.add-frequency-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.add-frequency-btn:hover {
+    background: #f57c00;
+}
+
+.delete-frequency-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.delete-frequency-btn:hover {
+    background: #c82333;
+}
+
+/* Frequency Modal Styles */
+.frequency-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.frequency-modal-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.frequency-modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.frequency-modal-header h3 {
+    margin: 0;
+    color: #ff9800;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-modal:hover {
+    color: #000;
+}
+
+.frequency-modal-body {
+    padding: 20px;
+}
+
+.existing-frequencies, .add-frequency {
+    margin-bottom: 25px;
+}
+
+.existing-frequencies h4, .add-frequency h4 {
+    margin: 0 0 15px 0;
+    color: #24292e;
+    font-size: 16px;
+}
+
+.no-frequencies {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+.modal-frequency-item {
+    background: #f8f9fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.freq-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.freq-time {
+    font-weight: 600;
+    color: #24292e;
+}
+
+.freq-headway {
+    font-size: 13px;
+    color: #666;
+}
+
+.delete-freq-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.delete-freq-btn:hover {
+    background: #c82333;
+}
+
+.add-frequency .frequency-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.add-frequency .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.add-frequency .input-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+}
+
+.add-frequency .input-group input,
+.add-frequency .input-group select {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.add-freq-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.add-freq-btn:hover {
+    background: #f57c00;
+}
+
+/* Frequency button in trip items */
+.frequencies-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    margin-left: 5px;
+}
+
+.frequencies-btn:hover {
+    background: #f57c00;
+}
+
 /* Existing Stop and Shape Editing Styles */
 .existing-stop-marker {
     background: #4caf50;

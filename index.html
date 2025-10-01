@@ -476,6 +476,57 @@
                         </p>
                       </div>
                     </div>
+
+                    <div class="frequencies-section">
+                      <h5>Frequency-Based Service</h5>
+                      <div class="frequency-toggle">
+                        <label for="useFrequenciesToggle" class="toggle-label">
+                          <input type="checkbox" id="useFrequenciesToggle" />
+                          <span class="toggle-text">Use frequency-based service</span>
+                        </label>
+                        <p class="toggle-description">Enable to create headway-based trips instead of specific stop times</p>
+                      </div>
+
+                      <div class="frequency-inputs" id="frequencyInputs" style="display: none;">
+                        <p class="frequency-note">
+                          <strong>Note:</strong> When using frequencies, only the first trip needs stop times as a template.
+                          Additional trips are generated automatically based on headway intervals.
+                        </p>
+
+                        <div class="frequency-periods">
+                          <h6>Service Periods</h6>
+                          <div class="frequency-period-list" id="frequencyPeriodList">
+                            <div class="frequency-empty">No frequency periods defined</div>
+                          </div>
+
+                          <div class="add-frequency-period">
+                            <div class="frequency-period-inputs">
+                              <div class="input-group-inline">
+                                <label for="frequencyStartInput">Start Time:</label>
+                                <input type="time" id="frequencyStartInput" value="06:00" />
+                              </div>
+                              <div class="input-group-inline">
+                                <label for="frequencyEndInput">End Time:</label>
+                                <input type="time" id="frequencyEndInput" value="22:00" />
+                              </div>
+                              <div class="input-group-inline">
+                                <label for="headwaySecsInput">Headway (minutes):</label>
+                                <input type="number" id="headwaySecsInput" value="15" min="1" max="120" />
+                              </div>
+                              <div class="input-group-inline">
+                                <label for="exactTimesSelect">Timing:</label>
+                                <select id="exactTimesSelect">
+                                  <option value="0">Exact times</option>
+                                  <option value="1">Approximate times</option>
+                                </select>
+                              </div>
+                            </div>
+                            <button id="addFrequencyPeriodBtn" class="add-frequency-btn">Add Period</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div class="trip-buttons">
                       <button id="startTripBtn">Start Creating Trip</button>
                       <button id="finishTripBtn" disabled>Finish Trip</button>
@@ -754,7 +805,16 @@
                       <li><strong>Set time for each stop (Recommended):</strong> Manually set arrival/departure times for precision</li>
                       <li><strong>Auto-calculate:</strong> Generate times based on start time and interval between stops</li>
                     </ul>
-                    
+
+                    <h5>🕐 Frequency-Based Service</h5>
+                    <ul>
+                      <li><strong>Frequency Toggle:</strong> Enable to create headway-based trips instead of fixed schedules</li>
+                      <li><strong>Service Periods:</strong> Define different headways for different times of day (e.g., peak vs off-peak)</li>
+                      <li><strong>Headway Intervals:</strong> Set how often vehicles run (e.g., every 15 minutes)</li>
+                      <li><strong>Exact vs Approximate:</strong> Choose whether departure times are exact or approximate</li>
+                      <li><strong>Template Trip:</strong> Only the first trip needs stop times - frequencies automatically generate additional trips</li>
+                    </ul>
+
                     <h5>🎨 Shape Options</h5>
                     <ul>
                       <li><strong>Shapes Enabled (Default):</strong> Creates detailed route paths showing actual vehicle movement</li>
@@ -830,6 +890,8 @@
                     <li><strong>Mac Compatibility:</strong> All editing works on Mac - use Cmd instead of Ctrl for shortcuts</li>
                     <li><strong>Table View Editing:</strong> Switch to Table View for detailed editing of agency info, fares, and schedules</li>
                     <li><strong>Shape Precision:</strong> Add many shape points to accurately represent vehicle paths around curves and turns</li>
+                    <li><strong>Frequency-Based Service:</strong> Use frequency-based trips for high-frequency routes (every 10-15 minutes)</li>
+                    <li><strong>Mixed Service Types:</strong> Combine fixed schedules for some trips with frequency-based service for others</li>
                   </ul>
                   
                   <h4>💡 Best Practices</h4>
