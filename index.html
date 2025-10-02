@@ -24,7 +24,16 @@
 
       <div class="upload-section">
         <h2>Upload GTFS .zip to visualize and edit</h2>
-        <input type="file" id="gtfsUpload" accept=".zip" />
+        <div class="upload-options">
+          <div class="upload-option">
+            <label for="gtfsUpload">Upload from local file:</label>
+            <input type="file" id="gtfsUpload" accept=".zip" />
+          </div>
+          <div class="upload-option">
+            <label for="gtfsUrl">Or load from URL:</label>
+            <input type="text" id="gtfsUrl" placeholder="https://example.com/gtfs.zip" />
+          </div>
+        </div>
         <button id="uploadBtn">Upload GTFS</button>
         <div id="uploadStatus"></div>
         <div id="agencyInfo" style="display: none">
@@ -430,6 +439,11 @@
 
                     <div class="timing-section">
                       <h5>Trip Timing</h5>
+                      <p class="timing-explainer">
+                        <strong>Note:</strong> This section helps you quickly assign stop times as you create stops.
+                        It's <em>not</em> related to frequency-based service (see Frequency-Based Service section below for that).
+                        This is just a convenience for automatically calculating arrival/departure times between stops.
+                      </p>
                       <div class="timing-method">
                         <label for="timingMethodSelect"
                           >Timing Between Stops:</label
@@ -756,11 +770,23 @@
               </div>
               <div class="floating-window-content collapsed" id="instructionsWindowContent">
                 <div class="instructions-intro">
-                  <p><strong>Welcome to the GTFS Creator!</strong> This tool helps you build complete transit feeds with routes, stops, trips, and schedules. Follow these detailed steps to create professional transit data.</p>
+                  <p><strong>Welcome to the GTFS Creator & Editor!</strong> This tool helps you build complete transit feeds with routes, stops, trips, and schedules, or edit existing GTFS feeds. Follow these detailed steps to create or modify professional transit data.</p>
                   <p><a href="https://github.com/google/transit/blob/master/gtfs/spec/en/reference.md" target="_blank" class="gtfs-spec-link">📖 View Official GTFS Specification</a></p>
                 </div>
 
                 <div class="instruction-steps">
+                  <div class="step-section">
+                    <h4>📁 Step 0: Upload Existing GTFS (Optional)</h4>
+                    <p>You can start by uploading an existing GTFS feed to visualize and edit it:</p>
+                    <ul>
+                      <li><strong>Upload from local file:</strong> Select a .zip file from your computer</li>
+                      <li><strong>Load from URL:</strong> Enter a direct link to a GTFS .zip file (e.g., https://example.com/gtfs.zip)</li>
+                      <li><strong>Drag & Drop:</strong> Drag a .zip file directly onto the upload section</li>
+                    </ul>
+                    <p><em>💡 Tip: If the URL is blocked by CORS, the tool will automatically use a proxy to download the file.</em></p>
+                    <p><em>Skip this step if you want to create a new GTFS feed from scratch.</em></p>
+                  </div>
+
                   <div class="step-section">
                     <h4>🗺️ Step 1: Switch to Map View</h4>
                     <p>Click the <strong>"Map View"</strong> button above to access the visual route creator. The map view provides an intuitive interface for designing your transit network.</p>

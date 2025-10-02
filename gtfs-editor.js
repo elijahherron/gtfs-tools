@@ -262,24 +262,83 @@ class GTFSEditor {
   async handleFileUpload() {
     console.log("handleFileUpload started");
     const fileInput = document.getElementById("gtfsUpload");
+    const urlInput = document.getElementById("gtfsUrl");
     const file = fileInput.files[0];
+    const url = urlInput.value.trim();
 
-    if (!file) {
-      this.showStatus("Please select a GTFS file", "error");
+    // Check if either file or URL is provided
+    if (!file && !url) {
+      this.showStatus("Please select a GTFS file or enter a URL", "error");
       return;
     }
 
-    if (!file.name.endsWith(".zip")) {
-      this.showStatus("Please select a ZIP file", "error");
-      return;
+    // If both are provided, prioritize file
+    if (file && url) {
+      this.showStatus("Both file and URL provided. Using local file...", "info");
     }
 
-    console.log("Starting to parse file:", file.name);
-    this.showStatus("Uploading and parsing GTFS file...", "loading");
+    let result;
 
     try {
-      console.log("Calling parser.parseGTFSFile...");
-      const result = await this.parser.parseGTFSFile(file);
+      if (file) {
+        // Handle local file upload
+        if (!file.name.endsWith(".zip")) {
+          this.showStatus("Please select a ZIP file", "error");
+          return;
+        }
+
+        console.log("Starting to parse file:", file.name);
+        this.showStatus("Uploading and parsing GTFS file...", "loading");
+        console.log("Calling parser.parseGTFSFile...");
+        result = await this.parser.parseGTFSFile(file);
+      } else if (url) {
+        // Handle URL upload
+        if (!url.endsWith(".zip")) {
+          this.showStatus("URL must point to a .zip file", "error");
+          return;
+        }
+
+        console.log("Starting to fetch from URL:", url);
+        this.showStatus("Downloading and parsing GTFS from URL...", "loading");
+
+        // Fetch the file from URL with CORS mode
+        try {
+          const response = await fetch(url, {
+            mode: 'cors',
+            credentials: 'omit'
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+          }
+
+          const blob = await response.blob();
+          console.log("Downloaded blob, size:", blob.size);
+
+          // Parse the downloaded blob as a zip file
+          console.log("Calling parser.parseGTFSFile...");
+          result = await this.parser.parseGTFSFile(blob);
+        } catch (fetchError) {
+          // If CORS fails, try using a CORS proxy
+          console.log("Direct fetch failed, trying with CORS proxy...");
+          this.showStatus("Direct download blocked by CORS, using proxy...", "loading");
+
+          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+          const response = await fetch(proxyUrl);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch via proxy: ${response.status} ${response.statusText}`);
+          }
+
+          const blob = await response.blob();
+          console.log("Downloaded blob via proxy, size:", blob.size);
+
+          // Parse the downloaded blob as a zip file
+          console.log("Calling parser.parseGTFSFile...");
+          result = await this.parser.parseGTFSFile(blob);
+        }
+      }
+
       console.log("Parser result:", result);
 
       if (result.success) {
@@ -309,6 +368,9 @@ class GTFSEditor {
         this.showEditor(this.files);
         this.currentFile = this.files[0]; // Default to first file
         this.displayFileContent(this.currentFile);
+
+        // Show instructions panel for uploaded GTFS
+        this.showInstructions();
       } else {
         console.error("Parse failed:", result.error);
         this.showStatus(`Error: ${result.error}`, "error");

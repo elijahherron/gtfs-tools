@@ -43,6 +43,39 @@ header h1 {
     color: #4caf50;
 }
 
+.upload-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.upload-option {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.upload-option label {
+    font-weight: 500;
+    color: #555;
+    font-size: 14px;
+}
+
+#gtfsUrl {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 100%;
+}
+
+#gtfsUrl:focus {
+    outline: none;
+    border-color: #4caf50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
 .create-actions {
     display: flex;
     gap: 15px;
@@ -937,6 +970,20 @@ td input:focus {
     font-weight: 600;
     color: #666;
     text-transform: uppercase;
+}
+
+.timing-explainer {
+    background-color: #f0f7ff;
+    border-left: 3px solid #2196F3;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #333;
+}
+
+.timing-explainer strong {
+    color: #1976D2;
 }
 
 .timing-note {
