@@ -18,7 +18,7 @@
   <body>
     <div class="container">
       <header>
-        <h1 id="mainTitle">Static Data GTFS Editor / Creator</h1>
+        <h1 id="mainTitle">Eli's Static Data GTFS Editor / Creator</h1>
         <p>Create and edit GTFS files</p>
       </header>
 
@@ -31,7 +31,11 @@
           </div>
           <div class="upload-option">
             <label for="gtfsUrl">Or load from URL:</label>
-            <input type="text" id="gtfsUrl" placeholder="https://example.com/gtfs.zip" />
+            <input
+              type="text"
+              id="gtfsUrl"
+              placeholder="https://example.com/gtfs.zip"
+            />
           </div>
         </div>
         <button id="uploadBtn">Upload GTFS</button>
@@ -75,7 +79,6 @@
         <h2 id="editorTitle" style="display: none; margin-bottom: 20px">
           Creating New GTFS
         </h2>
-
 
         <div class="editor-header">
           <div class="file-tabs" id="fileTabs"></div>
@@ -286,12 +289,24 @@
                     id="tripSection"
                     style="display: none"
                   >
-                    <h4>2. Create Trip <span id="currentRouteIndicator" style="color: #666; font-weight: normal; font-size: 0.9em;"></span></h4>
-                    
+                    <h4>
+                      2. Create Trip
+                      <span
+                        id="currentRouteIndicator"
+                        style="
+                          color: #666;
+                          font-weight: normal;
+                          font-size: 0.9em;
+                        "
+                      ></span>
+                    </h4>
+
                     <!-- Trip Creation Method -->
                     <div class="trip-creation-method">
                       <div class="input-group">
-                        <label for="tripCreationMethodSelect">Trip Creation Method:</label>
+                        <label for="tripCreationMethodSelect"
+                          >Trip Creation Method:</label
+                        >
                         <select id="tripCreationMethodSelect">
                           <option value="scratch">Create from scratch</option>
                           <option value="copy">Copy from existing trip</option>
@@ -300,17 +315,31 @@
                     </div>
 
                     <!-- Copy Trip Selection -->
-                    <div class="copy-trip-section" id="copyTripSection" style="display: none;">
+                    <div
+                      class="copy-trip-section"
+                      id="copyTripSection"
+                      style="display: none"
+                    >
                       <div class="input-group">
-                        <label for="copyFromTripSelect">Select Trip to Copy:</label>
+                        <label for="copyFromTripSelect"
+                          >Select Trip to Copy:</label
+                        >
                         <select id="copyFromTripSelect">
                           <option value="">Choose an existing trip...</option>
                         </select>
                       </div>
-                      <button id="loadTripDataBtn" class="secondary-btn" disabled>
+                      <button
+                        id="loadTripDataBtn"
+                        class="secondary-btn"
+                        disabled
+                      >
                         Load Trip Data
                       </button>
-                      <p class="copy-trip-description">This will load all trip details (headsign, direction, stops, shape, timing) which you can then modify and save as a new trip.</p>
+                      <p class="copy-trip-description">
+                        This will load all trip details (headsign, direction,
+                        stops, shape, timing) which you can then modify and save
+                        as a new trip.
+                      </p>
                     </div>
 
                     <div class="trip-inputs">
@@ -440,9 +469,12 @@
                     <div class="timing-section">
                       <h5>Trip Timing</h5>
                       <p class="timing-explainer">
-                        <strong>Note:</strong> This section helps you quickly assign stop times as you create stops.
-                        It's <em>not</em> related to frequency-based service (see Frequency-Based Service section below for that).
-                        This is just a convenience for automatically calculating arrival/departure times between stops.
+                        <strong>Note:</strong> This section helps you quickly
+                        assign stop times as you create stops. It's
+                        <em>not</em> related to frequency-based service (see
+                        Frequency-Based Service section below for that). This is
+                        just a convenience for automatically calculating
+                        arrival/departure times between stops.
                       </p>
                       <div class="timing-method">
                         <label for="timingMethodSelect"
@@ -453,11 +485,17 @@
                             Auto-calculate with intervals (automatically sets
                             stop_times between stops)
                           </option>
-                          <option value="manual" selected>Set time for each stop</option>
+                          <option value="manual" selected>
+                            Set time for each stop
+                          </option>
                         </select>
                       </div>
 
-                      <div class="timing-inputs" id="autoTimingInputs" style="display: none">
+                      <div
+                        class="timing-inputs"
+                        id="autoTimingInputs"
+                        style="display: none"
+                      >
                         <div class="input-group-inline">
                           <label for="tripStartTimeInput">Start Time:</label>
                           <input
@@ -480,10 +518,7 @@
                         </div>
                       </div>
 
-                      <div
-                        class="timing-inputs"
-                        id="manualTimingInputs"
-                      >
+                      <div class="timing-inputs" id="manualTimingInputs">
                         <p class="timing-note">
                           You'll set arrival/departure times when adding each
                           stop
@@ -496,36 +531,70 @@
                       <div class="frequency-toggle">
                         <label for="useFrequenciesToggle" class="toggle-label">
                           <input type="checkbox" id="useFrequenciesToggle" />
-                          <span class="toggle-text">Use frequency-based service</span>
+                          <span class="toggle-text"
+                            >Use frequency-based service</span
+                          >
                         </label>
-                        <p class="toggle-description">Enable to create headway-based trips instead of specific stop times</p>
+                        <p class="toggle-description">
+                          Enable to create headway-based trips instead of
+                          specific stop times
+                        </p>
                       </div>
 
-                      <div class="frequency-inputs" id="frequencyInputs" style="display: none;">
+                      <div
+                        class="frequency-inputs"
+                        id="frequencyInputs"
+                        style="display: none"
+                      >
                         <p class="frequency-note">
-                          <strong>Note:</strong> When using frequencies, only the first trip needs stop times as a template.
-                          Additional trips are generated automatically based on headway intervals.
+                          <strong>Note:</strong> When using frequencies, only
+                          the first trip needs stop times as a template.
+                          Additional trips are generated automatically based on
+                          headway intervals.
                         </p>
 
                         <div class="frequency-periods">
                           <h6>Service Periods</h6>
-                          <div class="frequency-period-list" id="frequencyPeriodList">
-                            <div class="frequency-empty">No frequency periods defined</div>
+                          <div
+                            class="frequency-period-list"
+                            id="frequencyPeriodList"
+                          >
+                            <div class="frequency-empty">
+                              No frequency periods defined
+                            </div>
                           </div>
 
                           <div class="add-frequency-period">
                             <div class="frequency-period-inputs">
                               <div class="input-group-inline">
-                                <label for="frequencyStartInput">Start Time:</label>
-                                <input type="time" id="frequencyStartInput" value="06:00" />
+                                <label for="frequencyStartInput"
+                                  >Start Time:</label
+                                >
+                                <input
+                                  type="time"
+                                  id="frequencyStartInput"
+                                  value="06:00"
+                                />
                               </div>
                               <div class="input-group-inline">
                                 <label for="frequencyEndInput">End Time:</label>
-                                <input type="time" id="frequencyEndInput" value="22:00" />
+                                <input
+                                  type="time"
+                                  id="frequencyEndInput"
+                                  value="22:00"
+                                />
                               </div>
                               <div class="input-group-inline">
-                                <label for="headwaySecsInput">Headway (minutes):</label>
-                                <input type="number" id="headwaySecsInput" value="15" min="1" max="120" />
+                                <label for="headwaySecsInput"
+                                  >Headway (minutes):</label
+                                >
+                                <input
+                                  type="number"
+                                  id="headwaySecsInput"
+                                  value="15"
+                                  min="1"
+                                  max="120"
+                                />
                               </div>
                               <div class="input-group-inline">
                                 <label for="exactTimesSelect">Timing:</label>
@@ -535,7 +604,12 @@
                                 </select>
                               </div>
                             </div>
-                            <button id="addFrequencyPeriodBtn" class="add-frequency-btn">Add Period</button>
+                            <button
+                              id="addFrequencyPeriodBtn"
+                              class="add-frequency-btn"
+                            >
+                              Add Period
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -625,10 +699,11 @@
                         <input type="checkbox" id="noShapesToggle" />
                         <span class="toggle-text">No Shapes (stops only)</span>
                       </label>
-                      <p class="toggle-description">Disable route shape drawing and create stops only</p>
+                      <p class="toggle-description">
+                        Disable route shape drawing and create stops only
+                      </p>
                     </div>
                   </div>
-
 
                   <div class="stops-list-section">
                     <h5
@@ -659,7 +734,10 @@
                   >
                     <h6>Reuse Existing Stops</h6>
                     <div class="existing-stops-selector">
-                      <div class="searchable-select" id="existingStopsContainer">
+                      <div
+                        class="searchable-select"
+                        id="existingStopsContainer"
+                      >
                         <input
                           type="text"
                           id="existingStopsSearch"
@@ -672,7 +750,11 @@
                         ></div>
                       </div>
                       <div class="existing-stops-actions">
-                        <button id="addExistingStopBtn" class="add-stop-btn" disabled>
+                        <button
+                          id="addExistingStopBtn"
+                          class="add-stop-btn"
+                          disabled
+                        >
                           Add Selected Stop
                         </button>
                       </div>
@@ -715,10 +797,7 @@
                         />
                       </div>
                     </div>
-                    <div
-                      class="coord-time-inputs"
-                      id="coordTimeInputs"
-                    >
+                    <div class="coord-time-inputs" id="coordTimeInputs">
                       <div class="coord-group">
                         <label for="coordArrivalInput">Arrival:</label>
                         <input type="time" id="coordArrivalInput" />
@@ -768,175 +847,446 @@
                   </button>
                 </div>
               </div>
-              <div class="floating-window-content collapsed" id="instructionsWindowContent">
+              <div
+                class="floating-window-content collapsed"
+                id="instructionsWindowContent"
+              >
                 <div class="instructions-intro">
-                  <p><strong>Welcome to the GTFS Creator & Editor!</strong> This tool helps you build complete transit feeds with routes, stops, trips, and schedules, or edit existing GTFS feeds. Follow these detailed steps to create or modify professional transit data.</p>
-                  <p><a href="https://github.com/google/transit/blob/master/gtfs/spec/en/reference.md" target="_blank" class="gtfs-spec-link">📖 View Official GTFS Specification</a></p>
+                  <p>
+                    <strong>Welcome to the GTFS Creator & Editor!</strong> This
+                    tool helps you build complete transit feeds with routes,
+                    stops, trips, and schedules, or edit existing GTFS feeds.
+                    Follow these detailed steps to create or modify professional
+                    transit data.
+                  </p>
+                  <p>
+                    <a
+                      href="https://github.com/google/transit/blob/master/gtfs/spec/en/reference.md"
+                      target="_blank"
+                      class="gtfs-spec-link"
+                      >📖 View Official GTFS Specification</a
+                    >
+                  </p>
                 </div>
 
                 <div class="instruction-steps">
                   <div class="step-section">
                     <h4>📁 Step 0: Upload Existing GTFS (Optional)</h4>
-                    <p>You can start by uploading an existing GTFS feed to visualize and edit it:</p>
+                    <p>
+                      You can start by uploading an existing GTFS feed to
+                      visualize and edit it:
+                    </p>
                     <ul>
-                      <li><strong>Upload from local file:</strong> Select a .zip file from your computer</li>
-                      <li><strong>Load from URL:</strong> Enter a direct link to a GTFS .zip file (e.g., https://example.com/gtfs.zip)</li>
-                      <li><strong>Drag & Drop:</strong> Drag a .zip file directly onto the upload section</li>
+                      <li>
+                        <strong>Upload from local file:</strong> Select a .zip
+                        file from your computer
+                      </li>
+                      <li>
+                        <strong>Load from URL:</strong> Enter a direct link to a
+                        GTFS .zip file (e.g., https://example.com/gtfs.zip)
+                      </li>
+                      <li>
+                        <strong>Drag & Drop:</strong> Drag a .zip file directly
+                        onto the upload section
+                      </li>
                     </ul>
-                    <p><em>💡 Tip: If the URL is blocked by CORS, the tool will automatically use a proxy to download the file.</em></p>
-                    <p><em>Skip this step if you want to create a new GTFS feed from scratch.</em></p>
+                    <p>
+                      <em
+                        >💡 Tip: If the URL is blocked by CORS, the tool will
+                        automatically use a proxy to download the file.</em
+                      >
+                    </p>
+                    <p>
+                      <em
+                        >Skip this step if you want to create a new GTFS feed
+                        from scratch.</em
+                      >
+                    </p>
                   </div>
 
                   <div class="step-section">
                     <h4>🗺️ Step 1: Switch to Map View</h4>
-                    <p>Click the <strong>"Map View"</strong> button above to access the visual route creator. The map view provides an intuitive interface for designing your transit network.</p>
+                    <p>
+                      Click the <strong>"Map View"</strong> button above to
+                      access the visual route creator. The map view provides an
+                      intuitive interface for designing your transit network.
+                    </p>
                     <ul>
-                      <li><strong>Table View:</strong> Use for editing raw GTFS data, stop times, and detailed information</li>
-                      <li><strong>Map View:</strong> Use for visually creating routes, placing stops, and drawing route shapes</li>
+                      <li>
+                        <strong>Table View:</strong> Use for editing raw GTFS
+                        data, stop times, and detailed information
+                      </li>
+                      <li>
+                        <strong>Map View:</strong> Use for visually creating
+                        routes, placing stops, and drawing route shapes
+                      </li>
                     </ul>
                   </div>
-                  
+
                   <div class="step-section">
                     <h4>🚌 Step 2: Create Your First Route</h4>
-                    <p>Routes represent a single transit line (like "Bus Route 1" or "Blue Line"). In the Route Creator panel:</p>
+                    <p>
+                      Routes represent a single transit line (like "Bus Route 1"
+                      or "Blue Line"). In the Route Creator panel:
+                    </p>
                     <ul>
-                      <li><strong>Route Short Name:</strong> Enter a concise identifier (e.g., "1", "A", "Blue")</li>
-                      <li><strong>Route Long Name:</strong> Enter descriptive name (e.g., "Main Street Line", "Downtown Express")</li>
-                      <li><strong>Route Type:</strong> Choose vehicle type - Bus (most common), Tram, Subway, Rail, or Ferry</li>
-                      <li><strong>Route Colors:</strong> Pick brand colors that represent your transit line</li>
-                      <li><strong>Orient Map:</strong> Search for your city/area to center the map on your service area</li>
-                      <li><strong>Contrast Check:</strong> Use the contrast checker to ensure colors meet accessibility standards</li>
+                      <li>
+                        <strong>Route Short Name:</strong> Enter a concise
+                        identifier (e.g., "1", "A", "Blue")
+                      </li>
+                      <li>
+                        <strong>Route Long Name:</strong> Enter descriptive name
+                        (e.g., "Main Street Line", "Downtown Express")
+                      </li>
+                      <li>
+                        <strong>Route Type:</strong> Choose vehicle type - Bus
+                        (most common), Tram, Subway, Rail, or Ferry
+                      </li>
+                      <li>
+                        <strong>Route Colors:</strong> Pick brand colors that
+                        represent your transit line
+                      </li>
+                      <li>
+                        <strong>Orient Map:</strong> Search for your city/area
+                        to center the map on your service area
+                      </li>
+                      <li>
+                        <strong>Contrast Check:</strong> Use the contrast
+                        checker to ensure colors meet accessibility standards
+                      </li>
                     </ul>
-                    <p><em>💡 Tip: You can also select existing routes if you're adding trips to established lines.</em></p>
+                    <p>
+                      <em
+                        >💡 Tip: You can also select existing routes if you're
+                        adding trips to established lines.</em
+                      >
+                    </p>
                   </div>
-                  
+
                   <div class="step-section">
                     <h4>🛣️ Step 3: Set Up Your Trip</h4>
-                    <p>Trips are specific journeys along a route (like "8:00 AM Downtown to Airport"). Configure trip details:</p>
+                    <p>
+                      Trips are specific journeys along a route (like "8:00 AM
+                      Downtown to Airport"). Configure trip details:
+                    </p>
                     <ul>
-                      <li><strong>Trip Headsign:</strong> Destination shown to passengers (e.g., "Downtown", "Airport", "City Center")</li>
-                      <li><strong>Direction ID:</strong> Use 0 for outbound, 1 for return journey (helps organize opposite directions)</li>
-                      <li><strong>Trip Short Name:</strong> Optional identifier for internal use</li>
+                      <li>
+                        <strong>Trip Headsign:</strong> Destination shown to
+                        passengers (e.g., "Downtown", "Airport", "City Center")
+                      </li>
+                      <li>
+                        <strong>Direction ID:</strong> Use 0 for outbound, 1 for
+                        return journey (helps organize opposite directions)
+                      </li>
+                      <li>
+                        <strong>Trip Short Name:</strong> Optional identifier
+                        for internal use
+                      </li>
                     </ul>
-                    
+
                     <h5>📅 Service Calendar</h5>
                     <ul>
-                      <li><strong>Use Existing Service:</strong> Select pre-configured service patterns</li>
-                      <li><strong>Create New Service:</strong> Define custom schedule with specific days and date ranges</li>
-                      <li><strong>Days Selection:</strong> Choose which days of the week this trip operates</li>
+                      <li>
+                        <strong>Use Existing Service:</strong> Select
+                        pre-configured service patterns
+                      </li>
+                      <li>
+                        <strong>Create New Service:</strong> Define custom
+                        schedule with specific days and date ranges
+                      </li>
+                      <li>
+                        <strong>Days Selection:</strong> Choose which days of
+                        the week this trip operates
+                      </li>
                     </ul>
-                    
+
                     <h5>⏰ Trip Timing</h5>
                     <ul>
-                      <li><strong>Set time for each stop (Recommended):</strong> Manually set arrival/departure times for precision</li>
-                      <li><strong>Auto-calculate:</strong> Generate times based on start time and interval between stops</li>
+                      <li>
+                        <strong>Set time for each stop (Recommended):</strong>
+                        Manually set arrival/departure times for precision
+                      </li>
+                      <li>
+                        <strong>Auto-calculate:</strong> Generate times based on
+                        start time and interval between stops
+                      </li>
                     </ul>
 
                     <h5>🕐 Frequency-Based Service</h5>
                     <ul>
-                      <li><strong>Frequency Toggle:</strong> Enable to create headway-based trips instead of fixed schedules</li>
-                      <li><strong>Service Periods:</strong> Define different headways for different times of day (e.g., peak vs off-peak)</li>
-                      <li><strong>Headway Intervals:</strong> Set how often vehicles run (e.g., every 15 minutes)</li>
-                      <li><strong>Exact vs Approximate:</strong> Choose whether departure times are exact or approximate</li>
-                      <li><strong>Template Trip:</strong> Only the first trip needs stop times - frequencies automatically generate additional trips</li>
+                      <li>
+                        <strong>Frequency Toggle:</strong> Enable to create
+                        headway-based trips instead of fixed schedules
+                      </li>
+                      <li>
+                        <strong>Service Periods:</strong> Define different
+                        headways for different times of day (e.g., peak vs
+                        off-peak)
+                      </li>
+                      <li>
+                        <strong>Headway Intervals:</strong> Set how often
+                        vehicles run (e.g., every 15 minutes)
+                      </li>
+                      <li>
+                        <strong>Exact vs Approximate:</strong> Choose whether
+                        departure times are exact or approximate
+                      </li>
+                      <li>
+                        <strong>Template Trip:</strong> Only the first trip
+                        needs stop times - frequencies automatically generate
+                        additional trips
+                      </li>
                     </ul>
 
                     <h5>🎨 Shape Options</h5>
                     <ul>
-                      <li><strong>Shapes Enabled (Default):</strong> Creates detailed route paths showing actual vehicle movement</li>
-                      <li><strong>"No Shapes" Toggle:</strong> Check this to create only stops without detailed route paths</li>
+                      <li>
+                        <strong>Shapes Enabled (Default):</strong> Creates
+                        detailed route paths showing actual vehicle movement
+                      </li>
+                      <li>
+                        <strong>"No Shapes" Toggle:</strong> Check this to
+                        create only stops without detailed route paths
+                      </li>
                     </ul>
                   </div>
-                  
+
                   <div class="step-section">
                     <h4>🎯 Step 4: Create Stops and Route Shapes</h4>
-                    <p>Click <strong>"Start Creating Trip"</strong> to begin placing stops and drawing your route. The workflow differs based on your shape settings:</p>
-                    
+                    <p>
+                      Click <strong>"Start Creating Trip"</strong> to begin
+                      placing stops and drawing your route. The workflow differs
+                      based on your shape settings:
+                    </p>
+
                     <h5>📍 With Shapes Enabled (Recommended)</h5>
                     <ul>
-                      <li><strong>First Click:</strong> Creates your first stop AND starts the route shape automatically</li>
-                      <li><strong>Normal Clicks:</strong> Add shape nodes to trace the actual path vehicles follow (roads, turns, etc.)</li>
-                      <li><strong>Shift + Click:</strong> Add your next stop (shape automatically extends to connect)</li>
-                      <li><strong>Continue:</strong> Keep clicking for shape nodes, Shift+click for stops</li>
-                      <li><strong>Ctrl + Z:</strong> Undo the last shape point if you make a mistake</li>
+                      <li>
+                        <strong>First Click:</strong> Creates your first stop
+                        AND starts the route shape automatically
+                      </li>
+                      <li>
+                        <strong>Normal Clicks:</strong> Add shape nodes to trace
+                        the actual path vehicles follow (roads, turns, etc.)
+                      </li>
+                      <li>
+                        <strong>Shift + Click:</strong> Add your next stop
+                        (shape automatically extends to connect)
+                      </li>
+                      <li>
+                        <strong>Continue:</strong> Keep clicking for shape
+                        nodes, Shift+click for stops
+                      </li>
+                      <li>
+                        <strong>Ctrl + Z:</strong> Undo the last shape point if
+                        you make a mistake
+                      </li>
                     </ul>
-                    
+
                     <h5>📍 With "No Shapes" Mode</h5>
                     <ul>
-                      <li><strong>First Click:</strong> Creates your first stop</li>
-                      <li><strong>Shift + Click:</strong> Add additional stops along your route</li>
-                      <li><em>No shape drawing - just stop-to-stop connections</em></li>
+                      <li>
+                        <strong>First Click:</strong> Creates your first stop
+                      </li>
+                      <li>
+                        <strong>Shift + Click:</strong> Add additional stops
+                        along your route
+                      </li>
+                      <li>
+                        <em
+                          >No shape drawing - just stop-to-stop connections</em
+                        >
+                      </li>
                     </ul>
-                    
+
                     <h5>⚙️ Additional Stop Options</h5>
                     <ul>
-                      <li><strong>Reuse Existing Stops:</strong> Select from previously created stops in your network</li>
-                      <li><strong>Manual Coordinates:</strong> Enter precise lat/lng coordinates for exact placement</li>
-                      <li><strong>Drag Stops:</strong> Click and drag any stop to reposition it</li>
-                      <li><strong>Edit Stop Details:</strong> Click on stop markers to modify names, times, and details</li>
+                      <li>
+                        <strong>Reuse Existing Stops:</strong> Select from
+                        previously created stops in your network
+                      </li>
+                      <li>
+                        <strong>Manual Coordinates:</strong> Enter precise
+                        lat/lng coordinates for exact placement
+                      </li>
+                      <li>
+                        <strong>Drag Stops:</strong> Click and drag any stop to
+                        reposition it
+                      </li>
+                      <li>
+                        <strong>Edit Stop Details:</strong> Click on stop
+                        markers to modify names, times, and details
+                      </li>
                     </ul>
                   </div>
-                  
+
                   <div class="step-section">
                     <h4>✏️ Step 5: Edit and Refine</h4>
                     <p>Fine-tune your trip before finishing:</p>
                     <ul>
-                      <li><strong>Copy from Existing Trip:</strong> Use the "Copy from existing trip" dropdown to duplicate stops and shapes from completed trips</li>
-                      <li><strong>Adjust Stop Times:</strong> Click stop markers to set precise arrival/departure times</li>
-                      <li><strong>Edit Shape Nodes:</strong> Drag visible shape nodes to adjust route path, double-click nodes to delete them</li>
-                      <li><strong>Add Shape Nodes:</strong> Click directly on shape lines to add new nodes at that position</li>
-                      <li><strong>Delete Shape Nodes:</strong> Double-click on white shape node handles to remove them</li>
-                      <li><strong>Undo Shape Points:</strong> Press Ctrl+Z (or Cmd+Z on Mac) to undo the last shape point</li>
-                      <li><strong>Clear Trip:</strong> Use "Clear Trip" button to completely restart (removes all stops and shapes)</li>
+                      <li>
+                        <strong>Copy from Existing Trip:</strong> Use the "Copy
+                        from existing trip" dropdown to duplicate stops and
+                        shapes from completed trips
+                      </li>
+                      <li>
+                        <strong>Adjust Stop Times:</strong> Click stop markers
+                        to set precise arrival/departure times
+                      </li>
+                      <li>
+                        <strong>Edit Shape Nodes:</strong> Drag visible shape
+                        nodes to adjust route path, double-click nodes to delete
+                        them
+                      </li>
+                      <li>
+                        <strong>Add Shape Nodes:</strong> Click directly on
+                        shape lines to add new nodes at that position
+                      </li>
+                      <li>
+                        <strong>Delete Shape Nodes:</strong> Double-click on
+                        white shape node handles to remove them
+                      </li>
+                      <li>
+                        <strong>Undo Shape Points:</strong> Press Ctrl+Z (or
+                        Cmd+Z on Mac) to undo the last shape point
+                      </li>
+                      <li>
+                        <strong>Clear Trip:</strong> Use "Clear Trip" button to
+                        completely restart (removes all stops and shapes)
+                      </li>
                     </ul>
                   </div>
-                  
+
                   <div class="step-section">
                     <h4>💾 Step 6: Save, Export, and Validate</h4>
                     <p>When your trip is complete:</p>
                     <ul>
-                      <li><strong>Finish Trip:</strong> Click "Finish Trip" to save the trip to your GTFS feed</li>
-                      <li><strong>Save Work:</strong> Use "Save Work" to backup your progress as a JSON file</li>
-                      <li><strong>Load Previous Work:</strong> Resume work from saved JSON files</li>
-                      <li><strong>Preview GTFS:</strong> Open floating preview window to inspect your data</li>
-                      <li><strong>Download GTFS:</strong> Export complete transit feed as a ZIP file</li>
-                      <li><strong>Validate:</strong> Use MobilityData validator to check GTFS compliance</li>
+                      <li>
+                        <strong>Finish Trip:</strong> Click "Finish Trip" to
+                        save the trip to your GTFS feed
+                      </li>
+                      <li>
+                        <strong>Save Work:</strong> Use "Save Work" to backup
+                        your progress as a JSON file
+                      </li>
+                      <li>
+                        <strong>Load Previous Work:</strong> Resume work from
+                        saved JSON files
+                      </li>
+                      <li>
+                        <strong>Preview GTFS:</strong> Open floating preview
+                        window to inspect your data
+                      </li>
+                      <li>
+                        <strong>Download GTFS:</strong> Export complete transit
+                        feed as a ZIP file
+                      </li>
+                      <li>
+                        <strong>Validate:</strong> Use MobilityData validator to
+                        check GTFS compliance
+                      </li>
                     </ul>
                   </div>
                 </div>
-                
+
                 <div class="instruction-tips">
                   <h4>🔧 Advanced Features</h4>
                   <ul>
-                    <li><strong>Multiple Routes:</strong> Create different routes for various transit lines (Route 1, Route 2, etc.)</li>
-                    <li><strong>Bidirectional Service:</strong> Create trips in both directions using Direction ID 0 and 1</li>
-                    <li><strong>Service Patterns:</strong> Set up different service calendars for weekdays, weekends, and holidays</li>
-                    <li><strong>Copy Trip Patterns:</strong> Use "Copy from existing trip" to duplicate stops and shapes from previous trips</li>
-                    <li><strong>Reuse Existing Stops:</strong> Add existing stops from your network to new trips</li>
-                    <li><strong>Mac Compatibility:</strong> All editing works on Mac - use Cmd instead of Ctrl for shortcuts</li>
-                    <li><strong>Table View Editing:</strong> Switch to Table View for detailed editing of agency info, fares, and schedules</li>
-                    <li><strong>Shape Precision:</strong> Add many shape points to accurately represent vehicle paths around curves and turns</li>
-                    <li><strong>Frequency-Based Service:</strong> Use frequency-based trips for high-frequency routes (every 10-15 minutes)</li>
-                    <li><strong>Mixed Service Types:</strong> Combine fixed schedules for some trips with frequency-based service for others</li>
+                    <li>
+                      <strong>Multiple Routes:</strong> Create different routes
+                      for various transit lines (Route 1, Route 2, etc.)
+                    </li>
+                    <li>
+                      <strong>Bidirectional Service:</strong> Create trips in
+                      both directions using Direction ID 0 and 1
+                    </li>
+                    <li>
+                      <strong>Service Patterns:</strong> Set up different
+                      service calendars for weekdays, weekends, and holidays
+                    </li>
+                    <li>
+                      <strong>Copy Trip Patterns:</strong> Use "Copy from
+                      existing trip" to duplicate stops and shapes from previous
+                      trips
+                    </li>
+                    <li>
+                      <strong>Reuse Existing Stops:</strong> Add existing stops
+                      from your network to new trips
+                    </li>
+                    <li>
+                      <strong>Mac Compatibility:</strong> All editing works on
+                      Mac - use Cmd instead of Ctrl for shortcuts
+                    </li>
+                    <li>
+                      <strong>Table View Editing:</strong> Switch to Table View
+                      for detailed editing of agency info, fares, and schedules
+                    </li>
+                    <li>
+                      <strong>Shape Precision:</strong> Add many shape points to
+                      accurately represent vehicle paths around curves and turns
+                    </li>
+                    <li>
+                      <strong>Frequency-Based Service:</strong> Use
+                      frequency-based trips for high-frequency routes (every
+                      10-15 minutes)
+                    </li>
+                    <li>
+                      <strong>Mixed Service Types:</strong> Combine fixed
+                      schedules for some trips with frequency-based service for
+                      others
+                    </li>
                   </ul>
-                  
+
                   <h4>💡 Best Practices</h4>
                   <ul>
-                    <li><strong>Start Simple:</strong> Begin with one route and a few stops, then expand your network</li>
-                    <li><strong>Consistent Naming:</strong> Use clear, consistent naming for routes and stops</li>
-                    <li><strong>Real-world Accuracy:</strong> Place stops at actual bus stop locations using satellite imagery</li>
-                    <li><strong>Shape Detail:</strong> Draw shapes that follow actual roads and paths</li>
-                    <li><strong>Time Realism:</strong> Set realistic travel times between stops</li>
-                    <li><strong>Regular Saving:</strong> Save your work frequently to prevent data loss</li>
+                    <li>
+                      <strong>Start Simple:</strong> Begin with one route and a
+                      few stops, then expand your network
+                    </li>
+                    <li>
+                      <strong>Consistent Naming:</strong> Use clear, consistent
+                      naming for routes and stops
+                    </li>
+                    <li>
+                      <strong>Real-world Accuracy:</strong> Place stops at
+                      actual bus stop locations using satellite imagery
+                    </li>
+                    <li>
+                      <strong>Shape Detail:</strong> Draw shapes that follow
+                      actual roads and paths
+                    </li>
+                    <li>
+                      <strong>Time Realism:</strong> Set realistic travel times
+                      between stops
+                    </li>
+                    <li>
+                      <strong>Regular Saving:</strong> Save your work frequently
+                      to prevent data loss
+                    </li>
                   </ul>
-                  
+
                   <h4>❓ Troubleshooting</h4>
                   <ul>
-                    <li><strong>Can't see stops:</strong> Make sure you've clicked "Start Creating Trip" first</li>
-                    <li><strong>Shape not appearing:</strong> Check that "No Shapes" toggle is unchecked</li>
-                    <li><strong>Wrong stop location:</strong> Drag the stop marker to reposition it</li>
-                    <li><strong>Need to start over:</strong> Use "Clear Trip" to remove all stops and shapes</li>
-                    <li><strong>GTFS validation errors:</strong> Use the MobilityData validator link for detailed error reports</li>
+                    <li>
+                      <strong>Can't see stops:</strong> Make sure you've clicked
+                      "Start Creating Trip" first
+                    </li>
+                    <li>
+                      <strong>Shape not appearing:</strong> Check that "No
+                      Shapes" toggle is unchecked
+                    </li>
+                    <li>
+                      <strong>Wrong stop location:</strong> Drag the stop marker
+                      to reposition it
+                    </li>
+                    <li>
+                      <strong>Need to start over:</strong> Use "Clear Trip" to
+                      remove all stops and shapes
+                    </li>
+                    <li>
+                      <strong>GTFS validation errors:</strong> Use the
+                      MobilityData validator link for detailed error reports
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -953,9 +1303,13 @@
           <div class="gtfs-actions">
             <div class="gtfs-export-actions">
               <button id="saveWorkBtn" class="save-btn">💾 Save Work</button>
-              <button id="previewBtn" class="preview-btn">👁️ Preview GTFS</button>
+              <button id="previewBtn" class="preview-btn">
+                👁️ Preview GTFS
+              </button>
               <button id="downloadBtn">Download GTFS</button>
-              <button id="resetPageBtn" style="display: none">Reset Page</button>
+              <button id="resetPageBtn" style="display: none">
+                Reset Page
+              </button>
               <a
                 href="https://gtfs-validator.mobilitydata.org/"
                 target="_blank"
@@ -972,7 +1326,12 @@
         <div class="create-actions">
           <button id="createNewBtn">Create New Feed</button>
           <button id="loadWorkBtn" class="load-btn">Load Previous Work</button>
-          <input type="file" id="loadWorkFile" accept=".json" style="display: none;">
+          <input
+            type="file"
+            id="loadWorkFile"
+            accept=".json"
+            style="display: none"
+          />
         </div>
       </div>
 
@@ -1000,11 +1359,7 @@
             >
               −
             </button>
-            <button
-              class="close-btn"
-              id="closePreview"
-              title="Close Preview"
-            >
+            <button class="close-btn" id="closePreview" title="Close Preview">
               ×
             </button>
           </div>
@@ -1066,19 +1421,33 @@
                 </div>
               </div>
               <div class="filter-actions">
-                <button id="previewApplyFilter" class="filter-btn">Show on Map</button>
-                <button id="previewClearFilter" class="filter-btn secondary">Clear Filter</button>
+                <button id="previewApplyFilter" class="filter-btn">
+                  Show on Map
+                </button>
+                <button id="previewClearFilter" class="filter-btn secondary">
+                  Clear Filter
+                </button>
               </div>
             </div>
           </div>
 
           <!-- Preview Map Container -->
-          <div id="previewMapContainer" style="height: 400px; width: 100%; margin: 10px 0;"></div>
+          <div
+            id="previewMapContainer"
+            style="height: 400px; width: 100%; margin: 10px 0"
+          ></div>
 
           <!-- File Statistics -->
           <div class="preview-stats">
             <h4>📈 Data Summary</h4>
-            <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+            <div
+              class="stats-grid"
+              style="
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                gap: 8px;
+              "
+            >
               <div class="stat-item">
                 <div class="stat-value" id="previewStatsAgencies">0</div>
                 <div class="stat-label">Agencies</div>
