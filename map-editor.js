@@ -1610,18 +1610,135 @@ class MapEditor {
 
   removeStop(stopId) {
     const stopIndex = this.routeStops.findIndex((s) => s.stop_id === stopId);
-    if (stopIndex === -1) return;
+    if (stopIndex === -1) {
+      console.warn(`Stop ${stopId} not found in routeStops`);
+      return;
+    }
 
     const stop = this.routeStops[stopIndex];
-    this.map.removeLayer(stop.marker);
-    if (stop.label) {
-      this.map.removeLayer(stop.label);
+
+    // Clear pulse interval if it exists
+    if (stop.pulseInterval) {
+      clearInterval(stop.pulseInterval);
+      stop.pulseInterval = null;
     }
+
+    // Remove marker - need to handle both the current marker and any old markers
+    if (stop.marker) {
+      try {
+        console.log(`Removing marker for stop ${stopId}`, {
+          hasMap: !!stop.marker._map,
+          markerType: stop.marker.constructor.name,
+          latLng: stop.marker.getLatLng(),
+          hasStopId: !!stop.marker._stopId
+        });
+
+        // Close and unbind popup
+        if (stop.marker.getPopup && stop.marker.getPopup()) {
+          stop.marker.closePopup();
+          stop.marker.unbindPopup();
+        }
+
+        // Remove from map - force removal
+        if (stop.marker._map) {
+          stop.marker._map.removeLayer(stop.marker);
+        }
+        this.map.removeLayer(stop.marker);
+        stop.marker.remove();
+
+        console.log(`Marker removed for stop ${stopId}`);
+      } catch (error) {
+        console.error(`Error removing marker for stop ${stopId}:`, error);
+      }
+    }
+
+    // Also check for any orphaned old marker (before drag conversion)
+    if (stop._oldMarker) {
+      try {
+        console.log(`Removing old marker for stop ${stopId}`);
+        if (stop._oldMarker._map) {
+          stop._oldMarker._map.removeLayer(stop._oldMarker);
+        }
+        this.map.removeLayer(stop._oldMarker);
+        stop._oldMarker.remove();
+        stop._oldMarker = null;
+      } catch (error) {
+        console.log(`Error removing old marker:`, error.message);
+      }
+    }
+
+    // Aggressive cleanup: search for any markers at this stop's location
+    const stopLat = parseFloat(stop.stop_lat);
+    const stopLng = parseFloat(stop.stop_lon);
+    const layersToRemove = [];
+
+    this.map.eachLayer((layer) => {
+      if (layer.getLatLng) {
+        const layerLatLng = layer.getLatLng();
+        const distance = Math.abs(layerLatLng.lat - stopLat) + Math.abs(layerLatLng.lng - stopLng);
+
+        // If layer is at the same location (within tiny threshold)
+        if (distance < 0.000001) {
+          // Check if it's a marker (not a label) by checking its class
+          const isMarker = layer instanceof L.CircleMarker || layer instanceof L.Marker;
+          const isLabel = layer.options && layer.options.icon && layer.options.icon.options.className === 'stop-label';
+
+          if (isMarker && !isLabel) {
+            layersToRemove.push(layer);
+          }
+        }
+      }
+    });
+
+    if (layersToRemove.length > 0) {
+      console.log(`Found ${layersToRemove.length} orphaned marker(s) at stop location, removing...`);
+      layersToRemove.forEach(layer => {
+        try {
+          this.map.removeLayer(layer);
+          layer.remove();
+        } catch (e) {
+          console.log('Error removing orphaned marker:', e.message);
+        }
+      });
+    }
+
+    // Remove label - labels are also added directly to map
+    if (stop.label) {
+      try {
+        console.log(`Removing label for stop ${stopId}, label has _map:`, !!stop.label._map);
+        if (stop.label._map) {
+          stop.label.removeFrom(this.map);
+        }
+        stop.label.remove();
+        // Force removal from map's layer list
+        this.map.removeLayer(stop.label);
+        console.log(`Label removed for stop ${stopId}`);
+      } catch (error) {
+        console.error(`Error removing label for stop ${stopId}:`, error);
+      }
+    }
+
+    // Clear references
+    stop.marker = null;
+    stop.label = null;
+
+    // Remove from array
     this.routeStops.splice(stopIndex, 1);
 
-    // Update stop sequences
+    // Update stop sequences and names
     this.routeStops.forEach((s, index) => {
       s.stop_sequence = index + 1;
+      // Update stop names if they're using default naming
+      if (s.stop_name && s.stop_name.startsWith("Stop ")) {
+        s.stop_name = `Stop ${index + 1}`;
+        // Update the label text on map
+        if (s.label) {
+          const labelDiv = s.label.getElement()?.querySelector(".stop-label-text");
+          if (labelDiv) {
+            labelDiv.textContent = s.stop_name;
+          }
+        }
+      }
     });
 
     this.updateRouteLine();
@@ -1709,42 +1826,81 @@ class MapEditor {
   updateStopsList() {
     const stopsList = document.getElementById("stopsList");
     const emptyState = document.getElementById("stopsListEmpty");
-    
+
     if (this.routeStops.length === 0) {
       stopsList.style.display = "none";
       emptyState.style.display = "block";
       return;
     }
-    
+
     emptyState.style.display = "none";
     stopsList.style.display = "block";
     stopsList.innerHTML = "";
-    
+
+    // Add bulk actions header
+    const bulkActionsHeader = document.createElement("div");
+    bulkActionsHeader.className = "stops-list-bulk-actions";
+    bulkActionsHeader.innerHTML = `
+      <div class="bulk-actions-controls">
+        <label class="bulk-select-all">
+          <input type="checkbox" id="selectAllStops" />
+          <span>Select All</span>
+        </label>
+        <button class="bulk-delete-btn" id="bulkDeleteStopsBtn" disabled>Delete Selected</button>
+        <button class="clear-all-btn" id="clearAllStopsBtn">Clear All Stops</button>
+      </div>
+    `;
+    stopsList.appendChild(bulkActionsHeader);
+
+    // Add event listeners for bulk actions
+    document.getElementById("selectAllStops").addEventListener("change", (e) => {
+      const checkboxes = stopsList.querySelectorAll(".stop-checkbox");
+      checkboxes.forEach(cb => cb.checked = e.target.checked);
+      this.updateBulkDeleteButton();
+    });
+
+    document.getElementById("bulkDeleteStopsBtn").addEventListener("click", () => {
+      this.deleteSelectedStops();
+    });
+
+    document.getElementById("clearAllStopsBtn").addEventListener("click", () => {
+      this.clearAllStops();
+    });
+
+    // Add individual stop items
     this.routeStops.forEach((stop, index) => {
       const li = document.createElement("li");
-      
+      li.className = "stop-list-item";
+
+      // Checkbox for selection
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "stop-checkbox";
+      checkbox.setAttribute("data-stop-id", stop.stop_id);
+      checkbox.addEventListener("change", () => this.updateBulkDeleteButton());
+
       const stopInfo = document.createElement("div");
       stopInfo.className = "stop-info";
-      
+
       const stopNumber = document.createElement("span");
       stopNumber.textContent = `${index + 1}. `;
       stopNumber.style.fontWeight = "bold";
-      
+
       const stopName = document.createElement("span");
       stopName.className = "stop-name-editable";
       stopName.textContent = stop.stop_name || `Stop ${stop.stop_sequence}`;
       stopName.setAttribute("data-stop-id", stop.stop_id);
-      
+
       stopInfo.appendChild(stopNumber);
       stopInfo.appendChild(stopName);
-      
+
       // Add tooltip functionality
       stopInfo.addEventListener("mouseenter", (e) => this.showStopTooltip(e, stop));
       stopInfo.addEventListener("mouseleave", () => this.hideStopTooltip());
-      
+
       // Add click-to-edit functionality for stop name
       stopName.addEventListener("click", (e) => this.editStopName(e, stop));
-      
+
       const stopTime = document.createElement("div");
       stopTime.className = "stop-time stop-time-editable";
       if (stop.arrival_time && stop.departure_time) {
@@ -1753,14 +1909,334 @@ class MapEditor {
         stopTime.textContent = "No times set";
       }
       stopTime.setAttribute("data-stop-id", stop.stop_id);
-      
+
       // Add click-to-edit functionality for stop times
       stopTime.addEventListener("click", (e) => this.editStopTime(e, stop));
-      
+
+      // Action buttons container
+      const actionsContainer = document.createElement("div");
+      actionsContainer.className = "stop-actions";
+
+      // Insert after button
+      const insertBtn = document.createElement("button");
+      insertBtn.className = "stop-insert-btn";
+      insertBtn.innerHTML = "+";
+      insertBtn.title = "Insert stop after this one";
+      insertBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.enableInsertAfterMode(index);
+      });
+
+      // Individual delete button
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "stop-delete-btn";
+      deleteBtn.innerHTML = "×";
+      deleteBtn.title = "Delete this stop";
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.removeStop(stop.stop_id);
+      });
+
+      actionsContainer.appendChild(insertBtn);
+      actionsContainer.appendChild(deleteBtn);
+
+      li.appendChild(checkbox);
       li.appendChild(stopInfo);
       li.appendChild(stopTime);
+      li.appendChild(actionsContainer);
       stopsList.appendChild(li);
     });
+  }
+
+  updateBulkDeleteButton() {
+    const bulkDeleteBtn = document.getElementById("bulkDeleteStopsBtn");
+    if (!bulkDeleteBtn) return;
+
+    const checkboxes = document.querySelectorAll(".stop-checkbox:checked");
+    bulkDeleteBtn.disabled = checkboxes.length === 0;
+    bulkDeleteBtn.textContent = checkboxes.length > 0
+      ? `Delete Selected (${checkboxes.length})`
+      : "Delete Selected";
+  }
+
+  deleteSelectedStops() {
+    const checkboxes = document.querySelectorAll(".stop-checkbox:checked");
+    if (checkboxes.length === 0) return;
+
+    const stopIds = Array.from(checkboxes).map(cb => cb.getAttribute("data-stop-id"));
+
+    if (!confirm(`Delete ${stopIds.length} selected stop(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    // Remove stops in reverse order to maintain indices
+    stopIds.forEach(stopId => {
+      this.removeStop(stopId);
+    });
+
+    this.showMapMessage(`Deleted ${stopIds.length} stop(s)`, "success");
+  }
+
+  clearAllStops() {
+    if (this.routeStops.length === 0) return;
+
+    if (!confirm(`Clear all ${this.routeStops.length} stops? This cannot be undone.`)) {
+      return;
+    }
+
+    // Create a copy of the array to avoid modification during iteration
+    const stopsToRemove = [...this.routeStops];
+    stopsToRemove.forEach(stop => {
+      this.removeStop(stop.stop_id);
+    });
+
+    this.showMapMessage("All stops cleared", "success");
+  }
+
+  enableInsertAfterMode(afterIndex) {
+    // Store the insertion position
+    this.insertAfterIndex = afterIndex;
+
+    // Show a message to the user
+    const stopName = this.routeStops[afterIndex]?.stop_name || `Stop ${afterIndex + 1}`;
+    this.showMapMessage(
+      `Click on the map to insert a new stop after "${stopName}". Press ESC to cancel.`,
+      "info"
+    );
+
+    // Change cursor to indicate insert mode
+    document.getElementById("mapContainer").style.cursor = "crosshair";
+
+    // Add temporary map click handler for inserting
+    this.insertModeClickHandler = (e) => {
+      this.insertStopAfter(e.latlng.lat, e.latlng.lng, afterIndex);
+      this.disableInsertAfterMode();
+    };
+
+    this.map.once("click", this.insertModeClickHandler);
+
+    // Allow ESC to cancel
+    this.insertModeEscHandler = (e) => {
+      if (e.key === "Escape") {
+        this.disableInsertAfterMode();
+        this.showMapMessage("Insert mode cancelled", "info");
+      }
+    };
+    document.addEventListener("keydown", this.insertModeEscHandler);
+  }
+
+  disableInsertAfterMode() {
+    this.insertAfterIndex = null;
+    document.getElementById("mapContainer").style.cursor =
+      this.isCreatingTrip ? "crosshair" : "default";
+
+    // Remove event listeners
+    if (this.insertModeClickHandler) {
+      this.map.off("click", this.insertModeClickHandler);
+      this.insertModeClickHandler = null;
+    }
+    if (this.insertModeEscHandler) {
+      document.removeEventListener("keydown", this.insertModeEscHandler);
+      this.insertModeEscHandler = null;
+    }
+  }
+
+  insertStopAfter(lat, lng, afterIndex) {
+    const timingMethod = document.getElementById("timingMethodSelect")?.value || "auto";
+    let customTimes = null;
+
+    // If manual timing, prompt for times
+    if (timingMethod === "manual") {
+      const arrival = prompt("Enter arrival time (HH:MM):", "08:00");
+      if (!arrival) {
+        this.showMapMessage("Stop insertion cancelled", "info");
+        return;
+      }
+      const departure = prompt("Enter departure time (HH:MM):", arrival);
+      if (!departure) {
+        this.showMapMessage("Stop insertion cancelled", "info");
+        return;
+      }
+      customTimes = { arrival, departure };
+    }
+
+    // Generate unique stop ID
+    const stopId = `stop_${this.stopCounter++}`;
+    const stopName = `Stop ${afterIndex + 2}`; // Name based on position
+
+    // Create stop object
+    const stop = {
+      stop_id: stopId,
+      stop_name: stopName,
+      stop_lat: lat.toFixed(6),
+      stop_lon: lng.toFixed(6),
+      stop_sequence: afterIndex + 2, // Will be updated
+    };
+
+    // Add timing information
+    this.addTimingToStop(stop, customTimes);
+
+    // Create marker for the new stop
+    const marker = L.circleMarker([lat, lng], {
+      radius: 8,
+      fillColor: "#4caf50",
+      color: "white",
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.9,
+    }).addTo(this.map);
+
+    // Add label
+    const label = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: "stop-label",
+        html: `<div class="stop-label-text">${stop.stop_name}</div>`,
+      }),
+    }).addTo(this.map);
+
+    // Add references BEFORE making draggable (makeStopDraggable will update stop.marker)
+    stop.marker = marker;
+    stop.label = label;
+
+    // Make stop draggable (this will replace stop.marker with drag marker)
+    this.makeStopDraggable(marker, stop);
+
+    // Create popup and bind to the NEW drag marker (stop.marker now points to drag marker)
+    const popupContent = this.createStopPopup(stop, stop.marker);
+    stop.marker.bindPopup(popupContent);
+
+    // Insert at the correct position
+    this.routeStops.splice(afterIndex + 1, 0, stop);
+
+    // Update all stop sequences and names
+    this.routeStops.forEach((s, index) => {
+      s.stop_sequence = index + 1;
+      s.stop_name = s.stop_name.startsWith("Stop ")
+        ? `Stop ${index + 1}`
+        : s.stop_name;
+
+      // Update label if it exists
+      if (s.label) {
+        const labelDiv = s.label.getElement()?.querySelector(".stop-label-text");
+        if (labelDiv) {
+          labelDiv.textContent = s.stop_name;
+        }
+      }
+    });
+
+    // Update shape if shapes are enabled
+    if (this.currentTripShape && !this.noShapes) {
+      const latlngs = this.currentTripShape.getLatLngs();
+      const newStopLatLng = L.latLng(lat, lng);
+
+      const prevStop = this.routeStops[afterIndex];
+      const nextStop = this.routeStops[afterIndex + 2]; // After we inserted the stop in the array
+
+      let insertIndex = latlngs.length; // Default to end
+
+      if (prevStop && nextStop) {
+        // Find the shape indices for prev and next stops (closest points)
+        const prevStopLatLng = L.latLng(parseFloat(prevStop.stop_lat), parseFloat(prevStop.stop_lon));
+        const nextStopLatLng = L.latLng(parseFloat(nextStop.stop_lat), parseFloat(nextStop.stop_lon));
+
+        let prevStopShapeIndex = -1;
+        let prevMinDist = Infinity;
+
+        // Find previous stop in shape
+        for (let i = 0; i < latlngs.length; i++) {
+          const dist = prevStopLatLng.distanceTo(latlngs[i]);
+          if (dist < prevMinDist) {
+            prevMinDist = dist;
+            prevStopShapeIndex = i;
+          }
+        }
+
+        // Find next stop in shape (search after previous)
+        let nextStopShapeIndex = -1;
+        let nextMinDist = Infinity;
+        if (prevStopShapeIndex !== -1) {
+          for (let i = prevStopShapeIndex + 1; i < latlngs.length; i++) {
+            const dist = nextStopLatLng.distanceTo(latlngs[i]);
+            if (dist < nextMinDist) {
+              nextMinDist = dist;
+              nextStopShapeIndex = i;
+            }
+          }
+        }
+
+        console.log(`Shape insertion: prev at ${prevStopShapeIndex}, next at ${nextStopShapeIndex}`);
+
+        // If we found both stops, find the best LINE SEGMENT to insert into
+        if (prevStopShapeIndex !== -1 && nextStopShapeIndex !== -1 && nextStopShapeIndex > prevStopShapeIndex) {
+          let minSegmentDist = Infinity;
+          let bestSegmentInsertIndex = prevStopShapeIndex + 1;
+
+          // Check each line segment between prev and next stops
+          for (let i = prevStopShapeIndex; i < nextStopShapeIndex; i++) {
+            const segmentStart = latlngs[i];
+            const segmentEnd = latlngs[i + 1];
+
+            // Calculate distance from new stop to this line segment
+            const dist = this.distanceToLineSegment(newStopLatLng, segmentStart, segmentEnd);
+
+            if (dist < minSegmentDist) {
+              minSegmentDist = dist;
+              bestSegmentInsertIndex = i + 1; // Insert after segment start
+            }
+          }
+
+          insertIndex = bestSegmentInsertIndex;
+          console.log(`Inserting at ${insertIndex} (closest to line segment, dist: ${minSegmentDist.toFixed(4)})`);
+        } else if (prevStopShapeIndex !== -1) {
+          // Only found prev, insert right after it
+          insertIndex = prevStopShapeIndex + 1;
+          console.log(`Only found prev stop, inserting at ${insertIndex}`);
+        }
+      } else if (prevStop) {
+        // Only previous stop exists (inserting at end)
+        const prevStopLatLng = L.latLng(parseFloat(prevStop.stop_lat), parseFloat(prevStop.stop_lon));
+        let prevStopShapeIndex = -1;
+        let prevMinDist = Infinity;
+
+        for (let i = 0; i < latlngs.length; i++) {
+          const dist = prevStopLatLng.distanceTo(latlngs[i]);
+          if (dist < prevMinDist) {
+            prevMinDist = dist;
+            prevStopShapeIndex = i;
+          }
+        }
+
+        insertIndex = prevStopShapeIndex !== -1 ? prevStopShapeIndex + 1 : latlngs.length;
+        console.log(`Inserting at end: ${insertIndex}`);
+      }
+
+      console.log(`Before insertion: ${latlngs.length} points`);
+      console.log(`Inserting stop at shape index ${insertIndex}`);
+
+      latlngs.splice(insertIndex, 0, newStopLatLng);
+
+      console.log(`After insertion: ${latlngs.length} points`);
+      console.log(`First 3 points:`, latlngs.slice(0, 3).map(ll => `(${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)})`));
+      console.log(`Last 3 points:`, latlngs.slice(-3).map(ll => `(${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)})`));
+      console.log(`New stop location: (${newStopLatLng.lat.toFixed(4)}, ${newStopLatLng.lng.toFixed(4)})`);
+
+      this.currentTripShape.setLatLngs(latlngs);
+      this.currentTripShapePoints = latlngs;
+
+      // Debug: check how many polylines are on the map
+      let polylineCount = 0;
+      this.map.eachLayer((layer) => {
+        if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+          polylineCount++;
+          console.log(`Polyline found with ${layer.getLatLngs().length} points`);
+        }
+      });
+      console.log(`Total polylines on map: ${polylineCount}`);
+    }
+
+    this.updateRouteLine();
+    this.updateTripInfo();
+    this.showMapMessage(`Stop inserted after position ${afterIndex + 1}`, "success");
   }
 
   showStopTooltip(event, stop) {
@@ -3728,8 +4204,7 @@ class MapEditor {
         // Only add nodes if we're actively creating/editing a trip
         if (this.isCreatingTrip && polyline === this.currentTripShape) {
           // Prevent event from bubbling up to the map click handler
-          e.originalEvent.preventDefault();
-          e.originalEvent.stopPropagation();
+          L.DomEvent.stopPropagation(e);
           this.addShapeNodeAtPosition(polyline, e.latlng);
         }
       });
@@ -3877,12 +4352,26 @@ class MapEditor {
       })
     });
 
-    // Replace the original marker
-    this.map.removeLayer(marker);
+    // Store reference to old marker in case we need it for cleanup later
+    stop._oldMarker = marker;
+
+    // Add unique identifier to track this marker
+    dragMarker._stopId = stop.stop_id;
+
+    // Add new marker first
     dragMarker.addTo(this.map);
 
-    // Update references
+    // Update references BEFORE removing old marker
     stop.marker = dragMarker;
+
+    // Remove the old CircleMarker
+    try {
+      this.map.removeLayer(marker);
+      marker.remove();
+      console.log(`Converted CircleMarker to draggable Marker for ${stop.stop_name}`);
+    } catch (e) {
+      console.log('Error removing old marker during drag setup:', e.message);
+    }
     
     // Add drag event handlers
     dragMarker.on('dragstart', () => {
