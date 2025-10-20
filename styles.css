@@ -1127,6 +1127,27 @@ td input:focus {
     background: #c82333;
 }
 
+/* Stop Naming Section Styles */
+.stop-naming-section {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #d0d7de;
+}
+
+.stop-naming-section h5 {
+    margin: 0 0 10px 0;
+    color: #2196f3;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.naming-toggle {
+    margin-bottom: 0;
+}
+
 /* Frequency Modal Styles */
 .frequency-modal {
     position: fixed;

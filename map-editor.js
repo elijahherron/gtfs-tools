@@ -555,7 +555,7 @@ class MapEditor {
     console.log("Map initialization completed");
   }
 
-  handleMapClick(e) {
+  async handleMapClick(e) {
     if (!this.isCreatingTrip) return;
 
     const lat = e.latlng.lat;
@@ -566,22 +566,22 @@ class MapEditor {
     if (e.originalEvent && e.originalEvent.shiftKey) {
       // Shift+click = add stop (and extend shape to that stop if shapes enabled)
       const timingMethod = document.getElementById("timingMethodSelect").value;
-      
+
       if (timingMethod === "manual") {
-        this.promptForStopTime(lat, lng, !noShapes);
+        await this.promptForStopTime(lat, lng, !noShapes);
       } else {
-        this.addStop(lat, lng, !noShapes);
+        await this.addStop(lat, lng, !noShapes);
       }
     } else {
       // Normal click behavior depends on whether we have stops yet
       if (this.routeStops.length === 0) {
         // First click = add first stop (and start shape if enabled)
         const timingMethod = document.getElementById("timingMethodSelect").value;
-        
+
         if (timingMethod === "manual") {
-          this.promptForStopTime(lat, lng, !noShapes, true);
+          await this.promptForStopTime(lat, lng, !noShapes, true);
         } else {
-          this.addStop(lat, lng, !noShapes, true);
+          await this.addStop(lat, lng, !noShapes, true);
         }
       } else {
         // Subsequent normal clicks = add shape node (only if shapes enabled)
@@ -592,7 +592,7 @@ class MapEditor {
     }
   }
 
-  promptForStopTime(lat, lng, extendShape = false, isFirstStop = false) {
+  async promptForStopTime(lat, lng, extendShape = false, isFirstStop = false) {
     // Create a modal-like prompt for time input
     const arrivalTime = prompt("Enter arrival time (HH:MM):");
     if (!arrivalTime) return;
@@ -613,7 +613,7 @@ class MapEditor {
       departure: departureTime || arrivalTime,
     };
 
-    this.addStop(lat, lng, extendShape, customTimes, isFirstStop);
+    await this.addStop(lat, lng, extendShape, customTimes, isFirstStop);
   }
 
   handleDrawCreated(e) {
@@ -993,7 +993,53 @@ class MapEditor {
     });
   }
 
-  addStopByCoordinates() {
+  async reverseGeocode(lat, lng) {
+    // Use Nominatim (OpenStreetMap) reverse geocoding service
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'GTFS-Editor/1.0'
+        }
+      });
+      const data = await response.json();
+
+      if (data && data.address) {
+        const address = data.address;
+
+        // Try to build a street intersection or street name
+        // Priority: road/street intersection or single street name
+        const road = address.road || address.street || address.pedestrian || address.path;
+        const amenity = address.amenity;
+        const building = address.building;
+
+        // If we have a road name, use it
+        if (road) {
+          // Try to get cross street from nearby features
+          // For now, we'll just use the single street name
+          // You could enhance this by doing multiple reverse geocodes at nearby points
+          return road;
+        }
+
+        // Fallback to other location identifiers
+        if (amenity) return amenity;
+        if (building) return building;
+        if (address.suburb) return address.suburb;
+        if (address.neighbourhood) return address.neighbourhood;
+        if (address.city) return address.city;
+
+        return null; // No suitable name found
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Reverse geocoding error:", error);
+      return null; // Return null on error, will fallback to "Stop N"
+    }
+  }
+
+  async addStopByCoordinates() {
     const lat = parseFloat(document.getElementById("latInput").value);
     const lng = parseFloat(document.getElementById("lngInput").value);
 
@@ -1041,7 +1087,7 @@ class MapEditor {
     // Add the stop at the specified coordinates
     const noShapes = document.getElementById("noShapesToggle")?.checked || false;
     const isFirst = this.routeStops.length === 0;
-    this.addStop(lat, lng, !noShapes, customTimes, isFirst);
+    await this.addStop(lat, lng, !noShapes, customTimes, isFirst);
 
     // Clear the input fields
     document.getElementById("latInput").value = "";
@@ -1395,9 +1441,21 @@ class MapEditor {
     this.createStopMarkerAndFinalize(stop);
   }
 
-  addStop(lat, lng, extendShape = false, customTimes = null, isFirstStop = false) {
+  async addStop(lat, lng, extendShape = false, customTimes = null, isFirstStop = false) {
     const stopId = `stop_${this.stopCounter++}`;
-    const stopName = `Stop ${this.routeStops.length + 1}`;
+    let stopName = `Stop ${this.routeStops.length + 1}`;
+
+    // Check if street-based naming is enabled
+    const useStreetNames = document.getElementById("useStreetNamesToggle")?.checked || false;
+
+    if (useStreetNames) {
+      // Try to get street name from reverse geocoding
+      const streetName = await this.reverseGeocode(lat, lng);
+      if (streetName) {
+        stopName = streetName;
+      }
+      // If reverse geocoding fails or returns null, keep default "Stop N" name
+    }
 
     // Handle shape creation/extension if enabled
     if (extendShape) {
@@ -2041,7 +2099,7 @@ class MapEditor {
     }
   }
 
-  insertStopAfter(lat, lng, afterIndex) {
+  async insertStopAfter(lat, lng, afterIndex) {
     const timingMethod = document.getElementById("timingMethodSelect")?.value || "auto";
     let customTimes = null;
 
@@ -2062,7 +2120,19 @@ class MapEditor {
 
     // Generate unique stop ID
     const stopId = `stop_${this.stopCounter++}`;
-    const stopName = `Stop ${afterIndex + 2}`; // Name based on position
+    let stopName = `Stop ${afterIndex + 2}`; // Name based on position
+
+    // Check if street-based naming is enabled
+    const useStreetNames = document.getElementById("useStreetNamesToggle")?.checked || false;
+
+    if (useStreetNames) {
+      // Try to get street name from reverse geocoding
+      const streetName = await this.reverseGeocode(lat, lng);
+      if (streetName) {
+        stopName = streetName;
+      }
+      // If reverse geocoding fails or returns null, keep default "Stop N" name
+    }
 
     // Create stop object
     const stop = {
