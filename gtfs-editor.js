@@ -13,105 +13,193 @@ class GTFSEditor {
     this.selectedRouteId = ""; // Track selected route
     this.selectedTripId = ""; // Track selected trip
     this.initializeEventListeners();
+    // Initially disable view buttons until a feed/editor is present
+    this.setViewButtonsEnabled(false);
+    // Initialize export window
+    this.initializeExportWindow();
   }
 
   initializeEventListeners() {
     // File upload
-    document
-      .getElementById("uploadBtn")
-      .addEventListener("click", () => this.handleFileUpload());
+    const uploadBtn = document.getElementById("uploadBtn");
+    if (uploadBtn) {
+      uploadBtn.addEventListener("click", () => this.handleFileUpload());
+    }
 
     // Create new feed
-    document
-      .getElementById("createNewBtn")
-      .addEventListener("click", () => this.createNewFeed());
+    const createNewBtn = document.getElementById("createNewBtn");
+    if (createNewBtn) {
+      createNewBtn.addEventListener("click", () => this.createNewFeed());
+    }
 
     // Reset page
-    document
-      .getElementById("resetPageBtn")
-      .addEventListener("click", () => this.resetPage());
+    const resetPageBtn = document.getElementById("resetPageBtn");
+    if (resetPageBtn) {
+      resetPageBtn.addEventListener("click", () => this.resetPage());
+    }
 
     // Editor actions
-    document
-      .getElementById("addRowBtn")
-      .addEventListener("click", () => this.addRow());
-    document
-      .getElementById("deleteRowBtn")
-      .addEventListener("click", () => this.deleteSelectedRows());
-    document
-      .getElementById("downloadBtn")
-      .addEventListener("click", () => this.downloadFeed());
+    const addRowBtn = document.getElementById("addRowBtn");
+    if (addRowBtn) {
+      addRowBtn.addEventListener("click", () => this.addRow());
+    }
 
-    // View switching
-    document
-      .getElementById("tableViewBtn")
-      .addEventListener("click", () => this.activateTableView());
-    document
-      .getElementById("mapViewBtn")
-      .addEventListener("click", () => this.activateMapView());
+    const deleteRowBtn = document.getElementById("deleteRowBtn");
+    if (deleteRowBtn) {
+      deleteRowBtn.addEventListener("click", () => this.deleteSelectedRows());
+    }
+
+    const downloadBtn = document.getElementById("downloadBtn");
+    if (downloadBtn) {
+      downloadBtn.addEventListener("click", () => this.downloadFeed());
+    }
+
+    // Hook up inline export buttons in import and create sections
+    const saveWorkBtnImport = document.getElementById("saveWorkBtnImport");
+    if (saveWorkBtnImport) {
+      saveWorkBtnImport.addEventListener("click", () => this.saveWork());
+    }
+
+    const downloadBtnImport = document.getElementById("downloadBtnImport");
+    if (downloadBtnImport) {
+      downloadBtnImport.addEventListener("click", () => this.downloadFeed());
+    }
+
+    const saveWorkBtnCreate = document.getElementById("saveWorkBtnCreate");
+    if (saveWorkBtnCreate) {
+      saveWorkBtnCreate.addEventListener("click", () => this.saveWork());
+    }
+
+    const downloadBtnCreate = document.getElementById("downloadBtnCreate");
+    if (downloadBtnCreate) {
+      downloadBtnCreate.addEventListener("click", () => this.downloadFeed());
+    }
+
+    // View switching (no longer needed with sidebar navigation)
+    // document
+    //   .getElementById("tableViewBtn")
+    //   .addEventListener("click", () => this.activateTableView());
+    // document
+    //   .getElementById("mapViewBtn")
+    //   .addEventListener("click", () => this.activateMapView());
 
     // Route/Trip filter searchable inputs
     this.initializeSearchableSelectors();
-    document
-      .getElementById("applyFilterBtn")
-      .addEventListener("click", () => this.applyMapFilter());
-    document
-      .getElementById("clearFilterBtn")
-      .addEventListener("click", () => this.clearMapFilter());
+
+    const applyFilterBtn = document.getElementById("applyFilterBtn");
+    if (applyFilterBtn) {
+      applyFilterBtn.addEventListener("click", () => this.applyMapFilter());
+    }
+
+    const clearFilterBtn = document.getElementById("clearFilterBtn");
+    if (clearFilterBtn) {
+      clearFilterBtn.addEventListener("click", () => this.clearMapFilter());
+    }
+
+    // Editor (import section) filter buttons
+    const editorApplyFilterBtn = document.getElementById(
+      "editorApplyFilterBtn"
+    );
+    if (editorApplyFilterBtn) {
+      editorApplyFilterBtn.addEventListener("click", () =>
+        this.applyMapFilter()
+      );
+    }
+
+    const editorClearFilterBtn = document.getElementById(
+      "editorClearFilterBtn"
+    );
+    if (editorClearFilterBtn) {
+      editorClearFilterBtn.addEventListener("click", () =>
+        this.clearMapFilter()
+      );
+    }
 
     // Existing stops functionality - Note: actual event listeners are set up in initializeExistingStopsEvents()
     // when the existing stops selector is initialized
 
-    // Route creator collapse functionality
-    document
-      .getElementById("collapseCreatorBtn")
-      .addEventListener("click", () => this.toggleRouteCreator());
-    document
-      .getElementById("routeCreatorHeader")
-      .addEventListener("click", () => this.toggleRouteCreator());
+    // Route creator collapse functionality (removed - now handled by toggle arrow button)
+    // The panel is now controlled by the toggleCreatorBtn in app.js
 
     // Filter collapse functionality
-    document
-      .getElementById("collapseFilterBtn")
-      .addEventListener("click", () => this.toggleRouteFilter());
-    document
-      .getElementById("filterHeader")
-      .addEventListener("click", () => this.toggleRouteFilter());
+    const collapseFilterBtn = document.getElementById("collapseFilterBtn");
+    if (collapseFilterBtn) {
+      collapseFilterBtn.addEventListener("click", () =>
+        this.toggleRouteFilter()
+      );
+    }
+
+    const filterHeader = document.getElementById("filterHeader");
+    if (filterHeader) {
+      filterHeader.addEventListener("click", () => this.toggleRouteFilter());
+    }
 
     // Agency website button
-    document
-      .getElementById("agencyWebsiteBtn")
-      .addEventListener("click", () => this.visitAgencyWebsite());
+    const agencyWebsiteBtn = document.getElementById("agencyWebsiteBtn");
+    if (agencyWebsiteBtn) {
+      agencyWebsiteBtn.addEventListener("click", () =>
+        this.visitAgencyWebsite()
+      );
+    }
 
     // Instructions panel buttons
-    document
-      .getElementById("closeInstructions")
-      .addEventListener("click", () => this.closeInstructions());
-    document
-      .getElementById("collapseInstructions")
-      .addEventListener("click", () => this.toggleInstructions());
+    const closeInstructions = document.getElementById("closeInstructions");
+    if (closeInstructions) {
+      closeInstructions.addEventListener("click", () =>
+        this.closeInstructions()
+      );
+    }
+
+    const collapseInstructions = document.getElementById(
+      "collapseInstructions"
+    );
+    if (collapseInstructions) {
+      collapseInstructions.addEventListener("click", () =>
+        this.toggleInstructions()
+      );
+    }
 
     // Save/Load/Preview buttons
-    document
-      .getElementById("saveWorkBtn")
-      .addEventListener("click", () => this.saveWork());
-    document
-      .getElementById("loadWorkBtn")
-      .addEventListener("click", () => this.loadWork());
-    document
-      .getElementById("loadWorkFile")
-      .addEventListener("change", (e) => this.handleLoadWorkFile(e));
-    document
-      .getElementById("previewBtn")
-      .addEventListener("click", () => this.previewGTFS());
+    const saveWorkBtn = document.getElementById("saveWorkBtn");
+    if (saveWorkBtn) {
+      saveWorkBtn.addEventListener("click", () => this.saveWork());
+    }
+
+    const loadWorkBtn = document.getElementById("loadWorkBtn");
+    if (loadWorkBtn) {
+      loadWorkBtn.addEventListener("click", () => this.loadWork());
+    }
+
+    const loadWorkFile = document.getElementById("loadWorkFile");
+    if (loadWorkFile) {
+      loadWorkFile.addEventListener("change", (e) =>
+        this.handleLoadWorkFile(e)
+      );
+    }
+
+    const previewBtn = document.getElementById("previewBtn");
+    if (previewBtn) {
+      previewBtn.addEventListener("click", () => this.previewGTFS());
+    }
 
     // Frequency controls
-    document
-      .getElementById("useFrequenciesToggle")
-      .addEventListener("change", (e) => this.toggleFrequencies(e.target.checked));
-    document
-      .getElementById("addFrequencyPeriodBtn")
-      .addEventListener("click", () => this.addFrequencyPeriod());
+    const useFrequenciesToggle = document.getElementById(
+      "useFrequenciesToggle"
+    );
+    if (useFrequenciesToggle) {
+      useFrequenciesToggle.addEventListener("change", (e) =>
+        this.toggleFrequencies(e.target.checked)
+      );
+    }
+
+    const addFrequencyPeriodBtn = document.getElementById(
+      "addFrequencyPeriodBtn"
+    );
+    if (addFrequencyPeriodBtn) {
+      addFrequencyPeriodBtn.addEventListener("click", () =>
+        this.addFrequencyPeriod()
+      );
+    }
   }
 
   initializeSearchableSelectors() {
@@ -119,26 +207,30 @@ class GTFSEditor {
     const routeSearch = document.getElementById("routeFilterSearch");
     const routeDropdown = document.getElementById("routeSearchDropdown");
 
-    routeSearch.addEventListener("input", (e) =>
-      this.filterRouteOptions(e.target.value)
-    );
-    routeSearch.addEventListener("focus", () => this.showAllRouteOptions());
-    routeSearch.addEventListener("blur", (e) => {
-      // Delay hiding to allow option clicks
-      setTimeout(() => this.hideRouteDropdown(), 150);
-    });
+    if (routeSearch) {
+      routeSearch.addEventListener("input", (e) =>
+        this.filterRouteOptions(e.target.value)
+      );
+      routeSearch.addEventListener("focus", () => this.showAllRouteOptions());
+      routeSearch.addEventListener("blur", (e) => {
+        // Delay hiding to allow option clicks
+        setTimeout(() => this.hideRouteDropdown(), 150);
+      });
+    }
 
     // Trip search functionality
     const tripSearch = document.getElementById("tripFilterSearch");
     const tripDropdown = document.getElementById("tripSearchDropdown");
 
-    tripSearch.addEventListener("input", (e) =>
-      this.filterTripOptions(e.target.value)
-    );
-    tripSearch.addEventListener("focus", () => this.showAllTripOptions());
-    tripSearch.addEventListener("blur", (e) => {
-      setTimeout(() => this.hideTripDropdown(), 150);
-    });
+    if (tripSearch) {
+      tripSearch.addEventListener("input", (e) =>
+        this.filterTripOptions(e.target.value)
+      );
+      tripSearch.addEventListener("focus", () => this.showAllTripOptions());
+      tripSearch.addEventListener("blur", (e) => {
+        setTimeout(() => this.hideTripDropdown(), 150);
+      });
+    }
 
     // Click outside to close dropdowns
     document.addEventListener("click", (e) => {
@@ -151,8 +243,15 @@ class GTFSEditor {
     });
   }
 
-  filterRouteOptions(searchTerm) {
-    const dropdown = document.getElementById("routeSearchDropdown");
+  filterRouteOptions(searchTerm, dropdown = null, searchInput = null) {
+    // Use provided dropdown or default to the main route dropdown
+    const dropdownEl =
+      dropdown || document.getElementById("routeSearchDropdown");
+
+    if (!this.routeOptions || this.routeOptions.length === 0) {
+      console.warn("No route options available to filter");
+      return;
+    }
 
     // If search term is empty, show all options
     const filteredOptions =
@@ -162,14 +261,18 @@ class GTFSEditor {
             option.searchText.includes(searchTerm.toLowerCase())
           );
 
-    this.renderDropdownOptions(dropdown, filteredOptions, (option) => {
+    this.renderDropdownOptions(dropdownEl, filteredOptions, (option) => {
       this.selectRoute(option.value, option.text);
+      // Update the search input if provided
+      if (searchInput) {
+        searchInput.value = option.text;
+      }
     });
 
     if (filteredOptions.length > 0) {
-      this.showRouteDropdown();
+      dropdownEl.style.display = "block";
     } else {
-      this.hideRouteDropdown();
+      dropdownEl.style.display = "none";
     }
   }
 
@@ -221,14 +324,19 @@ class GTFSEditor {
     this.onTripFilterChange(tripId);
   }
 
-  showAllRouteOptions() {
-    if (this.routeOptions.length > 0) {
-      const dropdown = document.getElementById("routeSearchDropdown");
-      this.renderDropdownOptions(dropdown, this.routeOptions, (option) => {
-        this.selectRoute(option.value, option.text);
-      });
-      document.getElementById("routeSearchDropdown").classList.add("show");
+  showAllRouteOptions(dropdown = null) {
+    if (!this.routeOptions || this.routeOptions.length === 0) {
+      console.warn("No route options available");
+      return;
     }
+
+    const dropdownEl =
+      dropdown || document.getElementById("routeSearchDropdown");
+    this.renderDropdownOptions(dropdownEl, this.routeOptions, (option) => {
+      this.selectRoute(option.value, option.text);
+    });
+    dropdownEl.style.display = "block";
+    dropdownEl.classList.add("show");
   }
 
   showAllTripOptions() {
@@ -274,7 +382,10 @@ class GTFSEditor {
 
     // If both are provided, prioritize file
     if (file && url) {
-      this.showStatus("Both file and URL provided. Using local file...", "info");
+      this.showStatus(
+        "Both file and URL provided. Using local file...",
+        "info"
+      );
     }
 
     let result;
@@ -304,12 +415,14 @@ class GTFSEditor {
         // Fetch the file from URL with CORS mode
         try {
           const response = await fetch(url, {
-            mode: 'cors',
-            credentials: 'omit'
+            mode: "cors",
+            credentials: "omit",
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+            throw new Error(
+              `Failed to fetch: ${response.status} ${response.statusText}`
+            );
           }
 
           const blob = await response.blob();
@@ -321,13 +434,18 @@ class GTFSEditor {
         } catch (fetchError) {
           // If CORS fails, try using a CORS proxy
           console.log("Direct fetch failed, trying with CORS proxy...");
-          this.showStatus("Direct download blocked by CORS, using proxy...", "loading");
+          this.showStatus(
+            "Direct download blocked by CORS, using proxy...",
+            "loading"
+          );
 
           const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
           const response = await fetch(proxyUrl);
 
           if (!response.ok) {
-            throw new Error(`Failed to fetch via proxy: ${response.status} ${response.statusText}`);
+            throw new Error(
+              `Failed to fetch via proxy: ${response.status} ${response.statusText}`
+            );
           }
 
           const blob = await response.blob();
@@ -369,8 +487,8 @@ class GTFSEditor {
         this.currentFile = this.files[0]; // Default to first file
         this.displayFileContent(this.currentFile);
 
-        // Show instructions panel for uploaded GTFS
-        this.showInstructions();
+        // Instructions are now available in the sidebar
+        // this.showInstructions();
       } else {
         console.error("Parse failed:", result.error);
         this.showStatus(`Error: ${result.error}`, "error");
@@ -393,24 +511,109 @@ class GTFSEditor {
       // Convert the parsed data into the format expected by the editor
       this.files = this.convertParsedDataToFiles(result.data, result.files);
       this.showStatus("Created new empty GTFS feed", "success");
-      this.showEditor(this.files);
-      this.currentFile = this.files[0];
-      this.displayFileContent(this.currentFile);
 
-      // Show instructions panel for new GTFS
-      this.showInstructions();
+      // Initialize editor and map editor
+      if (!this.mapEditor) {
+        this.mapEditor = new MapEditor(this);
+        window.mapEditor = this.mapEditor;
+      }
 
-      // For new GTFS creation, start with map view
-      this.activateMapView();
-      // Hide route filter (no routes to filter yet)
-      this.hideRouteFilter();
-      // Expand route creator for creating new routes/trips
-      this.expandRouteCreator();
+      // Switch to Create section first
+      const createNavItem = document.querySelector('[data-section="create"]');
+      if (createNavItem && !createNavItem.classList.contains("active")) {
+        createNavItem.click();
+      }
+
+      // Then switch to Build subsection
+      setTimeout(() => {
+        if (window.showCreateSubsection) {
+          window.showCreateSubsection("build");
+          // Activate the Build nav-subitem
+          const navSubitems = document.querySelectorAll(".nav-subitem");
+          navSubitems.forEach((item) => {
+            item.classList.remove("active");
+            if (item.getAttribute("data-subsection") === "build") {
+              item.classList.add("active");
+            }
+          });
+
+          // Expand the route creator for new feed creation
+          setTimeout(() => {
+            const creatorContent = document.getElementById(
+              "routeCreatorContent"
+            );
+            if (creatorContent) {
+              creatorContent.style.display = "block";
+              creatorContent.classList.remove("collapsed");
+            }
+          }, 200);
+        }
+      }, 100);
     }
   }
 
   showEditor(files) {
-    document.getElementById("editorSection").style.display = "block";
+    console.log("GTFSEditor.showEditor called", {
+      isNewGTFS: this.isNewGTFS,
+      filesLength: files ? files.length : 0,
+    });
+    try {
+      const editorSection = document.getElementById("editorSection");
+      const mapEditorSection = document.getElementById("mapEditorSection");
+      console.log("DOM check inside showEditor:", {
+        editorSectionExists: !!editorSection,
+        editorSectionDisplay: editorSection
+          ? window.getComputedStyle(editorSection).display
+          : "missing",
+        mapEditorSectionExists: !!mapEditorSection,
+        mapEditorSectionDisplay: mapEditorSection
+          ? window.getComputedStyle(mapEditorSection).display
+          : "missing",
+      });
+
+      const parentChain = (el) => {
+        if (!el) return "missing";
+        const parts = [];
+        let cur = el;
+        while (cur) {
+          const id = cur.id ? `#${cur.id}` : "";
+          const cls = cur.className
+            ? `.${cur.className.toString().split(" ").join(".")}`
+            : "";
+          parts.push(`${cur.tagName.toLowerCase()}${id}${cls}`);
+          cur = cur.parentElement;
+        }
+        return parts.join(" > ");
+      };
+
+      console.log(
+        "showEditor import-section parent chain:",
+        parentChain(document.getElementById("import-section"))
+      );
+      console.log(
+        "showEditor editorSection parent chain:",
+        parentChain(document.getElementById("editorSection"))
+      );
+    } catch (err) {
+      console.warn("showEditor DOM check failed:", err);
+    }
+    const editorSection = document.getElementById("editorSection");
+    if (editorSection) {
+      editorSection.style.display = "block";
+    }
+
+    // Note: Don't hide createEmptyState here - it's in a different section now
+    // The Create section manages its own empty state vs map editor visibility
+
+    // Show map editor section only when creating new feed
+    const mapEditorSection = document.getElementById("mapEditorSection");
+    if (mapEditorSection && this.isNewGTFS) {
+      mapEditorSection.style.display = "block";
+      // Hide empty state when showing map editor
+      const createEmptyState = document.getElementById("createEmptyState");
+      if (createEmptyState) createEmptyState.style.display = "none";
+    }
+
     this.createFileTabs(files);
 
     // Initialize map editor if not already done
@@ -418,6 +621,35 @@ class GTFSEditor {
       this.mapEditor = new MapEditor(this);
       // Make it globally accessible for popup callbacks
       window.mapEditor = this.mapEditor;
+      console.log("MapEditor instance created inside showEditor");
+    }
+
+    // Enable view buttons now that editor/files are available
+    this.setViewButtonsEnabled(true);
+
+    // Show export actions in import/create sections
+    this.showExportActions();
+
+    // Initialize and show route filter for editor map view (import section)
+    this.initializeEditorRouteFilter();
+
+    // Pre-initialize editor map container so that switching to Map View is instant
+    try {
+      if (
+        this.mapEditor &&
+        typeof this.mapEditor.initializeMap === "function"
+      ) {
+        // Initialize into editorMapContainer if present but don't switch view
+        const editorMapContainer =
+          document.getElementById("editorMapContainer");
+        if (editorMapContainer) {
+          // If map not yet created, initialize into editor container quietly
+          if (!this.mapEditor.map)
+            this.mapEditor.initializeMap("editorMapContainer");
+        }
+      }
+    } catch (err) {
+      console.warn("Pre-initializing editor map failed:", err);
     }
 
     // Ensure table view is active by default for editing uploaded GTFS
@@ -433,10 +665,13 @@ class GTFSEditor {
       tabsContainer.classList.add("disabled");
     }
 
-    files.forEach((file, index) => {
+    // Don't filter frequencies - show it even if empty to allow adding data
+    const filteredFiles = files;
+
+    filteredFiles.forEach((file, index) => {
       const tab = document.createElement("div");
       tab.className = "file-tab";
-      
+
       // Handle both old format (strings) and new format (objects)
       if (typeof file === "string") {
         tab.textContent = file.replace(".txt", "");
@@ -473,13 +708,17 @@ class GTFSEditor {
   }
 
   displayFileContent(file) {
+    console.log("=== displayFileContent called ===");
+    console.log("file parameter:", file);
 
     // Handle both old format (strings) and new format (objects)
     let data, filename;
     if (typeof file === "string") {
       filename = file;
       data = this.parser.getFileData(filename);
-      console.log(`Getting data for filename: ${filename} from parser.gtfsData`);
+      console.log(
+        `Getting data for filename: ${filename} from parser.gtfsData`
+      );
     } else {
       filename = file.name + ".txt";
       // Always get live data from parser instead of stale file.data
@@ -489,16 +728,24 @@ class GTFSEditor {
 
     console.log(`Parser gtfsData keys:`, Object.keys(this.parser.gtfsData));
     console.log(`Data for ${filename}:`, data);
-    console.log("displayFileContent called with file:", file, "filename:", filename, "data length:", data ? data.length : 0);
+    console.log(`Is frequencies.txt?`, filename === "frequencies.txt");
+    console.log(
+      "displayFileContent called with file:",
+      file,
+      "filename:",
+      filename,
+      "data length:",
+      data ? data.length : 0
+    );
 
     const spec = GTFS_SPEC.files[filename];
     const container = document.getElementById("tableContainer");
-    
+
     // Clear container to start fresh
     container.innerHTML = "";
-    
+
     // Create wrapper structure: header stays fixed, table area scrolls
-    const headerArea = document.createElement('div');
+    const headerArea = document.createElement("div");
     headerArea.style.cssText = `
       margin-bottom: 10px;
       background: white;
@@ -507,21 +754,21 @@ class GTFSEditor {
       top: 0;
       z-index: 10;
     `;
-    
-    const scrollableArea = document.createElement('div');
+
+    const scrollableArea = document.createElement("div");
     scrollableArea.style.cssText = `
       max-height: 450px;
       overflow-y: auto;
       border: 1px solid #ddd;
       border-radius: 4px;
     `;
-    
+
     container.appendChild(headerArea);
     container.appendChild(scrollableArea);
 
     if (!data || data.length === 0) {
       // Add file info header for empty files too
-      const fileInfoDiv = document.createElement('div');
+      const fileInfoDiv = document.createElement("div");
       fileInfoDiv.style.cssText = `
         padding: 8px 12px;
         background: #f8f9fa;
@@ -532,9 +779,10 @@ class GTFSEditor {
       `;
       fileInfoDiv.innerHTML = `<strong>${filename}</strong> - No data`;
       headerArea.appendChild(fileInfoDiv);
-      
-      const emptyDiv = document.createElement('div');
-      emptyDiv.style.cssText = "text-align: center; padding: 40px; color: #666;";
+
+      const emptyDiv = document.createElement("div");
+      emptyDiv.style.cssText =
+        "text-align: center; padding: 40px; color: #666;";
       emptyDiv.innerHTML = `
                     <p>No data in ${filename}</p>
                     <p>Click "Add Row" to add some data</p>
@@ -546,15 +794,15 @@ class GTFSEditor {
     // Performance protection: limit display for large datasets
     const MAX_SAFE_ROWS = 1000;
     const EXTREMELY_LARGE_THRESHOLD = 5000000; // 5 million rows - truly massive files
-    
+
     console.log("Data length:", data.length, "MAX_SAFE_ROWS:", MAX_SAFE_ROWS);
-    
+
     // For extremely large datasets (5M+ rows), don't even attempt to process
     if (data.length > EXTREMELY_LARGE_THRESHOLD) {
       console.log("Extremely large dataset detected, showing warning only");
-      
+
       // Add file info header even for blocked files
-      const fileInfoDiv = document.createElement('div');
+      const fileInfoDiv = document.createElement("div");
       fileInfoDiv.style.cssText = `
         padding: 8px 12px;
         background: #f8f9fa;
@@ -565,8 +813,8 @@ class GTFSEditor {
       `;
       fileInfoDiv.innerHTML = `<strong>${filename}</strong> - ${data.length.toLocaleString()} rows (blocked)`;
       headerArea.appendChild(fileInfoDiv);
-      
-      const warningDiv = document.createElement('div');
+
+      const warningDiv = document.createElement("div");
       warningDiv.style.cssText = `
         padding: 20px; 
         background: #f8d7da; 
@@ -588,12 +836,12 @@ class GTFSEditor {
       scrollableArea.appendChild(warningDiv);
       return;
     }
-    
+
     let displayData = data;
     let isLimitedDisplay = false;
-    
+
     // Always add file info header first - shows row count for ALL files
-    const fileInfoDiv = document.createElement('div');
+    const fileInfoDiv = document.createElement("div");
     fileInfoDiv.style.cssText = `
       padding: 8px 12px;
       background: #f8f9fa;
@@ -602,10 +850,10 @@ class GTFSEditor {
       font-size: 14px;
       color: #495057;
     `;
-    
+
     const totalRows = data ? data.length : 0;
     let fileInfoText = `<strong>${filename}</strong>`;
-    
+
     if (data.length > MAX_SAFE_ROWS) {
       displayData = data.slice(0, MAX_SAFE_ROWS);
       isLimitedDisplay = true;
@@ -613,16 +861,21 @@ class GTFSEditor {
     } else {
       fileInfoText += ` - ${totalRows.toLocaleString()} rows`;
     }
-    
+
     fileInfoDiv.innerHTML = fileInfoText;
-    console.log("Adding file info:", fileInfoText, "to headerArea:", headerArea);
+    console.log(
+      "Adding file info:",
+      fileInfoText,
+      "to headerArea:",
+      headerArea
+    );
     headerArea.appendChild(fileInfoDiv);
-    
+
     // Add warning for large datasets
     if (data.length > MAX_SAFE_ROWS) {
       console.log("Large dataset, limiting to", MAX_SAFE_ROWS, "rows");
-      
-      const warningDiv = document.createElement('div');
+
+      const warningDiv = document.createElement("div");
       warningDiv.style.cssText = `
         padding: 12px; 
         margin-top: 8px; 
@@ -672,7 +925,7 @@ class GTFSEditor {
       th.style.userSelect = "none";
       th.style.position = "relative";
       th.dataset.column = header;
-      
+
       // Add sort indicator
       const sortIndicator = document.createElement("span");
       sortIndicator.style.cssText = `
@@ -695,7 +948,9 @@ class GTFSEditor {
       }
 
       // Add click handler for sorting
-      th.addEventListener("click", () => this.sortTableByColumn(header, table, tbody, displayData, headers));
+      th.addEventListener("click", () =>
+        this.sortTableByColumn(header, table, tbody, displayData, headers)
+      );
 
       headerRow.appendChild(th);
     });
@@ -754,15 +1009,19 @@ class GTFSEditor {
     scrollableArea.appendChild(table);
 
     // Add event listeners
-    document
-      .getElementById("selectAll")
-      .addEventListener("change", (e) => this.toggleAllRows(e.target.checked));
+    const selectAllEl = document.getElementById("selectAll");
+    if (selectAllEl) {
+      selectAllEl.addEventListener("change", (e) =>
+        this.toggleAllRows(e.target.checked)
+      );
+    } else {
+      console.warn("selectAll checkbox not found; bulk select disabled");
+    }
     document.querySelectorAll(".row-checkbox").forEach((checkbox) => {
       checkbox.addEventListener("change", (e) =>
         this.toggleRow(parseInt(e.target.dataset.index), e.target.checked)
       );
     });
-
   }
 
   sortTableByColumn(columnName, table, tbody, data, headers) {
@@ -770,85 +1029,85 @@ class GTFSEditor {
     if (!this.sortState) {
       this.sortState = {};
     }
-    
-    const currentSort = this.sortState[columnName] || 'none';
+
+    const currentSort = this.sortState[columnName] || "none";
     let newSort;
-    
+
     // Cycle through: none -> asc -> desc -> none
-    if (currentSort === 'none') {
-      newSort = 'asc';
-    } else if (currentSort === 'asc') {
-      newSort = 'desc';
+    if (currentSort === "none") {
+      newSort = "asc";
+    } else if (currentSort === "asc") {
+      newSort = "desc";
     } else {
-      newSort = 'none';
+      newSort = "none";
     }
-    
+
     // Reset all other column states
-    Object.keys(this.sortState).forEach(key => {
+    Object.keys(this.sortState).forEach((key) => {
       if (key !== columnName) {
-        this.sortState[key] = 'none';
+        this.sortState[key] = "none";
       }
     });
     this.sortState[columnName] = newSort;
-    
+
     // Update sort indicators
-    table.querySelectorAll('th[data-column] span').forEach(indicator => {
+    table.querySelectorAll("th[data-column] span").forEach((indicator) => {
       const column = indicator.parentElement.dataset.column;
       if (column === columnName) {
-        if (newSort === 'asc') {
-          indicator.textContent = '↑';
-          indicator.style.color = '#007bff';
-        } else if (newSort === 'desc') {
-          indicator.textContent = '↓';
-          indicator.style.color = '#007bff';
+        if (newSort === "asc") {
+          indicator.textContent = "↑";
+          indicator.style.color = "#007bff";
+        } else if (newSort === "desc") {
+          indicator.textContent = "↓";
+          indicator.style.color = "#007bff";
         } else {
-          indicator.textContent = '↕';
-          indicator.style.color = '#999';
+          indicator.textContent = "↕";
+          indicator.style.color = "#999";
         }
       } else {
-        indicator.textContent = '↕';
-        indicator.style.color = '#999';
+        indicator.textContent = "↕";
+        indicator.style.color = "#999";
       }
     });
-    
+
     // If sorting is reset to 'none', restore original order
-    if (newSort === 'none') {
+    if (newSort === "none") {
       this.rebuildTableBody(tbody, data, headers);
       return;
     }
-    
+
     // Sort the data
     const sortedData = [...data].sort((a, b) => {
-      let aVal = a[columnName] || '';
-      let bVal = b[columnName] || '';
-      
+      let aVal = a[columnName] || "";
+      let bVal = b[columnName] || "";
+
       // Convert to strings for comparison
       aVal = String(aVal).toLowerCase();
       bVal = String(bVal).toLowerCase();
-      
+
       // Try to parse as numbers if they look numeric
       const aNum = parseFloat(aVal);
       const bNum = parseFloat(bVal);
-      
+
       if (!isNaN(aNum) && !isNaN(bNum)) {
         // Numeric comparison
-        return newSort === 'asc' ? aNum - bNum : bNum - aNum;
+        return newSort === "asc" ? aNum - bNum : bNum - aNum;
       } else {
         // String comparison
-        if (aVal < bVal) return newSort === 'asc' ? -1 : 1;
-        if (aVal > bVal) return newSort === 'asc' ? 1 : -1;
+        if (aVal < bVal) return newSort === "asc" ? -1 : 1;
+        if (aVal > bVal) return newSort === "asc" ? 1 : -1;
         return 0;
       }
     });
-    
+
     // Rebuild table with sorted data
     this.rebuildTableBody(tbody, sortedData, headers);
   }
-  
+
   rebuildTableBody(tbody, data, headers) {
     // Clear existing rows
-    tbody.innerHTML = '';
-    
+    tbody.innerHTML = "";
+
     // Rebuild rows with sorted data
     data.forEach((row, index) => {
       const tr = document.createElement("tr");
@@ -867,16 +1126,23 @@ class GTFSEditor {
       headers.forEach((header) => {
         const td = document.createElement("td");
         const value = row[header] || "";
-        
+
         const input = document.createElement("input");
         input.type = "text";
         input.value = value;
         input.dataset.field = header;
         input.dataset.index = index;
-        
+
         input.addEventListener("blur", (e) => {
-          const filename = this.currentFile.name ? this.currentFile.name + ".txt" : this.currentFile;
-          this.updateCell(filename, parseInt(e.target.dataset.index), e.target.dataset.field, e.target.value);
+          const filename = this.currentFile.name
+            ? this.currentFile.name + ".txt"
+            : this.currentFile;
+          this.updateCell(
+            filename,
+            parseInt(e.target.dataset.index),
+            e.target.dataset.field,
+            e.target.value
+          );
         });
 
         // Color display for route_color fields
@@ -902,7 +1168,7 @@ class GTFSEditor {
 
       tbody.appendChild(tr);
     });
-    
+
     // Re-add event listeners for checkboxes
     document.querySelectorAll(".row-checkbox").forEach((checkbox) => {
       checkbox.addEventListener("change", (e) =>
@@ -1021,7 +1287,7 @@ class GTFSEditor {
       a.href = url;
       // Generate filename with current date: gtfs_YYYY-MM-DD.zip
       const today = new Date();
-      const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const dateStr = today.toISOString().split("T")[0]; // YYYY-MM-DD format
       a.download = `gtfs_${dateStr}.zip`;
       document.body.appendChild(a);
       a.click();
@@ -1056,6 +1322,7 @@ class GTFSEditor {
     // Convert parser output to expected format: array of {name, data, headers}
     const files = [];
 
+    console.log("=== convertParsedDataToFiles called ===");
     console.log(
       "Converting files - fileList type:",
       typeof fileList,
@@ -1070,6 +1337,7 @@ class GTFSEditor {
       return [];
     }
 
+    // Process files from fileList
     fileList.forEach((item) => {
       console.log("Processing item:", item, "type:", typeof item);
 
@@ -1090,10 +1358,16 @@ class GTFSEditor {
         const data = gtfsData[filename];
         const name = filename.replace(".txt", ""); // Remove .txt extension
 
-        // Extract headers from first row if data exists
+        // Extract headers from first row if data exists, or use spec
         let headers = [];
         if (data && Array.isArray(data) && data.length > 0) {
           headers = Object.keys(data[0]);
+        } else {
+          // Get headers from spec if available
+          const spec = GTFS_SPEC.files[filename];
+          if (spec) {
+            headers = [...spec.required_fields, ...spec.optional_fields];
+          }
         }
 
         files.push({
@@ -1102,13 +1376,58 @@ class GTFSEditor {
           headers: headers,
         });
 
-        console.log(`Added file: ${name} with ${data ? data.length : 0} rows`);
+        console.log(
+          `Added file: ${name} with ${data ? data.length : 0} rows, headers:`,
+          headers
+        );
       } else {
-        console.log(`No data found for file: ${filename}`);
+        console.log(`No data found for file: ${filename} in gtfsData`);
       }
     });
 
-    console.log("Converted files:", files);
+    // Also check for optional files in gtfsData that have data but aren't in fileList
+    const optionalFilesWithData = ["frequencies.txt", "feed_info.txt"];
+    optionalFilesWithData.forEach((filename) => {
+      console.log(`Checking optional file: ${filename}`);
+      console.log(`  - In fileList? ${fileList.includes(filename)}`);
+      console.log(`  - Exists in gtfsData? ${filename in gtfsData}`);
+      console.log(`  - Data length: ${gtfsData[filename]?.length || 0}`);
+
+      // Skip if already processed from fileList
+      if (fileList.includes(filename)) {
+        console.log(`  - Skipping ${filename}, already in fileList`);
+        return;
+      }
+
+      // Only include if it has data
+      if (
+        gtfsData[filename] &&
+        Array.isArray(gtfsData[filename]) &&
+        gtfsData[filename].length > 0
+      ) {
+        const data = gtfsData[filename];
+        const name = filename.replace(".txt", "");
+        const headers = Object.keys(data[0]);
+
+        files.push({
+          name: name,
+          data: data,
+          headers: headers,
+        });
+
+        console.log(
+          `Added optional file with data: ${name} with ${data.length} rows`
+        );
+      } else {
+        console.log(`  - Not adding ${filename} - no data or not an array`);
+      }
+    });
+
+    console.log(
+      "Converted files:",
+      files.map((f) => ({ name: f.name, dataLength: f.data?.length }))
+    );
+    console.log("=== convertParsedDataToFiles completed ===");
     return files;
   }
 
@@ -1120,12 +1439,18 @@ class GTFSEditor {
     }
 
     console.log("Showing route filter");
-    document.getElementById("routeTripFilter").style.display = "block";
+    const routeTripFilter = document.getElementById("routeTripFilter");
+    if (routeTripFilter) {
+      routeTripFilter.style.display = "block";
+    }
     this.populateRouteFilter();
   }
 
   hideRouteFilter() {
-    document.getElementById("routeTripFilter").style.display = "none";
+    const routeTripFilter = document.getElementById("routeTripFilter");
+    if (routeTripFilter) {
+      routeTripFilter.style.display = "none";
+    }
   }
 
   populateRouteFilter() {
@@ -1173,11 +1498,17 @@ class GTFSEditor {
 
     const routes = gtfsData["routes.txt"];
     this.routeOptions = routes.map((route) => {
-      const routeText = `${route.route_short_name || route.route_long_name || route.route_id} - ${route.route_long_name || route.route_short_name || "Unnamed Route"}`;
+      const routeText = `${
+        route.route_short_name || route.route_long_name || route.route_id
+      } - ${
+        route.route_long_name || route.route_short_name || "Unnamed Route"
+      }`;
       return {
         value: route.route_id,
         text: routeText,
-        searchText: `${route.route_short_name || ""} ${route.route_long_name || ""} ${route.route_id}`.toLowerCase(),
+        searchText: `${route.route_short_name || ""} ${
+          route.route_long_name || ""
+        } ${route.route_id}`.toLowerCase(),
       };
     });
 
@@ -1282,42 +1613,61 @@ class GTFSEditor {
   showExistingStops() {
     console.log("showExistingStops called");
     console.log("this.files:", this.files);
-    
+
+    const existingStopsSection = document.getElementById(
+      "existingStopsSection"
+    );
+
     if (!this.files || this.files.length === 0) {
       console.log("No files available for existing stops");
-      document.getElementById("existingStopsSection").style.display = "none";
+      if (existingStopsSection) existingStopsSection.style.display = "none";
       return;
     }
-
-    const stopsFile = this.files.find((f) => f.name === "stops");
+    // Prefer this.files list, but fall back to parser.gtfsData if needed
+    let stopsFile = this.files.find((f) => f.name === "stops");
+    if (!stopsFile && this.parser) {
+      const pd =
+        this.parser.getFileData && this.parser.getFileData("stops.txt");
+      if (pd && Array.isArray(pd) && pd.length > 0) {
+        stopsFile = { name: "stops", data: pd };
+      }
+    }
     console.log("stopsFile:", stopsFile);
-    
+
     if (!stopsFile || !stopsFile.data || stopsFile.data.length === 0) {
       console.log("No stops file or no stops data");
-      document.getElementById("existingStopsSection").style.display = "none";
+      if (existingStopsSection) existingStopsSection.style.display = "none";
       return;
     }
 
-    console.log("Showing existing stops section with", stopsFile.data.length, "stops");
-    document.getElementById("existingStopsSection").style.display = "block";
+    console.log(
+      "Showing existing stops section with",
+      stopsFile.data.length,
+      "stops"
+    );
+    if (existingStopsSection) existingStopsSection.style.display = "block";
     this.initializeExistingStopsSelector(stopsFile.data);
   }
 
   initializeExistingStopsSelector(stops) {
-    console.log("initializeExistingStopsSelector called with", stops.length, "stops");
-    
+    console.log(
+      "initializeExistingStopsSelector called with",
+      stops.length,
+      "stops"
+    );
+
     // Store stops for the selector
     this.existingStopsOptions = stops.map((stop) => {
       // Fix NaN issue by providing fallback values and validation
       const lat = parseFloat(stop.stop_lat);
       const lng = parseFloat(stop.stop_lon);
       const hasValidCoords = !isNaN(lat) && !isNaN(lng);
-      
+
       const stopName = stop.stop_name || stop.stop_id || "Unnamed Stop";
-      const coordsText = hasValidCoords 
+      const coordsText = hasValidCoords
         ? `${lat.toFixed(6)}, ${lng.toFixed(6)}`
         : "No coordinates";
-      
+
       return {
         stop: stop,
         value: stop.stop_id,
@@ -1326,16 +1676,20 @@ class GTFSEditor {
       };
     });
 
-    console.log("Created", this.existingStopsOptions.length, "existing stops options");
+    console.log(
+      "Created",
+      this.existingStopsOptions.length,
+      "existing stops options"
+    );
     this.selectedExistingStop = null;
-    
+
     // Initialize event listeners for the existing stops selector
     this.initializeExistingStopsEvents();
   }
 
   initializeExistingStopsEvents() {
     console.log("initializeExistingStopsEvents called");
-    
+
     const searchInput = document.getElementById("existingStopsSearch");
     const dropdown = document.getElementById("existingStopsDropdown");
     const addButton = document.getElementById("addExistingStopBtn");
@@ -1343,7 +1697,7 @@ class GTFSEditor {
     console.log("Elements found:", {
       searchInput: !!searchInput,
       dropdown: !!dropdown,
-      addButton: !!addButton
+      addButton: !!addButton,
     });
 
     if (!searchInput || !dropdown) {
@@ -1354,13 +1708,18 @@ class GTFSEditor {
     // Remove existing event listeners to avoid duplicates
     searchInput.replaceWith(searchInput.cloneNode(true));
     const newSearchInput = document.getElementById("existingStopsSearch");
-    
+
     newSearchInput.addEventListener("input", (e) => {
       console.log("Search input changed:", e.target.value);
       this.filterExistingStopsOptions(e.target.value);
     });
     newSearchInput.addEventListener("focus", () => {
       console.log("Search input focused");
+      // Show all stops on focus (acts like a dropdown)
+      this.showAllExistingStopsOptions();
+    });
+    newSearchInput.addEventListener("click", () => {
+      // Show all stops on click as well
       this.showAllExistingStopsOptions();
     });
     newSearchInput.addEventListener("blur", (e) => {
@@ -1371,7 +1730,9 @@ class GTFSEditor {
     if (addButton) {
       addButton.replaceWith(addButton.cloneNode(true));
       const newAddButton = document.getElementById("addExistingStopBtn");
-      newAddButton.addEventListener("click", () => this.addSelectedExistingStop());
+      newAddButton.addEventListener("click", () =>
+        this.addSelectedExistingStop()
+      );
     }
 
     // Click outside to close dropdown
@@ -1380,7 +1741,7 @@ class GTFSEditor {
         this.hideExistingStopsDropdown();
       }
     });
-    
+
     console.log("Existing stops events initialized successfully");
   }
 
@@ -1389,19 +1750,26 @@ class GTFSEditor {
 
     if (!this.existingStopsOptions) return;
 
-    const filteredOptions =
-      searchTerm.trim() === ""
-        ? this.existingStopsOptions
-        : this.existingStopsOptions.filter((option) =>
-            option.searchText.includes(searchTerm.toLowerCase())
-          );
+    // If search term is empty, show all options (dropdown behavior)
+    if (searchTerm.trim() === "") {
+      this.renderExistingStopsDropdown(dropdown, this.existingStopsOptions);
+      this.showExistingStopsDropdown();
+      return;
+    }
+
+    // Filter options based on search term
+    const filteredOptions = this.existingStopsOptions.filter((option) =>
+      option.searchText.includes(searchTerm.toLowerCase())
+    );
 
     this.renderExistingStopsDropdown(dropdown, filteredOptions);
 
     if (filteredOptions.length > 0) {
       this.showExistingStopsDropdown();
     } else {
-      this.hideExistingStopsDropdown();
+      // Show "no results" message
+      dropdown.innerHTML = '<div class="search-option no-results">No stops found</div>';
+      this.showExistingStopsDropdown();
     }
   }
 
@@ -1447,7 +1815,7 @@ class GTFSEditor {
     }
 
     this.addExistingStopToTrip(this.selectedExistingStop);
-    
+
     // Clear selection after adding
     document.getElementById("existingStopsSearch").value = "";
     document.getElementById("addExistingStopBtn").disabled = true;
@@ -1456,13 +1824,20 @@ class GTFSEditor {
 
   addExistingStopToTrip(stop) {
     // Add the existing stop to the current trip being created
-    if (this.mapEditor && this.mapEditor.currentTrip && this.mapEditor.isCreatingTrip) {
+    if (
+      this.mapEditor &&
+      this.mapEditor.currentTrip &&
+      this.mapEditor.isCreatingTrip
+    ) {
       const lat = parseFloat(stop.stop_lat);
       const lng = parseFloat(stop.stop_lon);
 
       // Validate coordinates
       if (isNaN(lat) || isNaN(lng)) {
-        this.showStatus("Stop has invalid coordinates and cannot be added", "error");
+        this.showStatus(
+          "Stop has invalid coordinates and cannot be added",
+          "error"
+        );
         return;
       }
 
@@ -1476,10 +1851,13 @@ class GTFSEditor {
         stop_url: stop.stop_url || "",
         location_type: stop.location_type || "0",
         parent_station: stop.parent_station || "",
-        wheelchair_boarding: stop.wheelchair_boarding || ""
+        wheelchair_boarding: stop.wheelchair_boarding || "",
       });
-      
-      this.showStatus(`Added existing stop: ${stop.stop_name || stop.stop_id}`, "success");
+
+      this.showStatus(
+        `Added existing stop: ${stop.stop_name || stop.stop_id}`,
+        "success"
+      );
     } else {
       this.showStatus("Please start creating a trip first", "error");
     }
@@ -1490,14 +1868,17 @@ class GTFSEditor {
 ID: ${stop.stop_id}
 Latitude: ${stop.stop_lat}
 Longitude: ${stop.stop_lon}`;
-    
+
     // Try to copy to clipboard
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(stopInfo).then(() => {
-        this.showStatus("Stop information copied to clipboard", "success");
-      }).catch(() => {
-        this.showStatus("Could not copy to clipboard", "error");
-      });
+      navigator.clipboard
+        .writeText(stopInfo)
+        .then(() => {
+          this.showStatus("Stop information copied to clipboard", "success");
+        })
+        .catch(() => {
+          this.showStatus("Could not copy to clipboard", "error");
+        });
     } else {
       // Fallback for older browsers
       const textArea = document.createElement("textarea");
@@ -1505,7 +1886,7 @@ Longitude: ${stop.stop_lon}`;
       document.body.appendChild(textArea);
       textArea.select();
       try {
-        document.execCommand('copy');
+        document.execCommand("copy");
         this.showStatus("Stop information copied to clipboard", "success");
       } catch (err) {
         this.showStatus("Could not copy to clipboard", "error");
@@ -1515,37 +1896,41 @@ Longitude: ${stop.stop_lon}`;
   }
 
   hideExistingStops() {
-    document.getElementById("existingStopsSection").style.display = "none";
+    const existingStopsSection = document.getElementById(
+      "existingStopsSection"
+    );
+    if (existingStopsSection) existingStopsSection.style.display = "none";
   }
-  
 
   toggleRouteCreator() {
     const content = document.getElementById("routeCreatorContent");
     const button = document.getElementById("collapseCreatorBtn");
 
-    if (content.classList.contains("collapsed")) {
-      // Expand
-      content.classList.remove("collapsed");
-      button.textContent = "−";
-    } else {
-      // Collapse
-      content.classList.add("collapsed");
-      button.textContent = "+";
+    if (content) {
+      if (content.classList.contains("collapsed")) {
+        // Expand
+        content.classList.remove("collapsed");
+        if (button) button.textContent = "−";
+      } else {
+        // Collapse
+        content.classList.add("collapsed");
+        if (button) button.textContent = "+";
+      }
     }
   }
 
   collapseRouteCreator() {
     const content = document.getElementById("routeCreatorContent");
     const button = document.getElementById("collapseCreatorBtn");
-    content.classList.add("collapsed");
-    button.textContent = "+";
+    if (content) content.classList.add("collapsed");
+    if (button) button.textContent = "+";
   }
 
   expandRouteCreator() {
     const content = document.getElementById("routeCreatorContent");
     const button = document.getElementById("collapseCreatorBtn");
-    content.classList.remove("collapsed");
-    button.textContent = "−";
+    if (content) content.classList.remove("collapsed");
+    if (button) button.textContent = "−";
   }
 
   toggleRouteFilter() {
@@ -1578,15 +1963,11 @@ Longitude: ${stop.stop_lon}`;
   }
 
   activateTableView() {
-    // Activate table view button
-    document
-      .querySelectorAll(".view-btn")
-      .forEach((btn) => btn.classList.remove("active"));
-    document.getElementById("tableViewBtn").classList.add("active");
-
-    // Show table view
-    document.getElementById("tableView").style.display = "block";
-    document.getElementById("mapView").style.display = "none";
+    // Show table view (Import/Edit section)
+    const tableView = document.getElementById("tableView");
+    const mapView = document.getElementById("mapView");
+    if (tableView) tableView.style.display = "block";
+    if (mapView) mapView.style.display = "none";
 
     // Enable file tabs in table view
     const fileTabs = document.getElementById("fileTabs");
@@ -1595,33 +1976,32 @@ Longitude: ${stop.stop_lon}`;
     }
 
     // Show table actions
-    document.querySelector(".table-actions").style.display = "block";
+    const tableActions = document.querySelector(".table-actions");
+    if (tableActions) tableActions.style.display = "block";
 
     // Hide route filter and existing stops by default
     this.hideRouteFilter();
     this.hideExistingStops();
-    
   }
 
   activateMapView() {
-    // Activate map view button
-    document
-      .querySelectorAll(".view-btn")
-      .forEach((btn) => btn.classList.remove("active"));
-    document.getElementById("mapViewBtn").classList.add("active");
-
-    // Show map view
-    document.getElementById("tableView").style.display = "none";
-    document.getElementById("mapView").style.display = "block";
+    // Show map view (Create section)
+    const tableView = document.getElementById("tableView");
+    const mapView = document.getElementById("mapView");
+    if (tableView) tableView.style.display = "none";
+    if (mapView) mapView.style.display = "block";
 
     // Hide table actions in map view
-    document.querySelector(".table-actions").style.display = "none";
+    const tableActions = document.querySelector(".table-actions");
+    if (tableActions) tableActions.style.display = "none";
 
     if (this.isNewGTFS) {
       // New GTFS creation mode - optimize for creating routes
       this.hideRouteFilter();
       // Check if we have existing stops even in new GTFS mode
-      const stopsFile = this.files ? this.files.find((f) => f.name === "stops") : null;
+      const stopsFile = this.files
+        ? this.files.find((f) => f.name === "stops")
+        : null;
       if (stopsFile && stopsFile.data && stopsFile.data.length > 0) {
         this.showExistingStops();
       } else {
@@ -1637,26 +2017,62 @@ Longitude: ${stop.stop_lon}`;
 
     // Initialize map if needed
     if (this.mapEditor) {
+      // Ensure view buttons are enabled in case this was triggered programmatically
+      this.setViewButtonsEnabled(true);
       this.mapEditor.switchToMapView();
       // Start with empty map - no routes shown until user selects one
       this.mapEditor.clearMapFilter();
+      // Give the map a moment to attach and then recalculate sizes
+      setTimeout(() => {
+        try {
+          if (this.mapEditor && this.mapEditor.map)
+            this.mapEditor.map.invalidateSize();
+        } catch (err) {}
+      }, 150);
     }
   }
 
   updateFileTabs() {
-    const fileTabs = document.getElementById("fileTabs");
-    // Preserve disabled state when recreating tabs
-    const wasDisabled = fileTabs.classList.contains("disabled");
-    fileTabs.innerHTML = "";
-    if (wasDisabled) {
-      fileTabs.classList.add("disabled");
-    }
+    console.log("=== updateFileTabs called ===");
+    console.log("parser.gtfsData keys:", Object.keys(this.parser.gtfsData));
+    console.log("parser.fileList:", this.parser.fileList);
+    console.log(
+      "frequencies.txt data before sync:",
+      this.parser.gtfsData["frequencies.txt"]
+    );
 
-    // Add a special tab for the current trip view
-    const tab = document.createElement("button");
-    tab.className = "file-tab active";
-    tab.textContent = this.currentFile.name;
-    fileTabs.appendChild(tab);
+    // Sync this.files with latest parser data to ensure frequencies.txt is up to date
+    this.files = this.convertParsedDataToFiles(
+      this.parser.gtfsData,
+      this.parser.fileList
+    );
+
+    console.log(
+      "this.files after sync:",
+      this.files.map((f) => ({ name: f.name, dataLength: f.data?.length }))
+    );
+
+    // Recreate all tabs with latest data
+    this.createFileTabs(this.files);
+
+    console.log("Tabs recreated");
+
+    // Restore active tab if currentFile is set
+    if (this.currentFile) {
+      const currentFileName =
+        typeof this.currentFile === "string"
+          ? this.currentFile.replace(".txt", "")
+          : this.currentFile.name;
+
+      console.log("Restoring active tab:", currentFileName);
+
+      document.querySelectorAll(".file-tab").forEach((tab) => {
+        if (tab.textContent === currentFileName) {
+          tab.classList.add("active");
+        }
+      });
+    }
+    console.log("=== updateFileTabs completed ===");
   }
 
   filterRoutes(searchTerm) {
@@ -1664,12 +2080,12 @@ Longitude: ${stop.stop_lon}`;
     const term = searchTerm.toLowerCase();
 
     routeItems.forEach((item) => {
-      const shortName = (item
-        .querySelector(".route-short-name")
-        ?.textContent || '').toLowerCase();
-      const longName = (item
-        .querySelector(".route-long-name")
-        ?.textContent || '').toLowerCase();
+      const shortName = (
+        item.querySelector(".route-short-name")?.textContent || ""
+      ).toLowerCase();
+      const longName = (
+        item.querySelector(".route-long-name")?.textContent || ""
+      ).toLowerCase();
 
       if (shortName.includes(term) || longName.includes(term)) {
         item.style.display = "block";
@@ -1684,10 +2100,12 @@ Longitude: ${stop.stop_lon}`;
     const term = searchTerm.toLowerCase();
 
     tripItems.forEach((item) => {
-      const headsign = (item
-        .querySelector(".trip-headsign")
-        ?.textContent || '').toLowerCase();
-      const tripId = (item.querySelector(".trip-id")?.textContent || '').toLowerCase();
+      const headsign = (
+        item.querySelector(".trip-headsign")?.textContent || ""
+      ).toLowerCase();
+      const tripId = (
+        item.querySelector(".trip-id")?.textContent || ""
+      ).toLowerCase();
 
       if (headsign.includes(term) || tripId.includes(term)) {
         item.style.display = "block";
@@ -1699,24 +2117,30 @@ Longitude: ${stop.stop_lon}`;
 
   updateUIForCreationMode() {
     // Show editor title
-    document.getElementById("editorTitle").style.display = "block";
+    const editorTitle = document.getElementById("editorTitle");
+    if (editorTitle) editorTitle.style.display = "block";
 
-    // Hide the create section
-    document.querySelector(".create-section").style.display = "none";
+    // Hide the create empty state (not the entire section)
+    const createEmptyState = document.getElementById("createEmptyState");
+    if (createEmptyState) createEmptyState.style.display = "none";
 
     // Show reset button
-    document.getElementById("resetPageBtn").style.display = "inline-block";
+    const resetBtn = document.getElementById("resetPageBtn");
+    if (resetBtn) resetBtn.style.display = "inline-block";
   }
 
   updateUIForEditingMode() {
     // Hide editor title
-    document.getElementById("editorTitle").style.display = "none";
+    const editorTitle = document.getElementById("editorTitle");
+    if (editorTitle) editorTitle.style.display = "none";
 
-    // Show the create section
-    document.querySelector(".create-section").style.display = "block";
+    // Show the create empty state
+    const createEmptyState = document.getElementById("createEmptyState");
+    if (createEmptyState) createEmptyState.style.display = "block";
 
     // Hide reset button
-    document.getElementById("resetPageBtn").style.display = "none";
+    const resetBtn = document.getElementById("resetPageBtn");
+    if (resetBtn) resetBtn.style.display = "none";
   }
 
   extractAgencyUrl(gtfsData) {
@@ -1938,18 +2362,292 @@ Longitude: ${stop.stop_lon}`;
     window.location.reload();
   }
 
+  showExportActions() {
+    // Show export actions in both import and create sections when data is loaded
+    const importExportActions = document.getElementById("importExportActions");
+    const createExportActions = document.getElementById("createExportActions");
+
+    if (importExportActions) {
+      importExportActions.style.display = "block";
+    }
+    if (createExportActions) {
+      createExportActions.style.display = "block";
+    }
+  }
+
+  initializeEditorRouteFilter() {
+    // Initialize and populate the editor route filter (for import section map view)
+    const editorFilter = document.getElementById("editorRouteTripFilter");
+    if (!editorFilter) {
+      console.log("Editor filter not initialized: missing filter element");
+      return;
+    }
+
+    // Show the filter
+    if (editorFilter) editorFilter.style.display = "block";
+
+    // Populate route options (repopulate if empty)
+    if (!this.routeOptions || this.routeOptions.length === 0) {
+      console.log("Attempting to populate route options...");
+      console.log("this.files:", this.files);
+      console.log("this.parser:", this.parser);
+
+      // Try to get routes from parser first (more reliable)
+      let routesData = null;
+      if (this.parser && this.parser.gtfsData) {
+        // Try different possible keys for routes data
+        if (this.parser.gtfsData["routes.txt"]) {
+          routesData = this.parser.gtfsData["routes.txt"];
+          console.log(
+            "Got routes from parser.gtfsData['routes.txt']:",
+            routesData.length
+          );
+        } else if (this.parser.gtfsData.routes) {
+          routesData = this.parser.gtfsData.routes;
+          console.log(
+            "Got routes from parser.gtfsData.routes:",
+            routesData.length
+          );
+        }
+      }
+
+      if (!routesData && this.files) {
+        // Fallback to this.files
+        console.log(
+          "Available files:",
+          this.files.map((f) => f.name)
+        );
+        const routesFile = this.files.find(
+          (f) => f.name === "routes" || f.name === "routes.txt"
+        );
+        console.log(
+          "Looking for routes file, found:",
+          routesFile ? routesFile.name : "none"
+        );
+        if (routesFile && routesFile.data) {
+          routesData = routesFile.data;
+          console.log("Got routes from this.files:", routesData.length);
+        }
+      }
+
+      if (routesData && routesData.length > 0) {
+        const routeTypeNames = {
+          0: "Tram",
+          1: "Subway",
+          2: "Rail",
+          3: "Bus",
+          4: "Ferry",
+          5: "Cable Tram",
+          6: "Aerial Lift",
+          7: "Funicular",
+        };
+        this.routeOptions = routesData.map((route) => {
+          const routeName =
+            route.route_short_name || route.route_long_name || route.route_id;
+          const routeType = routeTypeNames[route.route_type] || "Unknown";
+          return {
+            value: route.route_id,
+            text: `${routeName} (${routeType})`,
+            searchText: `${routeName.toLowerCase()} ${routeType.toLowerCase()}`,
+          };
+        });
+        console.log(
+          `Populated ${this.routeOptions.length} route options for editor filter`
+        );
+      } else {
+        console.warn("No routes data found");
+      }
+    } else {
+      console.log("Route options already exist:", this.routeOptions.length);
+    }
+
+    // Set up search selectors for editor filter (after routeOptions is populated)
+    const editorRouteSearch = document.getElementById(
+      "editorRouteFilterSearch"
+    );
+    const editorRouteDropdown = document.getElementById(
+      "editorRouteSearchDropdown"
+    );
+
+    if (!editorRouteSearch || !editorRouteDropdown) {
+      console.warn("Editor route search elements not found in DOM");
+      return;
+    }
+
+    if (!this.routeOptions || this.routeOptions.length === 0) {
+      console.warn("No route options available to populate editor filter");
+      return;
+    }
+
+    console.log("Setting up editor route filter event listeners");
+
+    // Remove any existing listeners to prevent duplicates
+    const newEditorRouteSearch = editorRouteSearch.cloneNode(true);
+    editorRouteSearch.parentNode.replaceChild(
+      newEditorRouteSearch,
+      editorRouteSearch
+    );
+
+    newEditorRouteSearch.addEventListener("input", (e) => {
+      const searchTerm = e.target.value;
+      const filteredOptions =
+        searchTerm.trim() === ""
+          ? this.routeOptions
+          : this.routeOptions.filter((option) =>
+              option.searchText.includes(searchTerm.toLowerCase())
+            );
+
+      console.log(
+        `Editor filter input: "${searchTerm}", found ${filteredOptions.length} matches`
+      );
+
+      this.renderDropdownOptions(
+        editorRouteDropdown,
+        filteredOptions,
+        (option) => {
+          this.selectedRouteId = option.value;
+          newEditorRouteSearch.value = option.text;
+          editorRouteDropdown.style.display = "none";
+          this.onRouteFilterChange(option.value);
+        }
+      );
+
+      if (filteredOptions.length > 0) {
+        editorRouteDropdown.style.display = "block";
+      } else {
+        editorRouteDropdown.style.display = "none";
+      }
+    });
+
+    newEditorRouteSearch.addEventListener("focus", () => {
+      console.log(
+        `Editor filter focused, showing ${this.routeOptions.length} options`
+      );
+      if (this.routeOptions && this.routeOptions.length > 0) {
+        this.renderDropdownOptions(
+          editorRouteDropdown,
+          this.routeOptions,
+          (option) => {
+            this.selectedRouteId = option.value;
+            newEditorRouteSearch.value = option.text;
+            editorRouteDropdown.style.display = "none";
+            this.onRouteFilterChange(option.value);
+          }
+        );
+        editorRouteDropdown.style.display = "block";
+      }
+    });
+
+    newEditorRouteSearch.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (editorRouteDropdown) editorRouteDropdown.style.display = "none";
+      }, 150);
+    });
+  }
+
   showInstructions() {
-    document.getElementById("floatingInstructions").style.display = "block";
+    // Prefer the Create section's inline instructions container when present
+    const createInstructions = document.getElementById("createInstructions");
+    const floatingInstructions = document.getElementById(
+      "floatingInstructions"
+    );
+
+    const instructionsHtml = (() => {
+      return `
+        <div class="instructions-main">
+          <h3>Getting started</h3>
+          <p>Use Create to build a new feed or Upload to edit an existing GTFS.</p>
+          <p><button id="openInstructionsNewTab">Open instructions in new tab</button></p>
+        </div>
+      `;
+    })();
+
+    if (createInstructions) {
+      createInstructions.innerHTML = instructionsHtml;
+      createInstructions.style.display = "block";
+      // Attach handler for open-in-new-tab button
+      const openBtn = document.getElementById("openInstructionsNewTab");
+      if (openBtn) {
+        openBtn.addEventListener("click", () => {
+          // Open a simple new tab with the instructions HTML
+          const w = window.open("", "_blank");
+          if (w) {
+            w.document.write(
+              "<!doctype html><html><head><title>GTFS Editor Instructions</title></head><body>"
+            );
+            w.document.write(
+              document.querySelector("#createInstructions").innerHTML
+            );
+            w.document.write("</body></html>");
+            w.document.close();
+          }
+        });
+      }
+
+      // Hide floating instructions if present
+      if (floatingInstructions) floatingInstructions.style.display = "none";
+      return;
+    }
+
+    // Fallback to floating instructions
+    if (floatingInstructions) {
+      floatingInstructions.style.display = "block";
+    }
+  }
+
+  // Utility to enable/disable view toggle buttons within sections
+  setViewButtonsEnabled(enabled) {
+    try {
+      // Only show/enable toggles in the currently active section
+      const activeSection = document.querySelector(".content-section.active");
+      if (!activeSection) return;
+
+      const viewToggles = Array.from(
+        activeSection.querySelectorAll(".view-toggle")
+      );
+
+      viewToggles.forEach((toggle) => {
+        if (enabled) {
+          toggle.style.display = "";
+        } else {
+          toggle.style.display = "none";
+        }
+      });
+
+      const btns = Array.from(
+        activeSection.querySelectorAll(".view-toggle .view-btn")
+      );
+      btns.forEach((b) => {
+        if (enabled) {
+          b.classList.remove("disabled");
+          b.disabled = false;
+          b.style.pointerEvents = "";
+          b.style.opacity = "";
+        } else {
+          b.classList.add("disabled");
+          b.disabled = true;
+          b.style.pointerEvents = "none";
+          b.style.opacity = "0.6";
+        }
+      });
+    } catch (err) {
+      console.warn("setViewButtonsEnabled failed:", err);
+    }
   }
 
   closeInstructions() {
-    document.getElementById("floatingInstructions").style.display = "none";
+    const floatingInstructions = document.getElementById(
+      "floatingInstructions"
+    );
+    if (floatingInstructions) {
+      floatingInstructions.style.display = "none";
+    }
   }
 
   toggleInstructions() {
     const content = document.getElementById("instructionsWindowContent");
     const collapseBtn = document.getElementById("collapseInstructions");
-    
+
     if (content.classList.contains("collapsed")) {
       content.classList.remove("collapsed");
       collapseBtn.textContent = "−";
@@ -1965,9 +2663,15 @@ Longitude: ${stop.stop_lon}`;
   refreshExistingStopsVisibility() {
     if (this.isNewGTFS) {
       // Check if we have existing stops now
-      const stopsFile = this.files ? this.files.find((f) => f.name === "stops") : null;
+      const stopsFile = this.files
+        ? this.files.find((f) => f.name === "stops")
+        : null;
       if (stopsFile && stopsFile.data && stopsFile.data.length > 0) {
-        console.log("Refreshing existing stops - found", stopsFile.data.length, "stops");
+        console.log(
+          "Refreshing existing stops - found",
+          stopsFile.data.length,
+          "stops"
+        );
         this.showExistingStops();
       } else {
         console.log("Refreshing existing stops - no stops found, hiding");
@@ -1986,18 +2690,20 @@ Longitude: ${stop.stop_lon}`;
         files: this.files,
         gtfsData: this.parser.gtfsData,
         currentFile: this.currentFile,
-        agencyUrl: this.agencyUrl
+        agencyUrl: this.agencyUrl,
       };
 
       // Save to localStorage as backup
-      localStorage.setItem('gtfs-work-backup', JSON.stringify(workData));
+      localStorage.setItem("gtfs-work-backup", JSON.stringify(workData));
 
       // Download as file
-      const blob = new Blob([JSON.stringify(workData, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(workData, null, 2)], {
+        type: "application/json",
+      });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `gtfs-work-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `gtfs-work-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -2011,7 +2717,7 @@ Longitude: ${stop.stop_lon}`;
   }
 
   loadWork() {
-    document.getElementById('loadWorkFile').click();
+    document.getElementById("loadWorkFile").click();
   }
 
   handleLoadWorkFile(event) {
@@ -2044,11 +2750,40 @@ Longitude: ${stop.stop_lon}`;
       this.parser.gtfsData = workData.gtfsData;
 
       // Update parser's file list to match the files
-      this.parser.fileList = this.files.map(file =>
-        typeof file === 'string' ? file : file.name
-      );
+      // Normalize to ensure parser.fileList contains filenames WITH the .txt extension
+      this.parser.fileList = this.files.map((file) => {
+        const raw = typeof file === "string" ? file : file.name;
+        return raw && raw.endsWith(".txt") ? raw : raw + ".txt";
+      });
+
+      // Normalize this.files entries so UI code which expects names without
+      // the extension continues to work. If saved entries include '.txt', strip it.
+      this.files = this.files.map((file) => {
+        if (typeof file === "string") {
+          return file.endsWith(".txt") ? file.replace(/\.txt$/, "") : file;
+        }
+        if (file && file.name) {
+          return Object.assign({}, file, {
+            name: file.name.endsWith(".txt")
+              ? file.name.replace(/\.txt$/, "")
+              : file.name,
+          });
+        }
+        return file;
+      });
 
       this.currentFile = workData.currentFile || this.files[0];
+      // If currentFile was saved with a .txt extension, normalize to the expected shape
+      if (
+        this.currentFile &&
+        typeof this.currentFile === "object" &&
+        this.currentFile.name &&
+        this.currentFile.name.endsWith(".txt")
+      ) {
+        this.currentFile = Object.assign({}, this.currentFile, {
+          name: this.currentFile.name.replace(/\.txt$/, ""),
+        });
+      }
       this.agencyUrl = workData.agencyUrl || null;
 
       // Ensure frequencies.txt is available after loading
@@ -2082,20 +2817,232 @@ Longitude: ${stop.stop_lon}`;
         this.mapEditor.clearAllData();
       }
 
-      // If we're in creation mode and have routes/trips, refresh displays
+      // If we're in creation mode, navigate to Build page and refresh displays
       if (this.isNewGTFS) {
+        // Switch to Create section first
+        const createNavItem = document.querySelector('[data-section="create"]');
+        if (createNavItem && !createNavItem.classList.contains("active")) {
+          createNavItem.click();
+        }
+
+        // Then switch to Build subsection
         setTimeout(() => {
-          // Allow UI to update first, then refresh displays
-          if (this.mapEditor) {
-            this.mapEditor.refreshExistingTripsVisibility();
+          if (window.showCreateSubsection) {
+            window.showCreateSubsection("build");
+            // Activate the Build nav-subitem
+            const navSubitems = document.querySelectorAll(".nav-subitem");
+            navSubitems.forEach((item) => {
+              item.classList.remove("active");
+              if (item.getAttribute("data-subsection") === "build") {
+                item.classList.add("active");
+              }
+            });
+
+            // Expand the route creator for loaded work
+            setTimeout(() => {
+              console.log("=== Expanding route creator for loaded work ===");
+
+              // Remove collapsed class from map-toolbar (it moves it off-screen)
+              const mapToolbar = document.querySelector(".map-toolbar");
+              console.log("mapToolbar element:", mapToolbar);
+              console.log(
+                "mapToolbar classList before:",
+                mapToolbar?.classList.toString()
+              );
+
+              if (mapToolbar) {
+                mapToolbar.classList.remove("collapsed");
+                console.log(
+                  "mapToolbar classList after:",
+                  mapToolbar.classList.toString()
+                );
+              } else {
+                console.warn("map-toolbar not found");
+              }
+
+              const creatorContent = document.getElementById(
+                "routeCreatorContent"
+              );
+              console.log("creatorContent element:", creatorContent);
+              console.log(
+                "creatorContent display before:",
+                creatorContent?.style.display
+              );
+              console.log(
+                "creatorContent classList before:",
+                creatorContent?.classList.toString()
+              );
+
+              if (creatorContent) {
+                creatorContent.style.display = "block";
+                creatorContent.classList.remove("collapsed");
+                console.log(
+                  "creatorContent display after:",
+                  creatorContent.style.display
+                );
+                console.log(
+                  "creatorContent classList after:",
+                  creatorContent.classList.toString()
+                );
+              } else {
+                console.error("routeCreatorContent element not found!");
+              }
+
+              // Show the mode selection screen
+              if (this.mapEditor) {
+                console.log("Showing mode selection screen");
+                this.mapEditor.showModeSelection();
+              }
+
+              // Refresh displays after UI is ready
+              if (this.mapEditor) {
+                console.log("Refreshing mapEditor displays");
+                this.mapEditor.refreshExistingTripsVisibility();
+                this.mapEditor.updateModeButtonStates();
+              } else {
+                console.warn("mapEditor not available for refresh");
+              }
+              console.log("=== Route creator expansion complete ===");
+            }, 200);
           }
         }, 100);
       }
 
       this.showStatus("Work loaded successfully!", "success");
 
+      // Ensure the Build subsection is shown and the map initialized even if
+      // window.showCreateSubsection wasn't available at the time we attempted
+      // to call it earlier. This covers timing/order issues where the global
+      // helper is defined later (app.js) or DOMContentLoaded timing differs.
+      const ensureShowBuild = () => {
+        const tryShow = () => {
+          if (window.showCreateSubsection) {
+            try {
+              window.showCreateSubsection("build");
+              // Activate the Build nav-subitem visually
+              const navSubitems = document.querySelectorAll(".nav-subitem");
+              navSubitems.forEach((item) => {
+                item.classList.remove("active");
+                if (item.getAttribute("data-subsection") === "build") {
+                  item.classList.add("active");
+                }
+              });
+
+              // Ensure map is initialized into the visible container
+              setTimeout(() => {
+                if (
+                  this.mapEditor &&
+                  typeof this.mapEditor.initializeMap === "function"
+                ) {
+                  if (!this.mapEditor.map) {
+                    this.mapEditor.initializeMap("mapContainer");
+                  } else if (
+                    this.mapEditor.map &&
+                    typeof this.mapEditor.map.invalidateSize === "function"
+                  ) {
+                    this.mapEditor.map.invalidateSize();
+                  }
+                }
+              }, 300);
+
+              return true;
+            } catch (err) {
+              console.warn("ensureShowBuild failed:", err);
+              return false;
+            }
+          }
+          return false;
+        };
+
+        if (!tryShow()) {
+          // If not available yet, try again after DOMContentLoaded or next tick
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", () =>
+              setTimeout(tryShow, 200)
+            );
+          } else {
+            setTimeout(tryShow, 200);
+          }
+        }
+      };
+
+      ensureShowBuild();
+
+      // Additional diagnostics: log container/map state so we can debug layout
+      setTimeout(() => {
+        try {
+          const mapC = document.getElementById("mapContainer");
+          console.log("restoreWork diagnostics:", {
+            filesLength: this.files ? this.files.length : 0,
+            parserKeys: Object.keys(this.parser.gtfsData || {}),
+            currentFile: this.currentFile,
+            mapEditorExists: !!this.mapEditor,
+            mapEditorMapExists: !!(this.mapEditor && this.mapEditor.map),
+            mapContainerClientHeight: mapC ? mapC.clientHeight : null,
+            mapContainerOffsetHeight: mapC ? mapC.offsetHeight : null,
+            buildSubsectionDisplay: (
+              document.getElementById("buildSubsection") || {}
+            ).style
+              ? document.getElementById("buildSubsection").style.display
+              : null,
+          });
+
+          // Do NOT force inline heights here; layout should be fixed via CSS.
+          // If the map exists, attempt an invalidateSize to refresh rendering
+          setTimeout(() => {
+            if (
+              this.mapEditor &&
+              this.mapEditor.map &&
+              typeof this.mapEditor.map.invalidateSize === "function"
+            ) {
+              try {
+                this.mapEditor.map.invalidateSize();
+                console.log("Called invalidateSize on map (post-restore)");
+              } catch (err) {
+                console.warn("invalidateSize failed:", err);
+              }
+            }
+          }, 150);
+        } catch (err) {
+          console.warn("restoreWork post-check failed:", err);
+        }
+      }, 400);
+
+      // Ensure the Create section map view is visible (restore may have left
+      // the editor in table view). If mapView is hidden, show it and trigger
+      // the map initialization/resize flow.
+      setTimeout(() => {
+        try {
+          const mapViewEl = document.getElementById("mapView");
+          if (
+            mapViewEl &&
+            window.getComputedStyle(mapViewEl).display === "none"
+          ) {
+            console.log("restoreWork: mapView is hidden - activating map view");
+            // Use editor's method to switch to map view so all related UI updates run
+            try {
+              if (typeof this.activateMapView === "function") {
+                this.activateMapView();
+              } else if (
+                this.mapEditor &&
+                typeof this.mapEditor.switchToMapView === "function"
+              ) {
+                this.mapEditor.switchToMapView();
+              } else {
+                mapViewEl.style.display = "block";
+              }
+            } catch (err) {
+              console.warn("Error activating map view during restore:", err);
+              mapViewEl.style.display = "block";
+            }
+          }
+        } catch (err) {
+          console.warn("restoreWork mapView activation failed:", err);
+        }
+      }, 500);
+
       // Reset file input
-      document.getElementById('loadWorkFile').value = '';
+      document.getElementById("loadWorkFile").value = "";
     } catch (error) {
       console.error("Error restoring work:", error);
       this.showStatus("Error restoring work: " + error.message, "error");
@@ -2114,9 +3061,9 @@ Longitude: ${stop.stop_lon}`;
           gtfsData: this.parser.gtfsData,
           currentFile: this.currentFile,
           agencyUrl: this.agencyUrl,
-          isAutoSave: true
+          isAutoSave: true,
         };
-        localStorage.setItem('gtfs-work-autosave', JSON.stringify(workData));
+        localStorage.setItem("gtfs-work-autosave", JSON.stringify(workData));
       } catch (error) {
         console.warn("Auto-save failed:", error);
       }
@@ -2125,7 +3072,7 @@ Longitude: ${stop.stop_lon}`;
 
   // Check for auto-saved work on startup
   checkForAutoSave() {
-    const autoSave = localStorage.getItem('gtfs-work-autosave');
+    const autoSave = localStorage.getItem("gtfs-work-autosave");
     if (autoSave) {
       try {
         const workData = JSON.parse(autoSave);
@@ -2135,7 +3082,9 @@ Longitude: ${stop.stop_lon}`;
         // Only offer to restore if less than 24 hours old
         if (hoursDiff < 24) {
           const restore = confirm(
-            `Found auto-saved work from ${new Date(workData.timestamp).toLocaleString()}.\n\nWould you like to restore it?`
+            `Found auto-saved work from ${new Date(
+              workData.timestamp
+            ).toLocaleString()}.\n\nWould you like to restore it?`
           );
           if (restore) {
             this.restoreWork(workData);
@@ -2157,68 +3106,217 @@ Longitude: ${stop.stop_lon}`;
   showFloatingPreview() {
     const gtfsData = this.parser.gtfsData;
     const previewWindow = document.getElementById("floatingPreviewWindow");
-    
+
+    if (!previewWindow) {
+      console.error("Preview window element not found");
+      return;
+    }
+
     // Initialize the preview window
     this.initializePreviewWindow();
-    
-    // Populate the preview data
-    this.populatePreviewData(gtfsData);
-    
+
+    // Initialize the export window
+    this.initializeExportWindow();
+
+    // Populate basic stats
+    const routes = gtfsData["routes.txt"] || [];
+    const stops = gtfsData["stops.txt"] || [];
+    const trips = gtfsData["trips.txt"] || [];
+
+    const routesEl = document.getElementById("floatingPreviewRoutes");
+    const stopsEl = document.getElementById("floatingPreviewStops");
+    const tripsEl = document.getElementById("floatingPreviewTrips");
+
+    if (routesEl) routesEl.textContent = routes.length;
+    if (stopsEl) stopsEl.textContent = stops.length;
+    if (tripsEl) tripsEl.textContent = trips.length;
+
     // Show the window
     previewWindow.style.display = "flex";
-    
+
+    // Populate the route select dropdown
+    this.populatePreviewRouteSelect();
+
     // Initialize the preview map after a short delay
     setTimeout(() => {
-      this.initializePreviewMap(gtfsData);
+      this.initializeFloatingPreviewMap(gtfsData);
     }, 300);
+  }
+
+  initializeFloatingPreviewMap(gtfsData) {
+    const container = document.getElementById("floatingPreviewMapContainer");
+    if (!container) {
+      console.warn("Floating preview map container not found");
+      return;
+    }
+
+    // Clear any existing map
+    container.innerHTML = "";
+
+    // Create the preview map
+    try {
+      this.floatingPreviewMap = L.map(container).setView(
+        [40.7128, -74.006],
+        12
+      );
+
+      // Add tiles
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 19,
+        opacity: 0.7,
+      }).addTo(this.floatingPreviewMap);
+
+      // Plot all routes and stops on the map
+      const stops = gtfsData["stops.txt"] || [];
+      const routes = gtfsData["routes.txt"] || [];
+      const trips = gtfsData["trips.txt"] || [];
+      const shapes = gtfsData["shapes.txt"] || [];
+
+      // Add all stops to map
+      stops.forEach((stop) => {
+        if (stop.stop_lat && stop.stop_lon) {
+          L.circleMarker(
+            [parseFloat(stop.stop_lat), parseFloat(stop.stop_lon)],
+            {
+              radius: 4,
+              color: "#4caf50",
+              fillColor: "#4caf50",
+              fillOpacity: 0.8,
+            }
+          )
+            .bindPopup(`<b>${stop.stop_name}</b><br>${stop.stop_id}`)
+            .addTo(this.floatingPreviewMap);
+        }
+      });
+
+      // Fit bounds to show all stops
+      if (stops.length > 0) {
+        const bounds = L.latLngBounds(
+          stops
+            .filter((s) => s.stop_lat && s.stop_lon)
+            .map((s) => [parseFloat(s.stop_lat), parseFloat(s.stop_lon)])
+        );
+        this.floatingPreviewMap.fitBounds(bounds, { padding: [20, 20] });
+      }
+
+      // Force map to recognize container size
+      setTimeout(() => {
+        if (this.floatingPreviewMap) {
+          this.floatingPreviewMap.invalidateSize(true);
+        }
+      }, 100);
+    } catch (error) {
+      console.error("Error initializing floating preview map:", error);
+      container.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">Map failed to load: ${error.message}</div>`;
+    }
   }
 
   initializePreviewWindow() {
     const closeBtn = document.getElementById("closePreview");
     const collapseBtn = document.getElementById("collapsePreview");
-    
-    // Remove existing event listeners to avoid duplicates
-    closeBtn.replaceWith(closeBtn.cloneNode(true));
-    collapseBtn.replaceWith(collapseBtn.cloneNode(true));
-    
-    // Add fresh event listeners
-    document.getElementById("closePreview").addEventListener("click", () => {
-      this.closeFloatingPreview();
-    });
-    
-    document.getElementById("collapsePreview").addEventListener("click", () => {
-      this.togglePreviewCollapse();
-    });
-    
-    // Initialize preview route/trip filtering
+
+    // Remove existing event listeners to avoid duplicates and reattach if elements exist
+    if (closeBtn) {
+      try {
+        closeBtn.replaceWith(closeBtn.cloneNode(true));
+      } catch (err) {
+        console.warn("Could not clone/replace closePreview button:", err);
+      }
+      const newClose = document.getElementById("closePreview");
+      if (newClose) {
+        newClose.addEventListener("click", () => {
+          this.closeFloatingPreview();
+        });
+      }
+    } else {
+      console.warn(
+        "closePreview element not found; preview close button disabled"
+      );
+    }
+
+    if (collapseBtn) {
+      try {
+        collapseBtn.replaceWith(collapseBtn.cloneNode(true));
+      } catch (err) {
+        console.warn("Could not clone/replace collapsePreview button:", err);
+      }
+      const newCollapse = document.getElementById("collapsePreview");
+      if (newCollapse) {
+        newCollapse.addEventListener("click", () => {
+          this.togglePreviewCollapse();
+        });
+      }
+    } else {
+      console.warn(
+        "collapsePreview element not found; preview collapse button disabled"
+      );
+    }
+
+    // Initialize preview route/trip filtering (only if preview filter elements exist)
     this.initializePreviewFiltering();
   }
-  
+
+  initializeExportWindow() {
+    const closeBtn = document.getElementById("closeExport");
+
+    if (closeBtn) {
+      try {
+        closeBtn.replaceWith(closeBtn.cloneNode(true));
+      } catch (err) {
+        console.warn("Could not clone/replace closeExport button:", err);
+      }
+      const newClose = document.getElementById("closeExport");
+      if (newClose) {
+        newClose.addEventListener("click", () => {
+          this.closeFloatingExport();
+        });
+      }
+    } else {
+      console.warn(
+        "closeExport element not found; export close button disabled"
+      );
+    }
+  }
+
+  closeFloatingExport() {
+    const exportWindow = document.getElementById("floatingExportWindow");
+    if (exportWindow) {
+      exportWindow.style.display = "none";
+    }
+  }
+
   populatePreviewData(gtfsData) {
     // Populate agency info
     this.populatePreviewAgencyInfo(gtfsData);
-    
+
     // Populate statistics
     this.populatePreviewStats(gtfsData);
-    
+
     // Initialize route options for the preview filter
     this.previewRouteOptions = [];
     this.previewTripOptions = [];
-    
+
     if (gtfsData["routes.txt"]) {
       const routes = gtfsData["routes.txt"];
       this.previewRouteOptions = routes.map((route) => {
-        const routeText = `${route.route_short_name || route.route_long_name || route.route_id} - ${route.route_long_name || route.route_short_name || "Unnamed Route"}`;
+        const routeText = `${
+          route.route_short_name || route.route_long_name || route.route_id
+        } - ${
+          route.route_long_name || route.route_short_name || "Unnamed Route"
+        }`;
         return {
           value: route.route_id,
           text: routeText,
-          searchText: `${route.route_short_name || ""} ${route.route_long_name || ""} ${route.route_id}`.toLowerCase(),
+          searchText: `${route.route_short_name || ""} ${
+            route.route_long_name || ""
+          } ${route.route_id}`.toLowerCase(),
         };
       });
       this.previewRouteOptions.sort((a, b) => a.text.localeCompare(b.text));
     }
   }
-  
+
   populatePreviewAgencyInfo(gtfsData) {
     // Agency name
     const agencyName = document.getElementById("previewAgencyName");
@@ -2233,7 +3331,10 @@ Longitude: ${stop.stop_lon}`;
     const feedDates = document.getElementById("previewFeedDates");
     const formatDate = (dateStr) => {
       if (dateStr && dateStr.length === 8) {
-        return `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+        return `${dateStr.substring(0, 4)}-${dateStr.substring(
+          4,
+          6
+        )}-${dateStr.substring(6, 8)}`;
       }
       return dateStr;
     };
@@ -2244,7 +3345,9 @@ Longitude: ${stop.stop_lon}`;
       const endDate = feedInfo.feed_end_date;
 
       if (startDate && endDate) {
-        feedDates.textContent = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+        feedDates.textContent = `${formatDate(startDate)} to ${formatDate(
+          endDate
+        )}`;
       } else if (startDate) {
         feedDates.textContent = `From ${formatDate(startDate)}`;
       } else if (endDate) {
@@ -2273,7 +3376,9 @@ Longitude: ${stop.stop_lon}`;
         .map(([type, count]) => (count > 1 ? `${count} ${type}` : `1 ${type}`))
         .join(", ");
 
-      routeCount.textContent = `${totalRoutes} route${totalRoutes !== 1 ? "s" : ""} (${typesList})`;
+      routeCount.textContent = `${totalRoutes} route${
+        totalRoutes !== 1 ? "s" : ""
+      } (${typesList})`;
     } else {
       routeCount.textContent = "No routes defined";
     }
@@ -2291,134 +3396,194 @@ Longitude: ${stop.stop_lon}`;
       } else {
         fareInfo.textContent = `${fareMedia.length} fare media defined`;
       }
-    } else if (gtfsData["fare_attributes.txt"] && gtfsData["fare_attributes.txt"].length > 0) {
+    } else if (
+      gtfsData["fare_attributes.txt"] &&
+      gtfsData["fare_attributes.txt"].length > 0
+    ) {
       fareInfo.textContent = "Legacy fare system";
     } else {
       fareInfo.textContent = "No fare data available";
     }
   }
-  
+
   populatePreviewStats(gtfsData) {
     const stats = {
       agencies: gtfsData["agency.txt"] ? gtfsData["agency.txt"].length : 0,
       routes: gtfsData["routes.txt"] ? gtfsData["routes.txt"].length : 0,
       trips: gtfsData["trips.txt"] ? gtfsData["trips.txt"].length : 0,
       stops: gtfsData["stops.txt"] ? gtfsData["stops.txt"].length : 0,
-      stopTimes: gtfsData["stop_times.txt"] ? gtfsData["stop_times.txt"].length : 0,
-      services: gtfsData["calendar.txt"] ? gtfsData["calendar.txt"].length : 0
+      stopTimes: gtfsData["stop_times.txt"]
+        ? gtfsData["stop_times.txt"].length
+        : 0,
+      services: gtfsData["calendar.txt"] ? gtfsData["calendar.txt"].length : 0,
     };
-    
-    document.getElementById("previewStatsAgencies").textContent = stats.agencies;
+
+    document.getElementById("previewStatsAgencies").textContent =
+      stats.agencies;
     document.getElementById("previewStatsRoutes").textContent = stats.routes;
     document.getElementById("previewStatsTrips").textContent = stats.trips;
     document.getElementById("previewStatsStops").textContent = stats.stops;
-    document.getElementById("previewStatsStopTimes").textContent = stats.stopTimes;
-    document.getElementById("previewStatsServices").textContent = stats.services;
+    document.getElementById("previewStatsStopTimes").textContent =
+      stats.stopTimes;
+    document.getElementById("previewStatsServices").textContent =
+      stats.services;
   }
-  
+
   initializePreviewMap(gtfsData) {
     const container = document.getElementById("previewMapContainer");
     if (!container) return;
-    
+
     // Clear any existing map
     container.innerHTML = "";
-    
+
     // Create the preview map
     try {
       this.previewMap = L.map(container).setView([40.7128, -74.006], 12);
-      
+
       // Add tiles
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
         maxZoom: 19,
         opacity: 0.7,
       }).addTo(this.previewMap);
-      
+
       // Force map to recognize container size
       setTimeout(() => {
         if (this.previewMap) {
           this.previewMap.invalidateSize(true);
           // Show initial instruction message
-          this.showPreviewMapMessage("Select a route and optionally a trip, then click 'Show on Map' to visualize");
+          this.showPreviewMapMessage(
+            "Select a route and optionally a trip, then click 'Show on Map' to visualize"
+          );
         }
       }, 100);
-      
     } catch (error) {
       console.error("Error initializing preview map:", error);
       container.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">Map failed to load: ${error.message}</div>`;
     }
   }
-  
-  
+
   initializePreviewFiltering() {
     // Initialize filter event listeners
-    const routeSearch = document.getElementById("previewRouteSearch");
-    const tripSearch = document.getElementById("previewTripSearch");
-    const applyBtn = document.getElementById("previewApplyFilter");
-    const clearBtn = document.getElementById("previewClearFilter");
-    
-    // Route search functionality
-    routeSearch.addEventListener("input", (e) => this.filterPreviewRouteOptions(e.target.value));
-    routeSearch.addEventListener("focus", () => this.showPreviewRouteOptions());
-    routeSearch.addEventListener("blur", (e) => {
-      setTimeout(() => this.hidePreviewRouteDropdown(), 150);
-    });
-    
-    // Trip search functionality  
-    tripSearch.addEventListener("input", (e) => this.filterPreviewTripOptions(e.target.value));
-    tripSearch.addEventListener("focus", () => this.showPreviewTripOptions());
-    tripSearch.addEventListener("blur", (e) => {
-      setTimeout(() => this.hidePreviewTripDropdown(), 150);
-    });
-    
-    // Filter buttons
-    applyBtn.addEventListener("click", () => this.applyPreviewFilter());
-    clearBtn.addEventListener("click", () => this.clearPreviewFilter());
+    const routeSelect = document.getElementById("previewRouteSelect");
+    const tripSelect = document.getElementById("previewTripSelect");
+    const applyBtn = document.getElementById("previewApplyFilterBtn");
+
+    // Route selection functionality
+    if (routeSelect) {
+      routeSelect.addEventListener("change", (e) => {
+        const routeId = e.target.value;
+        if (routeId) {
+          this.updatePreviewTripSelect(routeId);
+        } else {
+          // Clear trip select if no route selected
+          if (tripSelect) {
+            tripSelect.innerHTML =
+              '<option value="">Select route first</option>';
+            tripSelect.disabled = true;
+          }
+        }
+      });
+    }
+
+    // Filter button
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => this.applyPreviewFilter());
+    }
   }
-  
+
+  // Populate preview route select dropdown
+  populatePreviewRouteSelect() {
+    const routeSelect = document.getElementById("previewRouteSelect");
+    if (!routeSelect || !this.parser) return;
+
+    const routes = this.parser.getFileData("routes.txt") || [];
+
+    // Clear existing options except "All Routes"
+    routeSelect.innerHTML = '<option value="">All Routes</option>';
+
+    // Add route options
+    routes.forEach((route) => {
+      const option = document.createElement("option");
+      option.value = route.route_id;
+      option.textContent = `${route.route_short_name || route.route_id} - ${
+        route.route_long_name || ""
+      }`;
+      routeSelect.appendChild(option);
+    });
+  }
+
+  // Update trip select based on selected route
+  updatePreviewTripSelect(routeId) {
+    const tripSelect = document.getElementById("previewTripSelect");
+    if (!tripSelect || !this.parser) return;
+
+    const trips = this.parser.getFileData("trips.txt") || [];
+    const routeTrips = trips.filter((trip) => trip.route_id === routeId);
+
+    // Clear and populate trip options
+    tripSelect.innerHTML = '<option value="">All Trips</option>';
+
+    routeTrips.forEach((trip) => {
+      const option = document.createElement("option");
+      option.value = trip.trip_id;
+      option.textContent = trip.trip_headsign || trip.trip_id;
+      tripSelect.appendChild(option);
+    });
+
+    tripSelect.disabled = false;
+  }
+
   filterPreviewRouteOptions(searchTerm) {
     const dropdown = document.getElementById("previewRouteDropdown");
-    const filteredOptions = searchTerm.trim() === "" 
-      ? this.previewRouteOptions 
-      : this.previewRouteOptions.filter((option) => option.searchText.includes(searchTerm.toLowerCase()));
-    
+    const filteredOptions =
+      searchTerm.trim() === ""
+        ? this.previewRouteOptions
+        : this.previewRouteOptions.filter((option) =>
+            option.searchText.includes(searchTerm.toLowerCase())
+          );
+
     this.renderPreviewDropdownOptions(dropdown, filteredOptions, (option) => {
       this.selectPreviewRoute(option.value, option.text);
     });
-    
+
     if (filteredOptions.length > 0) {
       dropdown.classList.add("show");
     } else {
       dropdown.classList.remove("show");
     }
   }
-  
+
   showPreviewRouteOptions() {
     if (this.previewRouteOptions.length > 0) {
       const dropdown = document.getElementById("previewRouteDropdown");
-      this.renderPreviewDropdownOptions(dropdown, this.previewRouteOptions, (option) => {
-        this.selectPreviewRoute(option.value, option.text);
-      });
+      this.renderPreviewDropdownOptions(
+        dropdown,
+        this.previewRouteOptions,
+        (option) => {
+          this.selectPreviewRoute(option.value, option.text);
+        }
+      );
       dropdown.classList.add("show");
     }
   }
-  
+
   hidePreviewRouteDropdown() {
     document.getElementById("previewRouteDropdown").classList.remove("show");
   }
-  
+
   selectPreviewRoute(routeId, routeText) {
     this.selectedPreviewRouteId = routeId;
     document.getElementById("previewRouteSearch").value = routeText;
     this.hidePreviewRouteDropdown();
-    
+
     // Update trip options based on selected route
     this.updatePreviewTripOptions(routeId);
   }
-  
+
   updatePreviewTripOptions(routeId) {
     const tripSearch = document.getElementById("previewTripSearch");
-    
+
     if (!routeId) {
       this.previewTripOptions = [];
       tripSearch.value = "";
@@ -2426,25 +3591,29 @@ Longitude: ${stop.stop_lon}`;
       tripSearch.disabled = true;
       return;
     }
-    
+
     const gtfsData = this.parser.gtfsData;
     const trips = gtfsData["trips.txt"] || [];
     const routeTrips = trips.filter((trip) => trip.route_id === routeId);
-    
+
     this.previewTripOptions = routeTrips.map((trip) => {
-      const tripText = `${trip.trip_headsign || "No destination"} (Dir ${trip.direction_id || "0"}) - ${trip.trip_id}`;
+      const tripText = `${trip.trip_headsign || "No destination"} (Dir ${
+        trip.direction_id || "0"
+      }) - ${trip.trip_id}`;
       return {
         value: trip.trip_id,
         text: tripText,
-        searchText: `${trip.trip_headsign || "no destination"} ${trip.trip_id} dir${trip.direction_id || "0"}`.toLowerCase(),
+        searchText: `${trip.trip_headsign || "no destination"} ${
+          trip.trip_id
+        } dir${trip.direction_id || "0"}`.toLowerCase(),
       };
     });
-    
+
     tripSearch.value = "";
     tripSearch.placeholder = "Click to select or type to search trips...";
     tripSearch.disabled = false;
   }
-  
+
   renderPreviewDropdownOptions(dropdown, options, onSelectCallback) {
     dropdown.innerHTML = "";
     options.forEach((option) => {
@@ -2455,62 +3624,142 @@ Longitude: ${stop.stop_lon}`;
       dropdown.appendChild(optionEl);
     });
   }
-  
+
   applyPreviewFilter() {
-    if (!this.previewMap) {
+    if (!this.floatingPreviewMap) {
       console.warn("Preview map not initialized");
       return;
     }
 
-    const routeId = this.selectedPreviewRouteId;
-    const tripId = this.selectedPreviewTripId;
-    
-    console.log("Applying preview filter - routeId:", routeId, "tripId:", tripId);
-    
+    // Read from select dropdowns
+    const routeSelect = document.getElementById("previewRouteSelect");
+    const tripSelect = document.getElementById("previewTripSelect");
+
+    const routeId = routeSelect ? routeSelect.value : "";
+    const tripId = tripSelect ? tripSelect.value : "";
+
+    console.log(
+      "Applying preview filter - routeId:",
+      routeId,
+      "tripId:",
+      tripId
+    );
+
     // Clear existing map layers first
     this.clearPreviewMapLayers();
-    
+
     const gtfsData = this.parser.gtfsData;
-    
+
     if (!routeId && !tripId) {
-      // No filter selected - show message
-      this.showPreviewMapMessage("Select a route and optionally a trip, then click 'Show on Map' to visualize");
+      // No filter selected - show all stops and shapes
+      this.displayAllPreviewData(gtfsData);
       return;
     }
-    
+
     // Filter and display the selected route/trip
     this.displayPreviewFilteredData(gtfsData, routeId, tripId);
   }
-  
-  clearPreviewMapLayers() {
-    if (!this.previewMap) return;
-    
-    // Remove all markers and polylines
-    this.previewMap.eachLayer((layer) => {
-      if (layer instanceof L.Marker || layer instanceof L.Polyline) {
-        this.previewMap.removeLayer(layer);
+
+  displayAllPreviewData(gtfsData) {
+    const stops = gtfsData["stops.txt"] || [];
+    const shapes = gtfsData["shapes.txt"] || [];
+
+    // Display all stops
+    const validStops = [];
+    stops.forEach((stop) => {
+      if (stop.stop_lat && stop.stop_lon) {
+        const lat = parseFloat(stop.stop_lat);
+        const lng = parseFloat(stop.stop_lon);
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+              className: "preview-stop-marker",
+              html: `<div class="stop-marker-content" style="background-color: #4caf50;"></div>`,
+              iconSize: [10, 10],
+              iconAnchor: [5, 5],
+            }),
+          }).addTo(this.floatingPreviewMap);
+
+          marker.bindPopup(`
+            <div>
+              <h4>${stop.stop_name || "Unnamed Stop"}</h4>
+              <p><strong>ID:</strong> ${stop.stop_id}</p>
+              <p><strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lng.toFixed(
+            6
+          )}</p>
+            </div>
+          `);
+
+          validStops.push(L.marker([lat, lng]));
+        }
       }
     });
-    
+
+    // Display all shapes
+    const shapeIds = [...new Set(shapes.map((s) => s.shape_id))];
+    shapeIds.forEach((shapeId) => {
+      const shapePoints = shapes
+        .filter((s) => s.shape_id === shapeId)
+        .sort(
+          (a, b) =>
+            parseInt(a.shape_pt_sequence) - parseInt(b.shape_pt_sequence)
+        );
+
+      if (shapePoints.length > 0) {
+        const coords = shapePoints.map((pt) => [
+          parseFloat(pt.shape_pt_lat),
+          parseFloat(pt.shape_pt_lon),
+        ]);
+
+        L.polyline(coords, {
+          color: "#2196F3",
+          weight: 3,
+          opacity: 0.6,
+        }).addTo(this.floatingPreviewMap);
+      }
+    });
+
+    // Fit map to show all data
+    if (validStops.length > 0) {
+      const group = new L.featureGroup(validStops);
+      this.floatingPreviewMap.fitBounds(group.getBounds().pad(0.1));
+    }
+
+    this.showPreviewMapMessage(
+      `Showing ${stops.length} stops and ${shapeIds.length} shapes`
+    );
+  }
+
+  clearPreviewMapLayers() {
+    if (!this.floatingPreviewMap) return;
+
+    // Remove all markers and polylines
+    this.floatingPreviewMap.eachLayer((layer) => {
+      if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+        this.floatingPreviewMap.removeLayer(layer);
+      }
+    });
+
     // Clear any existing message overlay
-    const existingMessage = document.querySelector('.preview-map-message');
+    const existingMessage = document.querySelector(".preview-map-message");
     if (existingMessage) {
       existingMessage.remove();
     }
   }
-  
+
   showPreviewMapMessage(message) {
     const container = document.getElementById("previewMapContainer");
-    
+
     // Remove existing message
-    const existingMessage = container.querySelector('.preview-map-message');
+    const existingMessage = container.querySelector(".preview-map-message");
     if (existingMessage) {
       existingMessage.remove();
     }
-    
+
     // Add new message overlay
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'preview-map-message';
+    const messageDiv = document.createElement("div");
+    messageDiv.className = "preview-map-message";
     messageDiv.style.cssText = `
       position: absolute;
       top: 50%;
@@ -2528,98 +3777,140 @@ Longitude: ${stop.stop_lon}`;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     `;
     messageDiv.textContent = message;
-    
-    container.style.position = 'relative';
+
+    container.style.position = "relative";
     container.appendChild(messageDiv);
   }
-  
+
   displayPreviewFilteredData(gtfsData, routeId, tripId) {
     const routes = gtfsData["routes.txt"] || [];
     const trips = gtfsData["trips.txt"] || [];
     const stops = gtfsData["stops.txt"] || [];
     const stopTimes = gtfsData["stop_times.txt"] || [];
     const shapes = gtfsData["shapes.txt"] || [];
-    
+
     // Find the selected route
-    const selectedRoute = routes.find(r => r.route_id === routeId);
+    const selectedRoute = routes.find((r) => r.route_id === routeId);
     if (!selectedRoute) {
       this.showPreviewMapMessage("Selected route not found");
       return;
     }
-    
+
     // Get trips for this route (or specific trip if selected)
     let filteredTrips;
     if (tripId) {
-      filteredTrips = trips.filter(t => t.trip_id === tripId && t.route_id === routeId);
+      filteredTrips = trips.filter(
+        (t) => t.trip_id === tripId && t.route_id === routeId
+      );
     } else {
-      filteredTrips = trips.filter(t => t.route_id === routeId);
+      filteredTrips = trips.filter((t) => t.route_id === routeId);
     }
-    
+
     if (filteredTrips.length === 0) {
       this.showPreviewMapMessage("No trips found for selected route");
       return;
     }
-    
+
     // Get all stops for these trips
-    const tripIds = filteredTrips.map(t => t.trip_id);
-    const filteredStopTimes = stopTimes.filter(st => tripIds.includes(st.trip_id));
-    const stopIds = [...new Set(filteredStopTimes.map(st => st.stop_id))];
-    const filteredStops = stops.filter(s => stopIds.includes(s.stop_id));
-    
+    const tripIds = filteredTrips.map((t) => t.trip_id);
+    const filteredStopTimes = stopTimes.filter((st) =>
+      tripIds.includes(st.trip_id)
+    );
+    const stopIds = [...new Set(filteredStopTimes.map((st) => st.stop_id))];
+    const filteredStops = stops.filter((s) => stopIds.includes(s.stop_id));
+
+    // Get ordered stops for this trip (to identify origin and destination)
+    const orderedStopTimes = filteredStopTimes.sort(
+      (a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence)
+    );
+    const firstStopId =
+      orderedStopTimes.length > 0 ? orderedStopTimes[0].stop_id : null;
+    const lastStopId =
+      orderedStopTimes.length > 0
+        ? orderedStopTimes[orderedStopTimes.length - 1].stop_id
+        : null;
+
     // Display stops
     const validStops = [];
     filteredStops.forEach((stop) => {
       if (stop.stop_lat && stop.stop_lon) {
         const lat = parseFloat(stop.stop_lat);
         const lng = parseFloat(stop.stop_lon);
-        
+
         if (!isNaN(lat) && !isNaN(lng)) {
+          // Determine marker color based on origin/destination
+          let markerColor = "#4caf50"; // default green
+          let markerLabel = "";
+
+          if (stop.stop_id === firstStopId) {
+            markerColor = "#00c853"; // bright green for origin
+            markerLabel = "ORIGIN";
+          } else if (stop.stop_id === lastStopId) {
+            markerColor = "#f44336"; // red for destination
+            markerLabel = "DESTINATION";
+          }
+
           const marker = L.marker([lat, lng], {
             icon: L.divIcon({
-              className: "existing-stop-marker",
-              html: '<div class="stop-marker-content"></div>',
+              className: "preview-stop-marker",
+              html: `<div class="stop-marker-content" style="background-color: ${markerColor};"></div>`,
               iconSize: [14, 14],
               iconAnchor: [7, 7],
             }),
-          }).addTo(this.previewMap);
-          
+          }).addTo(this.floatingPreviewMap);
+
           marker.bindPopup(`
             <div>
+              ${
+                markerLabel
+                  ? `<div style="background: ${markerColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-bottom: 8px; text-align: center;">${markerLabel}</div>`
+                  : ""
+              }
               <h4>${stop.stop_name || "Unnamed Stop"}</h4>
               <p><strong>ID:</strong> ${stop.stop_id}</p>
-              <p><strong>Route:</strong> ${selectedRoute.route_short_name || selectedRoute.route_long_name}</p>
-              <p><strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+              <p><strong>Route:</strong> ${
+                selectedRoute.route_short_name || selectedRoute.route_long_name
+              }</p>
+              <p><strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lng.toFixed(
+            6
+          )}</p>
             </div>
           `);
-          
+
           validStops.push(L.marker([lat, lng]));
         }
       }
     });
-    
+
     // Display shapes for these trips
-    const shapeIds = [...new Set(filteredTrips.map(t => t.shape_id).filter(Boolean))];
+    const shapeIds = [
+      ...new Set(filteredTrips.map((t) => t.shape_id).filter(Boolean)),
+    ];
     this.displayPreviewShapes(gtfsData, shapeIds, selectedRoute);
-    
+
     // Fit map to show all data
     if (validStops.length > 0) {
       const group = new L.featureGroup(validStops);
-      this.previewMap.fitBounds(group.getBounds().pad(0.1));
+      this.floatingPreviewMap.fitBounds(group.getBounds().pad(0.1));
     } else if (shapeIds.length === 0) {
-      this.showPreviewMapMessage("No geographic data found for selected route/trip");
+      this.showPreviewMapMessage(
+        "No geographic data found for selected route/trip"
+      );
     }
-    
+
     // Show success message
     const itemCount = validStops.length;
     const shapeCount = shapeIds.length;
-    console.log(`Displayed ${itemCount} stops and ${shapeCount} shapes for route ${routeId}`);
+    console.log(
+      `Displayed ${itemCount} stops and ${shapeCount} shapes for route ${routeId}`
+    );
   }
-  
+
   displayPreviewShapes(gtfsData, shapeIds, selectedRoute) {
     const shapes = gtfsData["shapes.txt"] || [];
-    
+
     if (shapes.length === 0 || shapeIds.length === 0) return;
-    
+
     // Group shapes by shape_id
     const shapeGroups = {};
     shapes.forEach((shape) => {
@@ -2634,72 +3925,86 @@ Longitude: ${stop.stop_lon}`;
         });
       }
     });
-    
+
     // Get route color
     let color = "#4caf50"; // default
     if (selectedRoute.route_color && selectedRoute.route_color.length === 6) {
       color = "#" + selectedRoute.route_color;
     }
-    
-    const routeName = selectedRoute.route_short_name || selectedRoute.route_long_name || selectedRoute.route_id;
-    
+
+    const routeName =
+      selectedRoute.route_short_name ||
+      selectedRoute.route_long_name ||
+      selectedRoute.route_id;
+
     // Draw each shape
     Object.keys(shapeGroups).forEach((shapeId) => {
       const shapePoints = shapeGroups[shapeId];
       shapePoints.sort((a, b) => a.sequence - b.sequence);
-      
-      const validPoints = shapePoints.filter((p) => !isNaN(p.lat) && !isNaN(p.lng));
+
+      const validPoints = shapePoints.filter(
+        (p) => !isNaN(p.lat) && !isNaN(p.lng)
+      );
       if (validPoints.length < 2) return;
-      
+
       const latlngs = validPoints.map((p) => [p.lat, p.lng]);
       const polyline = L.polyline(latlngs, {
         color: color,
         weight: 5,
         opacity: 0.8,
-      }).addTo(this.previewMap);
-      
+      }).addTo(this.floatingPreviewMap);
+
       polyline.bindPopup(`
         <div>
           <h4>${routeName}</h4>
           <p><strong>Shape ID:</strong> ${shapeId}</p>
           <p><strong>Points:</strong> ${validPoints.length}</p>
-          <p><strong>Route Type:</strong> ${this.getRouteTypeName(selectedRoute.route_type)}</p>
+          <p><strong>Route Type:</strong> ${this.getRouteTypeName(
+            selectedRoute.route_type
+          )}</p>
         </div>
       `);
     });
   }
-  
+
   filterPreviewTripOptions(searchTerm) {
     const dropdown = document.getElementById("previewTripDropdown");
-    const filteredOptions = searchTerm.trim() === "" 
-      ? this.previewTripOptions 
-      : this.previewTripOptions.filter((option) => option.searchText.includes(searchTerm.toLowerCase()));
-    
+    const filteredOptions =
+      searchTerm.trim() === ""
+        ? this.previewTripOptions
+        : this.previewTripOptions.filter((option) =>
+            option.searchText.includes(searchTerm.toLowerCase())
+          );
+
     this.renderPreviewDropdownOptions(dropdown, filteredOptions, (option) => {
       this.selectPreviewTrip(option.value, option.text);
     });
-    
+
     if (filteredOptions.length > 0) {
       dropdown.classList.add("show");
     } else {
       dropdown.classList.remove("show");
     }
   }
-  
+
   showPreviewTripOptions() {
     if (this.previewTripOptions.length > 0) {
       const dropdown = document.getElementById("previewTripDropdown");
-      this.renderPreviewDropdownOptions(dropdown, this.previewTripOptions, (option) => {
-        this.selectPreviewTrip(option.value, option.text);
-      });
+      this.renderPreviewDropdownOptions(
+        dropdown,
+        this.previewTripOptions,
+        (option) => {
+          this.selectPreviewTrip(option.value, option.text);
+        }
+      );
       dropdown.classList.add("show");
     }
   }
-  
+
   hidePreviewTripDropdown() {
     document.getElementById("previewTripDropdown").classList.remove("show");
   }
-  
+
   selectPreviewTrip(tripId, tripText) {
     this.selectedPreviewTripId = tripId;
     document.getElementById("previewTripSearch").value = tripText;
@@ -2710,37 +4015,52 @@ Longitude: ${stop.stop_lon}`;
     document.getElementById("previewRouteSearch").value = "";
     document.getElementById("previewTripSearch").value = "";
     document.getElementById("previewTripSearch").disabled = true;
-    document.getElementById("previewTripSearch").placeholder = "Select route first...";
+    document.getElementById("previewTripSearch").placeholder =
+      "Select route first...";
     this.selectedPreviewRouteId = "";
     this.selectedPreviewTripId = "";
     this.previewTripOptions = [];
-    
+
     // Clear the map as well
     this.clearPreviewMapLayers();
-    this.showPreviewMapMessage("Select a route and optionally a trip, then click 'Show on Map' to visualize");
+    this.showPreviewMapMessage(
+      "Select a route and optionally a trip, then click 'Show on Map' to visualize"
+    );
   }
-  
+
   closeFloatingPreview() {
     const previewWindow = document.getElementById("floatingPreviewWindow");
-    previewWindow.style.display = "none";
-    
-    // Clean up the preview map
+    if (previewWindow) {
+      previewWindow.style.display = "none";
+    }
+
+    // Clean up the floating preview map
+    if (this.floatingPreviewMap) {
+      this.floatingPreviewMap.remove();
+      this.floatingPreviewMap = null;
+    }
+
+    // Also clean up the regular preview map if it exists
     if (this.previewMap) {
       this.previewMap.remove();
       this.previewMap = null;
     }
   }
-  
+
   togglePreviewCollapse() {
-    const content = document.getElementById("previewWindowContent");
+    const content = document.getElementById("floatingPreviewContent");
     const collapseBtn = document.getElementById("collapsePreview");
 
-    if (content.style.display === "none") {
-      content.style.display = "block";
+    if (!content || !collapseBtn) return;
+
+    if (content.classList.contains("collapsed")) {
+      content.classList.remove("collapsed");
       collapseBtn.textContent = "−";
+      collapseBtn.title = "Collapse Preview";
     } else {
-      content.style.display = "none";
+      content.classList.add("collapsed");
       collapseBtn.textContent = "+";
+      collapseBtn.title = "Expand Preview";
     }
   }
 
@@ -2759,10 +4079,20 @@ Longitude: ${stop.stop_lon}`;
   }
 
   addFrequencyPeriod() {
+    console.log("=== addFrequencyPeriod called ===");
     const startTime = document.getElementById("frequencyStartInput").value;
     const endTime = document.getElementById("frequencyEndInput").value;
-    const headwayMins = parseInt(document.getElementById("headwaySecsInput").value);
+    const headwayMins = parseInt(
+      document.getElementById("headwaySecsInput").value
+    );
     const exactTimes = document.getElementById("exactTimesSelect").value;
+
+    console.log("Frequency inputs:", {
+      startTime,
+      endTime,
+      headwayMins,
+      exactTimes,
+    });
 
     if (!startTime || !endTime || !headwayMins) {
       alert("Please fill in all frequency period fields");
@@ -2777,16 +4107,39 @@ Longitude: ${stop.stop_lon}`;
     // Store frequency period for use when trip is finished
     if (!this.currentFrequencyPeriods) {
       this.currentFrequencyPeriods = [];
+      console.log("Initialized currentFrequencyPeriods array");
     }
 
+    // Ensure times are in HH:MM:SS format for GTFS frequencies
+    const normalizeTime = (t) => {
+      if (!t) return "00:00:00";
+      const parts = t.split(":");
+      if (parts.length === 2) {
+        return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}:00`;
+      }
+      if (parts.length === 3) {
+        return `${parts[0].padStart(2, "0")}:${parts[1].padStart(
+          2,
+          "0"
+        )}:${parts[2].padStart(2, "0")}`;
+      }
+      return t;
+    };
+
     const period = {
-      start_time: startTime,
-      end_time: endTime,
+      start_time: normalizeTime(startTime),
+      end_time: normalizeTime(endTime),
       headway_secs: (headwayMins * 60).toString(),
-      exact_times: exactTimes
+      exact_times: exactTimes,
     };
 
     this.currentFrequencyPeriods.push(period);
+    console.log("Added frequency period:", period);
+    console.log(
+      "Total frequency periods now:",
+      this.currentFrequencyPeriods.length
+    );
+    console.log("currentFrequencyPeriods:", this.currentFrequencyPeriods);
     this.updateFrequencyDisplay();
 
     // Clear inputs
@@ -2800,11 +4153,14 @@ Longitude: ${stop.stop_lon}`;
     const list = document.getElementById("frequencyPeriodList");
     const empty = list.querySelector(".frequency-empty");
 
-    if (!this.currentFrequencyPeriods || this.currentFrequencyPeriods.length === 0) {
+    if (
+      !this.currentFrequencyPeriods ||
+      this.currentFrequencyPeriods.length === 0
+    ) {
       if (empty) empty.style.display = "block";
       // Remove all period items
       const items = list.querySelectorAll(".frequency-period-item");
-      items.forEach(item => item.remove());
+      items.forEach((item) => item.remove());
       return;
     }
 
@@ -2812,7 +4168,7 @@ Longitude: ${stop.stop_lon}`;
 
     // Clear existing items
     const items = list.querySelectorAll(".frequency-period-item");
-    items.forEach(item => item.remove());
+    items.forEach((item) => item.remove());
 
     // Add frequency period items
     this.currentFrequencyPeriods.forEach((period, index) => {
@@ -2829,7 +4185,7 @@ Longitude: ${stop.stop_lon}`;
           <div class="frequency-period-exact">${exactText}</div>
         </div>
         <div class="frequency-period-actions">
-          <button class="delete-frequency-btn" onclick="gtfsEditor.deleteFrequencyPeriod(${index})">Delete</button>
+          <button class="delete-frequency-btn" onclick="window.editor.deleteFrequencyPeriod(${index})">Delete</button>
         </div>
       `;
 
@@ -2841,7 +4197,11 @@ Longitude: ${stop.stop_lon}`;
   }
 
   deleteFrequencyPeriod(index) {
-    if (this.currentFrequencyPeriods && index >= 0 && index < this.currentFrequencyPeriods.length) {
+    if (
+      this.currentFrequencyPeriods &&
+      index >= 0 &&
+      index < this.currentFrequencyPeriods.length
+    ) {
       this.currentFrequencyPeriods.splice(index, 1);
       this.updateFrequencyDisplay();
     }
@@ -2850,21 +4210,30 @@ Longitude: ${stop.stop_lon}`;
   clearFrequencyPeriods() {
     this.currentFrequencyPeriods = [];
     this.updateFrequencyDisplay();
-    document.getElementById("useFrequenciesToggle").checked = false;
-    document.getElementById("frequencyInputs").style.display = "none";
+    const useFrequenciesToggle = document.getElementById(
+      "useFrequenciesToggle"
+    );
+    const frequencyInputs = document.getElementById("frequencyInputs");
+    if (useFrequenciesToggle) useFrequenciesToggle.checked = false;
+    if (frequencyInputs) frequencyInputs.style.display = "none";
   }
 
   // Apply frequencies to a completed trip
   applyFrequenciesToTrip(tripId) {
-    console.log('applyFrequenciesToTrip called with tripId:', tripId);
-    console.log('currentFrequencyPeriods:', this.currentFrequencyPeriods);
+    console.log("applyFrequenciesToTrip called with tripId:", tripId);
+    console.log("currentFrequencyPeriods:", this.currentFrequencyPeriods);
 
-    if (!this.currentFrequencyPeriods || this.currentFrequencyPeriods.length === 0) {
-      console.log('No frequency periods to apply');
+    if (
+      !this.currentFrequencyPeriods ||
+      this.currentFrequencyPeriods.length === 0
+    ) {
+      console.log("No frequency periods to apply");
       return false; // No frequencies to apply
     }
 
-    console.log(`About to apply ${this.currentFrequencyPeriods.length} frequency periods`);
+    console.log(
+      `About to apply ${this.currentFrequencyPeriods.length} frequency periods`
+    );
 
     // Add each frequency period to the GTFS data
     this.currentFrequencyPeriods.forEach((period, index) => {
@@ -2878,19 +4247,34 @@ Longitude: ${stop.stop_lon}`;
       );
     });
 
-    console.log(`Applied ${this.currentFrequencyPeriods.length} frequency periods to trip ${tripId}`);
+    console.log(
+      `Applied ${this.currentFrequencyPeriods.length} frequency periods to trip ${tripId}`
+    );
+
+    // Update file tabs to ensure frequencies.txt appears in the list
+    console.log("Updating file tabs after applying frequencies");
+    this.updateFileTabs();
 
     // Show success message
-    const periodText = this.currentFrequencyPeriods.length === 1 ? 'period' : 'periods';
+    const periodText =
+      this.currentFrequencyPeriods.length === 1 ? "period" : "periods";
     this.showStatus(
       `✓ Trip created with ${this.currentFrequencyPeriods.length} frequency ${periodText}. Check frequencies.txt in table view.`,
       "success"
     );
 
     // Refresh table view if frequencies.txt is currently displayed
-    if (this.currentFile === 'frequencies.txt') {
+    if (
+      this.currentFile === "frequencies.txt" ||
+      this.currentFile === "frequencies"
+    ) {
       setTimeout(() => {
-        this.displayFileContent('frequencies.txt');
+        const fileToDisplay =
+          typeof this.currentFile === "string" &&
+          this.currentFile.endsWith(".txt")
+            ? this.currentFile
+            : "frequencies.txt";
+        this.displayFileContent(fileToDisplay);
       }, 100); // Small delay to ensure data is fully processed
     }
 
@@ -2899,8 +4283,11 @@ Longitude: ${stop.stop_lon}`;
 
   // Update trip button text to indicate frequency mode
   updateTripButtonsForFrequencies() {
-    const useFrequencies = document.getElementById("useFrequenciesToggle").checked;
-    const hasFrequencyPeriods = this.currentFrequencyPeriods && this.currentFrequencyPeriods.length > 0;
+    const useFrequencies = document.getElementById(
+      "useFrequenciesToggle"
+    ).checked;
+    const hasFrequencyPeriods =
+      this.currentFrequencyPeriods && this.currentFrequencyPeriods.length > 0;
 
     const finishBtn = document.getElementById("finishTripBtn");
     if (finishBtn) {
@@ -2909,7 +4296,8 @@ Longitude: ${stop.stop_lon}`;
         finishBtn.title = "This trip will use frequency-based service";
       } else if (useFrequencies) {
         finishBtn.textContent = "Finish Trip (⚠️ No frequencies)";
-        finishBtn.title = "Enable frequency-based service but no periods defined";
+        finishBtn.title =
+          "Enable frequency-based service but no periods defined";
       } else {
         finishBtn.textContent = "Finish Trip";
         finishBtn.title = "Standard trip with fixed stop times";
@@ -2919,36 +4307,13 @@ Longitude: ${stop.stop_lon}`;
 
   // Ensure frequencies.txt is available in the file list and parser
   ensureFrequenciesFile() {
-    // Check if frequencies.txt already exists in the files list
-    const hasFrequenciesFile = this.files.some(file =>
-      (typeof file === 'string' && file === 'frequencies.txt') ||
-      (typeof file === 'object' && file.name === 'frequencies.txt')
-    );
-
-    // If not present, add it
-    if (!hasFrequenciesFile) {
-      // Add to parser's file list
-      if (!this.parser.fileList.includes('frequencies.txt')) {
-        this.parser.fileList.push('frequencies.txt');
-      }
-
-      // Initialize empty frequencies data if not present
-      if (!this.parser.gtfsData['frequencies.txt']) {
-        this.parser.gtfsData['frequencies.txt'] = [];
-      }
-
-      // Add to the files list for UI (use object format to match other files)
-      this.files.push({
-        name: 'frequencies',
-        data: this.parser.gtfsData['frequencies.txt'] || [],
-        headers: ['trip_id', 'start_time', 'end_time', 'headway_secs', 'exact_times']
-      });
-
-      console.log('Added frequencies.txt to available files');
-
-      // Recreate file tabs to include the new frequencies.txt
-      this.createFileTabs(this.files);
+    // Only initialize frequencies data structure if it doesn't exist
+    // Don't add it to fileList or files array unless there's actual data
+    if (!this.parser.gtfsData["frequencies.txt"]) {
+      this.parser.gtfsData["frequencies.txt"] = [];
+      console.log(
+        "Initialized empty frequencies.txt in parser.gtfsData (not added to fileList yet)"
+      );
     }
   }
-
 }

@@ -15,7 +15,10 @@ class GTFSParser {
             // Process each file in the ZIP
             for (const [filename, zipEntry] of Object.entries(zip.files)) {
                 if (zipEntry.dir) continue; // Skip directories
-                
+
+                // Skip macOS metadata files
+                if (filename.startsWith('__MACOSX/') || filename.startsWith('._')) continue;
+
                 if (filename.endsWith('.txt')) {
                     const content = await zipEntry.async('text');
                     const parsedData = this.parseCSV(content);
@@ -143,7 +146,7 @@ class GTFSParser {
         });
 
         // Also include commonly used optional files for new GTFS creation
-        const includedOptionalFiles = ['calendar.txt', 'shapes.txt', 'frequencies.txt'];
+        const includedOptionalFiles = ['calendar.txt', 'shapes.txt'];
         includedOptionalFiles.forEach(filename => {
             const spec = GTFS_SPEC.files[filename];
             if (spec) {
@@ -324,18 +327,36 @@ class GTFSParser {
 
     // Delete frequency by trip and start time
     deleteFrequency(tripId, startTime) {
+        console.log('deleteFrequency called with:', { tripId, startTime });
+
         if (!this.gtfsData['frequencies.txt']) {
+            console.log('No frequencies.txt in gtfsData');
             return false;
         }
 
+        console.log('Current frequencies:', this.gtfsData['frequencies.txt']);
+
         const index = this.gtfsData['frequencies.txt'].findIndex(
-            freq => freq.trip_id === tripId && freq.start_time === startTime
+            freq => {
+                console.log('Comparing:', {
+                    freq_trip_id: freq.trip_id,
+                    freq_start_time: freq.start_time,
+                    tripId: tripId,
+                    startTime: startTime,
+                    match: freq.trip_id === tripId && freq.start_time === startTime
+                });
+                return freq.trip_id === tripId && freq.start_time === startTime;
+            }
         );
+
+        console.log('Found index:', index);
 
         if (index !== -1) {
             this.gtfsData['frequencies.txt'].splice(index, 1);
+            console.log('Deleted frequency, remaining:', this.gtfsData['frequencies.txt']);
             return true;
         }
+        console.log('Frequency not found for deletion');
         return false;
     }
 
