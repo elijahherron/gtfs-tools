@@ -4,28 +4,36 @@ document.addEventListener("DOMContentLoaded", function () {
   // even if other libraries (like JSZip) are still loading.
   initializeSidebarNavigation();
 
-  // Check if required libraries are available. If JSZip is missing we
-  // load it asynchronously; the loader will create the editor when it's ready.
-  if (typeof JSZip === "undefined") {
-    console.error("JSZip library not found. Loading from CDN...");
-    loadJSZip();
-    // don't return here; sidebar is already initialized and loadJSZip's onload
-    // will create the editor and set window.editor when ready.
-  } else if (typeof L === "undefined") {
-    console.error(
-      "Leaflet library not found. Please check your internet connection."
-    );
-    alert(
-      "Failed to load map library. Please refresh the page or check your internet connection."
-    );
-    return;
-  } else {
-    // Initialize the GTFS Editor now that required libs are present
-    const editor = new GTFSEditor();
-    window.editor = editor; // Make editor globally accessible
-    console.log("GTFS Editor initialized");
-    console.log("Leaflet version:", L.version);
-  }
+  // Add a small delay to ensure DOM is fully ready (helps with GitHub Pages)
+  setTimeout(function() {
+    // Check if required libraries are available. If JSZip is missing we
+    // load it asynchronously; the loader will create the editor when it's ready.
+    if (typeof JSZip === "undefined") {
+      console.error("JSZip library not found. Loading from CDN...");
+      loadJSZip();
+      // don't return here; sidebar is already initialized and loadJSZip's onload
+      // will create the editor and set window.editor when ready.
+    } else if (typeof L === "undefined") {
+      console.error(
+        "Leaflet library not found. Please check your internet connection."
+      );
+      alert(
+        "Failed to load map library. Please refresh the page or check your internet connection."
+      );
+      return;
+    } else {
+      // Initialize the GTFS Editor now that required libs are present
+      try {
+        const editor = new GTFSEditor();
+        window.editor = editor; // Make editor globally accessible
+        console.log("GTFS Editor initialized");
+        console.log("Leaflet version:", L.version);
+      } catch (error) {
+        console.error("Error initializing GTFS Editor:", error);
+        alert("Error initializing application. Please refresh the page.");
+      }
+    }
+  }, 100); // 100ms delay to ensure DOM is fully ready
 
   // Initialize drag and drop functionality
   const uploadSection = document.querySelector(".upload-section");
@@ -277,15 +285,19 @@ function loadJSZip() {
     "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
   script.onload = function () {
     console.log("JSZip loaded from CDN");
-    // Create the GTFS editor now that JSZip is available. Make it global
-    // so other parts of the app (preview, sidebar handlers) can reference it.
-    try {
-      const editor = new GTFSEditor();
-      window.editor = editor;
-      console.log("GTFS Editor initialized (after JSZip load)");
-    } catch (err) {
-      console.error("Failed to initialize GTFS Editor after JSZip load:", err);
-    }
+    // Add delay to ensure DOM is fully ready (helps with GitHub Pages)
+    setTimeout(function() {
+      // Create the GTFS editor now that JSZip is available. Make it global
+      // so other parts of the app (preview, sidebar handlers) can reference it.
+      try {
+        const editor = new GTFSEditor();
+        window.editor = editor;
+        console.log("GTFS Editor initialized (after JSZip load)");
+      } catch (err) {
+        console.error("Failed to initialize GTFS Editor after JSZip load:", err);
+        alert("Error initializing application. Please refresh the page.");
+      }
+    }, 100);
   };
   script.onerror = function () {
     console.error("Failed to load JSZip library");
