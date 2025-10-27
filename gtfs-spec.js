@@ -136,8 +136,8 @@ const GTFS_SPEC = {
         },
         
         time: (value) => {
-            // GTFS time format: HH:MM:SS (24+ hour format allowed)
-            const timePattern = /^([0-9]{1,2}):([0-5][0-9]):([0-5][0-9])$/;
+            // GTFS time format: H:MM:SS, HH:MM:SS or HHH:MM:SS (24+ hour format allowed)
+            const timePattern = /^([0-9]{1,3}):([0-5][0-9]):([0-5][0-9])$/;
             return timePattern.test(value);
         },
         
