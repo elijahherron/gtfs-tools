@@ -2451,6 +2451,10 @@ class MapEditor {
       checkbox.setAttribute("data-stop-id", stop.stop_id);
       checkbox.addEventListener("change", () => this.updateBulkDeleteButton());
 
+      // Container for stop info (name + time stacked vertically)
+      const stopInfoContainer = document.createElement("div");
+      stopInfoContainer.className = "stop-info-container";
+
       const stopInfo = document.createElement("div");
       stopInfo.className = "stop-info";
 
@@ -2489,6 +2493,42 @@ class MapEditor {
       // Add click-to-edit functionality for stop times
       stopTime.addEventListener("click", (e) => this.editStopTime(e, stop));
 
+      // Add both to container
+      stopInfoContainer.appendChild(stopInfo);
+      stopInfoContainer.appendChild(stopTime);
+
+      // Wheelchair boarding selector
+      const wheelchairContainer = document.createElement("div");
+      wheelchairContainer.className = "stop-wheelchair-container";
+
+      const wheelchairSelect = document.createElement("select");
+      wheelchairSelect.className = "stop-wheelchair-select";
+      wheelchairSelect.setAttribute("data-stop-id", stop.stop_id);
+      wheelchairSelect.title = "Wheelchair Boarding";
+
+      const wheelchairOptions = [
+        { value: "", label: "♿ Unknown" },
+        { value: "1", label: "♿ Accessible" },
+        { value: "2", label: "♿ Not Accessible" }
+      ];
+
+      wheelchairOptions.forEach(option => {
+        const opt = document.createElement("option");
+        opt.value = option.value;
+        opt.textContent = option.label;
+        if (stop.wheelchair_boarding === option.value) {
+          opt.selected = true;
+        }
+        wheelchairSelect.appendChild(opt);
+      });
+
+      wheelchairSelect.addEventListener("change", (e) => {
+        e.stopPropagation();
+        this.updateStopWheelchairBoarding(stop.stop_id, e.target.value);
+      });
+
+      wheelchairContainer.appendChild(wheelchairSelect);
+
       // Action buttons container
       const actionsContainer = document.createElement("div");
       actionsContainer.className = "stop-actions";
@@ -2517,11 +2557,47 @@ class MapEditor {
       actionsContainer.appendChild(deleteBtn);
 
       li.appendChild(checkbox);
-      li.appendChild(stopInfo);
-      li.appendChild(stopTime);
+      li.appendChild(stopInfoContainer);
+      li.appendChild(wheelchairContainer);
       li.appendChild(actionsContainer);
       stopsList.appendChild(li);
     });
+  }
+
+  updateStopWheelchairBoarding(stopId, value) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop) return;
+
+    // Update the stop object
+    stop.wheelchair_boarding = value;
+
+    // Update in parser data if stop exists in stops.txt
+    try {
+      if (this.gtfsEditor && this.gtfsEditor.parser) {
+        const parser = this.gtfsEditor.parser;
+        const stopsData = parser.getFileData("stops.txt");
+        if (Array.isArray(stopsData)) {
+          const stopIndex = stopsData.findIndex((s) => s.stop_id === stopId);
+          if (stopIndex !== -1) {
+            stopsData[stopIndex].wheelchair_boarding = value;
+            parser.gtfsData["stops.txt"] = stopsData;
+
+            // Refresh table view if visible
+            try {
+              this.gtfsEditor.displayFileContent("stops.txt");
+            } catch (err) {
+              // Ignore refresh errors
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to persist wheelchair_boarding to parser data:", err);
+    }
+
+    // Show feedback
+    const accessibilityText = value === "1" ? "accessible" : value === "2" ? "not accessible" : "unknown";
+    this.showMapMessage(`Stop marked as ${accessibilityText}`, "success");
   }
 
   updateBulkDeleteButton() {

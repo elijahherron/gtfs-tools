@@ -2961,11 +2961,17 @@ html, body, .app-container {
     flex-shrink: 0;
 }
 
-.stop-info {
+.stop-info-container {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.stop-info {
     cursor: pointer;
     color: #333;
-    min-width: 0;
 }
 
 .stop-info:hover {
@@ -3055,7 +3061,6 @@ html, body, .app-container {
     font-family: monospace;
     font-size: 11px;
     color: #666;
-    margin-left: 8px;
 }
 
 .stop-time-editable {
@@ -3068,6 +3073,35 @@ html, body, .app-container {
 .stop-time-editable:hover {
     background-color: #f0f0f0;
     color: #4caf50;
+}
+
+.stop-wheelchair-container {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.stop-wheelchair-select {
+    font-size: 11px;
+    padding: 2px 4px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    background: white;
+    cursor: pointer;
+    color: #666;
+    min-width: 120px;
+    transition: all 0.2s;
+}
+
+.stop-wheelchair-select:hover {
+    border-color: #4caf50;
+    color: #333;
+}
+
+.stop-wheelchair-select:focus {
+    outline: none;
+    border-color: #4caf50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
 
 .stop-tooltip {
