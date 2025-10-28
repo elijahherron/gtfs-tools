@@ -30,16 +30,19 @@ This guide will help you set up the GTFS file hosting feature to upload and host
    - Your token will be saved in browser localStorage
 
 5. **Upload files**:
-   - Drag and drop .zip files onto the upload zone, or click to browse
-   - Click "Upload" for each file
-   - Once uploaded, you'll get a permanent download link
-   - Links look like: `https://raw.githubusercontent.com/yourusername/gtfs-tools/main/gtfs-files/filename.zip`
+   - Enter a **feed name** (e.g., "stm", "city-transit", "metro")
+   - This creates your stable URL that never changes
+   - Select your GTFS .zip file
+   - Click "Upload Feed"
+   - Your stable URL: `https://raw.githubusercontent.com/yourusername/gtfs-tools/main/gtfs-feeds/feedname.zip`
 
 ## How It Works
 
-- Files are uploaded to the `gtfs-files/` directory in your repository
-- Each file gets a permanent URL via GitHub's raw content CDN
-- You can manage (view/delete) your uploaded files from the page
+- You choose a **feed name** that becomes part of your stable URL
+- Files are uploaded to the `gtfs-feeds/` directory in your repository as `feedname.zip`
+- The URL **never changes** - even when you upload a new version, it uses the same feed name
+- Perfect for transit apps and validators that need a consistent URL
+- You can manage (view/delete) your uploaded feeds from the page
 - Your GitHub token is stored securely in your browser's localStorage (not on any server)
 
 ## File Limits
@@ -48,29 +51,35 @@ This guide will help you set up the GTFS file hosting feature to upload and host
 - Supported format: .zip files only
 - Files are versioned with Git (every upload creates a commit)
 
-## Managing Files
+## Managing Feeds
 
-### View Hosted Files
-All your uploaded files appear in the "Your Hosted Files" section at the bottom of the page.
+### View Hosted Feeds
+All your uploaded feeds appear in the "Your Hosted Feeds" section at the bottom of the page.
 
 ### Copy Download Links
-Click the "Copy Link" button next to any file to copy its permanent download URL.
+Click the "Copy URL" button next to any feed to copy its stable download URL.
 
-### Delete Files
-Click "Delete" next to any file to remove it from your repository.
+### Update a Feed
+Simply upload a new file with the same feed name - the URL stays the same, but the content updates.
 
-## Using Download Links
+### Delete Feeds
+Click "Delete" next to any feed to remove it from your repository.
 
-Once uploaded, files are accessible at:
+## Stable URLs - How They Work
+
+Once uploaded, feeds are accessible at stable URLs like:
 ```
-https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/gtfs-files/YOUR_FILE.zip
+https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/gtfs-feeds/stm.zip
+https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/gtfs-feeds/city-transit.zip
 ```
 
-These links:
-- ✅ Are permanent (as long as you don't delete the file)
-- ✅ Download directly (no GitHub UI)
-- ✅ Work from anywhere (CORS-friendly)
-- ✅ Are perfect for GTFS validators, transit apps, etc.
+**Key Benefits:**
+- ✅ **URL never changes** - Update the file, keep the same link
+- ✅ **Perfect for integrations** - Transit apps can always fetch the latest data
+- ✅ **No versioning in URL** - Like how STM uses `/gtfs_stm.zip` regardless of updates
+- ✅ **Direct downloads** - No GitHub UI, just the file
+- ✅ **CORS-friendly** - Works from web apps
+- ✅ **Git versioning** - Full history of all uploads in your repo
 
 ## Security Notes
 
@@ -105,13 +114,13 @@ You can also use `upload.html` locally without GitHub Pages:
 
 ## Repository Structure
 
-After uploading files, your repository will look like:
+After uploading feeds, your repository will look like:
 ```
 gtfs-tools/
-├── gtfs-files/
-│   ├── transit-feed-1.zip
-│   ├── transit-feed-2.zip
-│   └── ...
+├── gtfs-feeds/
+│   ├── stm.zip              ← Stable URL: .../gtfs-feeds/stm.zip
+│   ├── city-transit.zip     ← Stable URL: .../gtfs-feeds/city-transit.zip
+│   └── metro.zip            ← Stable URL: .../gtfs-feeds/metro.zip
 ├── index.html
 ├── upload.html
 └── ...
@@ -119,10 +128,19 @@ gtfs-tools/
 
 ## Tips
 
-- **Organize files**: Consider using descriptive filenames like `city-transit-2024-01-15.zip`
-- **Version control**: Each upload is a Git commit, so you have full version history
-- **Share links**: The raw.githubusercontent.com links work great for sharing with validators
-- **Backup**: Download the .json work file from the main editor before uploading
+- **Choose good feed names**: Use short, memorable names like "stm", "metro", "bus-routes"
+- **Update, don't create new**: Re-upload with the same feed name to update while keeping the same URL
+- **Version control**: Each upload is a Git commit, so you have full version history in the repo
+- **Share stable links**: Give apps and validators the URL once, and they'll always get the latest
+- **Backup**: Download the .json work file from the main editor as a backup
+
+## Example Workflow
+
+1. Create feed "stm" → Get URL `https://raw.githubusercontent.com/you/gtfs-tools/main/gtfs-feeds/stm.zip`
+2. Share URL with transit app developers
+3. Update GTFS data in the editor
+4. Re-upload with feed name "stm" → Same URL, updated content
+5. Apps automatically get new data at the same URL
 
 ---
 
