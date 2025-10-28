@@ -684,10 +684,16 @@ class MapEditor {
         stop.marker = marker;
         stop.label = labelMarker;
 
-        // Load entrances for this stop if it's a station
-        if (stopData.location_type === "1") {
+        // GTFS Compliance: Load entrances if this stop has a parent_station
+        // The stop (location_type=0) has parent_station pointing to the station (location_type=1)
+        // Entrances (location_type=2) also have parent_station pointing to the station
+        if (stopData.parent_station) {
+          stop.parent_station = stopData.parent_station;
+          stop.stationId = stopData.parent_station;
+
+          // Find entrances that share the same parent_station
           stop.entrances = stopsData.filter(
-            (s) => s.location_type === "2" && s.parent_station === stopData.stop_id
+            (s) => s.location_type === "2" && s.parent_station === stopData.parent_station
           );
 
           // Add markers for entrances
@@ -1918,9 +1924,15 @@ class MapEditor {
     const stop = {
       stop_id: stopId,
       stop_name: stopName,
+      stop_code: "",
+      stop_desc: "",
       stop_lat: lat.toFixed(6),
       stop_lon: lng.toFixed(6),
       stop_sequence: this.routeStops.length + 1,
+      location_type: "0", // Always a stop (platform/boarding location)
+      parent_station: "", // No parent by default
+      wheelchair_boarding: "",
+      entrances: [] // Initialize empty entrances array
     };
     console.debug("addStop: created stop", stopId, stopName, {
       routeStopsLen: this.routeStops.length,
@@ -2832,25 +2844,58 @@ class MapEditor {
       stop.entrances = [];
     }
 
-    // Create entrance object with default accessibility (unknown)
+    // GTFS Compliance: When adding first entrance, create station hierarchy
+    // Need 3 entities: station (1), stop (0), entrance (2)
+    let stationId;
+
+    if (stop.entrances.length === 0) {
+      // First entrance - create the station entity
+      // The station should have a unique ID but same location/name as stop
+      stationId = `STATION_${stop.stop_id}`;
+
+      const station = {
+        stop_id: stationId,
+        stop_code: stop.stop_code || "",
+        stop_name: stop.stop_name,
+        stop_desc: stop.stop_desc || "",
+        stop_lat: stop.stop_lat,
+        stop_lon: stop.stop_lon,
+        location_type: "1",
+        parent_station: "",
+        wheelchair_boarding: stop.wheelchair_boarding || ""
+      };
+
+      // Save station to parser
+      this.saveStationToParser(station);
+
+      // Update the original stop to have parent_station (but keep location_type=0!)
+      // This is critical - stop_times.txt references the stop, not the station
+      stop.parent_station = stationId;
+      stop.location_type = stop.location_type || "0"; // Ensure it stays as stop
+      this.updateStopInParser(stop);
+
+      // Store station ID on the stop object for UI purposes
+      stop.stationId = stationId;
+    } else {
+      // Subsequent entrances - use existing station
+      stationId = stop.stationId || stop.parent_station || `STATION_${stop.stop_id}`;
+    }
+
+    // Create entrance object with parent pointing to STATION, not stop
     const entrance = {
       stop_id: `${stop.stop_id}_entrance_${Date.now()}`,
       stop_name: name,
       stop_lat: lat.toFixed(6),
       stop_lon: lng.toFixed(6),
       location_type: "2",
-      parent_station: stop.stop_id,
+      parent_station: stationId, // Points to station, not stop
       wheelchair_boarding: "" // Default to unknown
     };
 
     stop.entrances.push(entrance);
 
-    // Update parent stop to be a station
-    stop.location_type = "1";
-
-    // Save to parser
+    // Save entrance to parser
     this.saveEntranceToParser(entrance);
-    this.updateStopInParser(stop);
 
     // Add entrance marker to map
     this.addEntranceMarker(entrance, stop);
@@ -2983,13 +3028,23 @@ class MapEditor {
     // Remove from array
     stop.entrances.splice(entranceIndex, 1);
 
-    // If no more entrances, change location_type back to 0
+    // If no more entrances, remove station and reset stop's parent_station
     if (stop.entrances.length === 0) {
+      const stationId = stop.stationId || stop.parent_station;
+
+      // Remove the station entity from parser
+      if (stationId) {
+        this.deleteEntranceFromParser(stationId);
+      }
+
+      // Reset stop to standalone (no parent)
+      stop.parent_station = "";
       stop.location_type = "0";
+      delete stop.stationId;
       this.updateStopInParser(stop);
     }
 
-    // Remove from parser
+    // Remove entrance from parser
     this.deleteEntranceFromParser(entrance.stop_id);
 
     // Remove map marker
@@ -3011,6 +3066,31 @@ class MapEditor {
     }
 
     this.showMapMessage("Entrance deleted successfully", "success");
+  }
+
+  saveStationToParser(station) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) return;
+
+    const parser = this.gtfsEditor.parser;
+    const stopsData = parser.getFileData("stops.txt") || [];
+
+    // Find and update, or add new
+    const existingIndex = stopsData.findIndex((s) => s.stop_id === station.stop_id);
+
+    if (existingIndex !== -1) {
+      stopsData[existingIndex] = station;
+    } else {
+      stopsData.push(station);
+    }
+
+    parser.gtfsData["stops.txt"] = stopsData;
+
+    // Refresh table view if visible
+    try {
+      this.gtfsEditor.displayFileContent("stops.txt");
+    } catch (err) {
+      // Ignore
+    }
   }
 
   saveEntranceToParser(entrance) {
@@ -3046,7 +3126,10 @@ class MapEditor {
 
     const stopIndex = stopsData.findIndex((s) => s.stop_id === stop.stop_id);
     if (stopIndex !== -1) {
+      // Update all relevant fields
       stopsData[stopIndex].location_type = stop.location_type;
+      stopsData[stopIndex].parent_station = stop.parent_station || "";
+      stopsData[stopIndex].wheelchair_boarding = stop.wheelchair_boarding || "";
       parser.gtfsData["stops.txt"] = stopsData;
 
       // Refresh table view if visible
@@ -4209,6 +4292,9 @@ class MapEditor {
           stop_desc: stop.stop_desc || "",
           stop_lat: stop.stop_lat,
           stop_lon: stop.stop_lon,
+          location_type: stop.location_type || "0",
+          parent_station: stop.parent_station || "",
+          wheelchair_boarding: stop.wheelchair_boarding || ""
         });
       }
     });

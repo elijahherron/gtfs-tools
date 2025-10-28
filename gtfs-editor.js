@@ -48,8 +48,14 @@ class GTFSEditor {
 
     // Hook up inline export buttons in import and create sections
     const saveWorkBtnImport = document.getElementById("saveWorkBtnImport");
+    console.log("saveWorkBtnImport found:", !!saveWorkBtnImport);
     if (saveWorkBtnImport) {
-      saveWorkBtnImport.addEventListener("click", () => this.saveWork());
+      saveWorkBtnImport.addEventListener("click", () => {
+        console.log("saveWorkBtnImport clicked!");
+        this.saveWork();
+      });
+    } else {
+      console.warn("saveWorkBtnImport not found in DOM");
     }
 
     const downloadBtnImport = document.getElementById("downloadBtnImport");
@@ -58,8 +64,14 @@ class GTFSEditor {
     }
 
     const saveWorkBtnCreate = document.getElementById("saveWorkBtnCreate");
+    console.log("saveWorkBtnCreate found:", !!saveWorkBtnCreate);
     if (saveWorkBtnCreate) {
-      saveWorkBtnCreate.addEventListener("click", () => this.saveWork());
+      saveWorkBtnCreate.addEventListener("click", () => {
+        console.log("saveWorkBtnCreate clicked!");
+        this.saveWork();
+      });
+    } else {
+      console.warn("saveWorkBtnCreate not found in DOM");
     }
 
     const downloadBtnCreate = document.getElementById("downloadBtnCreate");
@@ -153,8 +165,14 @@ class GTFSEditor {
 
     // Save/Load/Preview buttons
     const saveWorkBtn = document.getElementById("saveWorkBtn");
+    console.log("saveWorkBtn found:", !!saveWorkBtn);
     if (saveWorkBtn) {
-      saveWorkBtn.addEventListener("click", () => this.saveWork());
+      saveWorkBtn.addEventListener("click", () => {
+        console.log("saveWorkBtn clicked!");
+        this.saveWork();
+      });
+    } else {
+      console.warn("saveWorkBtn not found in DOM");
     }
 
     const loadWorkBtn = document.getElementById("loadWorkBtn");
@@ -2748,21 +2766,86 @@ Longitude: ${stop.stop_lon}`;
   }
 
   // Save/Load/Preview functionality
+  cleanGtfsDataForSave(gtfsData) {
+    // Deep clone and remove circular references (Leaflet objects)
+    const cleaned = {};
+
+    for (const [fileName, fileData] of Object.entries(gtfsData)) {
+      if (Array.isArray(fileData)) {
+        // Clean each row in the array
+        cleaned[fileName] = fileData.map(row => {
+          const cleanRow = {};
+          for (const [key, value] of Object.entries(row)) {
+            // Skip properties that contain Leaflet objects or circular references
+            if (key === 'marker' || key === 'label' || key === 'editing' ||
+                key === '_marker' || key === '_layers' || key === '_map') {
+              continue;
+            }
+
+            // Handle nested arrays (like entrances)
+            if (Array.isArray(value)) {
+              cleanRow[key] = value.map(item => {
+                if (typeof item === 'object' && item !== null) {
+                  const cleanItem = {};
+                  for (const [itemKey, itemValue] of Object.entries(item)) {
+                    if (itemKey === 'marker' || itemKey === 'label' ||
+                        itemKey === 'editing' || itemKey === '_marker' ||
+                        itemKey === '_layers' || itemKey === '_map') {
+                      continue;
+                    }
+                    cleanItem[itemKey] = itemValue;
+                  }
+                  return cleanItem;
+                }
+                return item;
+              });
+            } else {
+              cleanRow[key] = value;
+            }
+          }
+          return cleanRow;
+        });
+      } else {
+        // Non-array data, just copy it
+        cleaned[fileName] = fileData;
+      }
+    }
+
+    return cleaned;
+  }
+
   saveWork() {
+    console.log("saveWork() called");
     try {
+      console.log("Preparing work data...");
+      console.log("this.files:", this.files);
+      console.log("this.parser.gtfsData:", this.parser.gtfsData);
+
+      // Clean gtfsData to remove circular references (Leaflet objects)
+      const cleanedGtfsData = this.cleanGtfsDataForSave(this.parser.gtfsData);
+      console.log("Cleaned gtfsData:", cleanedGtfsData);
+
+      // Clean files array - extract just the names (File objects have circular refs)
+      const cleanedFiles = this.files.map(file =>
+        typeof file === 'string' ? file : file.name
+      );
+
       const workData = {
         version: "1.0",
         timestamp: new Date().toISOString(),
         isNewGTFS: this.isNewGTFS,
-        files: this.files,
-        gtfsData: this.parser.gtfsData,
+        files: cleanedFiles,
+        gtfsData: cleanedGtfsData,
         currentFile: this.currentFile,
         agencyUrl: this.agencyUrl,
       };
 
+      console.log("Saving to localStorage...");
       // Save to localStorage as backup
       localStorage.setItem("gtfs-work-backup", JSON.stringify(workData));
+      console.log("localStorage saved");
 
+      console.log("Creating download blob...");
       // Download as file
       const blob = new Blob([JSON.stringify(workData, null, 2)], {
         type: "application/json",
@@ -2771,15 +2854,19 @@ Longitude: ${stop.stop_lon}`;
       const a = document.createElement("a");
       a.href = url;
       a.download = `gtfs-work-${new Date().toISOString().split("T")[0]}.json`;
+      console.log("Triggering download...");
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      console.log("Download triggered");
 
       this.showStatus("Work saved successfully!", "success");
     } catch (error) {
       console.error("Error saving work:", error);
+      console.error("Error stack:", error.stack);
       this.showStatus("Error saving work: " + error.message, "error");
+      alert("Error saving work: " + error.message + "\nCheck console for details.");
     }
   }
 
