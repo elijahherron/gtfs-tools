@@ -38,16 +38,8 @@ class GTFSEditor {
       resetPageBtn.addEventListener("click", () => this.resetPage());
     }
 
-    // Editor actions
-    const addRowBtn = document.getElementById("addRowBtn");
-    if (addRowBtn) {
-      addRowBtn.addEventListener("click", () => this.addRow());
-    }
-
-    const deleteRowBtn = document.getElementById("deleteRowBtn");
-    if (deleteRowBtn) {
-      deleteRowBtn.addEventListener("click", () => this.deleteSelectedRows());
-    }
+    // Note: Editor actions (addRowBtn/deleteRowBtn) are deprecated
+    // New action bar is now inline within each table in displayFileContent
 
     const downloadBtn = document.getElementById("downloadBtn");
     if (downloadBtn) {
@@ -744,6 +736,68 @@ class GTFSEditor {
     // Clear container to start fresh
     container.innerHTML = "";
 
+    // Create action bar for add/delete buttons
+    const actionBar = document.createElement("div");
+    actionBar.style.cssText = `
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+    `;
+
+    const addBtn = document.createElement("button");
+    addBtn.textContent = "➕ Add Row";
+    addBtn.style.cssText = `
+      padding: 8px 16px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    `;
+    addBtn.onmouseover = () => addBtn.style.background = "#45a049";
+    addBtn.onmouseout = () => addBtn.style.background = "#4caf50";
+    addBtn.onclick = () => this.addRow();
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑️ Delete Selected";
+    deleteBtn.style.cssText = `
+      padding: 8px 16px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.2s;
+    `;
+    deleteBtn.onmouseover = () => deleteBtn.style.background = "#c82333";
+    deleteBtn.onmouseout = () => deleteBtn.style.background = "#dc3545";
+    deleteBtn.onclick = () => this.deleteSelectedRows();
+
+    const selectionInfo = document.createElement("span");
+    selectionInfo.id = "selectionInfo";
+    selectionInfo.style.cssText = `
+      margin-left: auto;
+      padding: 8px 12px;
+      color: #666;
+      font-size: 14px;
+      align-self: center;
+    `;
+    selectionInfo.textContent = "0 rows selected";
+
+    actionBar.appendChild(addBtn);
+    actionBar.appendChild(deleteBtn);
+    actionBar.appendChild(selectionInfo);
+    container.appendChild(actionBar);
+
     // Create wrapper structure: header stays fixed, table area scrolls
     const headerArea = document.createElement("div");
     headerArea.style.cssText = `
@@ -1246,12 +1300,17 @@ class GTFSEditor {
       filename = this.currentFile.name + ".txt";
     }
 
+    if (!confirm(`Delete ${indices.length} row(s)? This cannot be undone.`)) {
+      return;
+    }
+
     indices.forEach((index) => {
       this.parser.deleteRow(filename, index);
     });
 
     this.selectedRows.clear();
     this.displayFileContent(this.currentFile);
+    this.updateSelectionInfo();
     this.showStatus(`Deleted ${indices.length} row(s)`, "success");
   }
 
@@ -1260,6 +1319,15 @@ class GTFSEditor {
       this.selectedRows.add(index);
     } else {
       this.selectedRows.delete(index);
+    }
+    this.updateSelectionInfo();
+  }
+
+  updateSelectionInfo() {
+    const selectionInfo = document.getElementById("selectionInfo");
+    if (selectionInfo) {
+      const count = this.selectedRows.size;
+      selectionInfo.textContent = `${count} row${count !== 1 ? 's' : ''} selected`;
     }
   }
 
@@ -1274,6 +1342,7 @@ class GTFSEditor {
         this.selectedRows.delete(index);
       }
     });
+    this.updateSelectionInfo();
   }
 
   async downloadFeed() {
@@ -1975,9 +2044,8 @@ Longitude: ${stop.stop_lon}`;
       fileTabs.classList.remove("disabled");
     }
 
-    // Show table actions
-    const tableActions = document.querySelector(".table-actions");
-    if (tableActions) tableActions.style.display = "block";
+    // Note: Old table actions buttons (addRowBtn/deleteRowBtn) are deprecated
+    // New action bar is now inline within each table in displayFileContent
 
     // Hide route filter and existing stops by default
     this.hideRouteFilter();
@@ -1991,9 +2059,8 @@ Longitude: ${stop.stop_lon}`;
     if (tableView) tableView.style.display = "none";
     if (mapView) mapView.style.display = "block";
 
-    // Hide table actions in map view
-    const tableActions = document.querySelector(".table-actions");
-    if (tableActions) tableActions.style.display = "none";
+    // Note: Old table actions are already hidden and deprecated
+    // New action bar is inline within each table
 
     if (this.isNewGTFS) {
       // New GTFS creation mode - optimize for creating routes

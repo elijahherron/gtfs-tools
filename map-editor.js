@@ -653,6 +653,8 @@ class MapEditor {
           sequence: seq,
           arrival_time: stopTime.arrival_time,
           departure_time: stopTime.departure_time,
+          wheelchair_boarding: stopData.wheelchair_boarding || "",
+          location_type: stopData.location_type || "0",
         };
 
         // Create marker for the stop
@@ -681,6 +683,23 @@ class MapEditor {
 
         stop.marker = marker;
         stop.label = labelMarker;
+
+        // Load entrances for this stop if it's a station
+        if (stopData.location_type === "1") {
+          stop.entrances = stopsData.filter(
+            (s) => s.location_type === "2" && s.parent_station === stopData.stop_id
+          );
+
+          // Add markers for entrances
+          if (stop.entrances && stop.entrances.length > 0) {
+            stop.entrances.forEach((entrance) => {
+              this.addEntranceMarker(entrance, stop);
+            });
+          }
+        } else {
+          stop.entrances = [];
+        }
+
         this.routeStops.push(stop);
       }
     });
@@ -904,6 +923,9 @@ class MapEditor {
 
   async handleMapClick(e) {
     if (!this.isCreatingTrip) return;
+
+    // Don't handle clicks if we're adding or editing an entrance
+    if (this.addingEntranceForStop || this.editingEntranceForStop) return;
 
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
@@ -2553,6 +2575,30 @@ class MapEditor {
         this.removeStop(stop.stop_id);
       });
 
+      // Entrances button with notification badge
+      const entrancesBtnWrapper = document.createElement("div");
+      entrancesBtnWrapper.className = "stop-entrances-btn-wrapper";
+
+      const entrancesBtn = document.createElement("button");
+      entrancesBtn.className = "stop-entrances-btn";
+      entrancesBtn.innerHTML = "🚪";
+      entrancesBtn.title = "Manage station entrances";
+      entrancesBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleStopEntrances(stop.stop_id);
+      });
+
+      entrancesBtnWrapper.appendChild(entrancesBtn);
+
+      // Add notification badge if there are entrances
+      if (stop.entrances && stop.entrances.length > 0) {
+        const badge = document.createElement("span");
+        badge.className = "entrance-count-badge";
+        badge.textContent = stop.entrances.length;
+        entrancesBtnWrapper.appendChild(badge);
+      }
+
+      actionsContainer.appendChild(entrancesBtnWrapper);
       actionsContainer.appendChild(insertBtn);
       actionsContainer.appendChild(deleteBtn);
 
@@ -2561,7 +2607,531 @@ class MapEditor {
       li.appendChild(wheelchairContainer);
       li.appendChild(actionsContainer);
       stopsList.appendChild(li);
+
+      // Add entrances section (hidden by default)
+      const entrancesSection = document.createElement("div");
+      entrancesSection.className = "stop-entrances-section";
+      entrancesSection.id = `entrances-${stop.stop_id}`;
+      entrancesSection.style.display = "none";
+
+      // Initialize entrances array if not exists
+      if (!stop.entrances) {
+        stop.entrances = [];
+      }
+
+      this.renderStopEntrances(stop, entrancesSection);
+      stopsList.appendChild(entrancesSection);
     });
+  }
+
+  toggleStopEntrances(stopId) {
+    const section = document.getElementById(`entrances-${stopId}`);
+
+    if (!section) return;
+
+    // Toggle entire section visibility (for door button)
+    if (section.style.display === "none") {
+      section.style.display = "block";
+      // Also expand the content when showing section
+      const content = document.getElementById(`entrances-content-${stopId}`);
+      const button = document.querySelector(`[data-entrance-toggle="${stopId}"]`);
+      if (content) content.style.display = "block";
+      if (button) button.textContent = "▼";
+    } else {
+      section.style.display = "none";
+    }
+  }
+
+  toggleEntrancesContent(stopId) {
+    // Just toggle the collapsible content (for collapse button)
+    const content = document.getElementById(`entrances-content-${stopId}`);
+    const button = document.querySelector(`[data-entrance-toggle="${stopId}"]`);
+
+    if (!content) return;
+
+    if (content.style.display === "none") {
+      content.style.display = "block";
+      if (button) button.textContent = "▼";
+    } else {
+      content.style.display = "none";
+      if (button) button.textContent = "▶";
+    }
+  }
+
+  renderStopEntrances(stop, container) {
+    container.innerHTML = "";
+
+    const header = document.createElement("div");
+    header.className = "entrances-header";
+    header.innerHTML = `
+      <div class="entrances-title">
+        <button class="collapse-btn" data-entrance-toggle="${stop.stop_id}">▶</button>
+        <h6>Station Entrances (${stop.entrances?.length || 0})</h6>
+      </div>
+      <button class="add-entrance-btn" onclick="window.mapEditor.startAddingEntrance('${stop.stop_id}')">+ Add Entrance</button>
+    `;
+    container.appendChild(header);
+
+    // Add click handler for collapse button
+    const collapseBtn = header.querySelector('.collapse-btn');
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleEntrancesContent(stop.stop_id);
+      });
+    }
+
+    // Create content wrapper for collapsible content
+    const contentWrapper = document.createElement("div");
+    contentWrapper.className = "entrances-content";
+    contentWrapper.id = `entrances-content-${stop.stop_id}`;
+    contentWrapper.style.display = "none"; // Start collapsed
+
+    if (!stop.entrances || stop.entrances.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "entrances-empty";
+      empty.textContent = "No entrances. Click + Add Entrance to create one.";
+      contentWrapper.appendChild(empty);
+      container.appendChild(contentWrapper);
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "entrances-list";
+
+    stop.entrances.forEach((entrance, index) => {
+      const item = document.createElement("div");
+      item.className = "entrance-item";
+
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "entrance-info";
+
+      // Editable entrance name
+      const nameDiv = document.createElement("div");
+      nameDiv.className = "entrance-name entrance-name-editable";
+      const nameStrong = document.createElement("strong");
+      nameStrong.textContent = entrance.stop_name || `Entrance ${index + 1}`;
+      nameStrong.title = "Click to edit entrance name";
+      nameStrong.style.cursor = "pointer";
+      nameStrong.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.editEntranceName(stop.stop_id, index);
+      });
+      nameDiv.appendChild(nameStrong);
+
+      // Coordinates
+      const coordsDiv = document.createElement("div");
+      coordsDiv.className = "entrance-coords";
+      coordsDiv.textContent = `${entrance.stop_lat}, ${entrance.stop_lon}`;
+
+      infoDiv.appendChild(nameDiv);
+      infoDiv.appendChild(coordsDiv);
+
+      // Wheelchair boarding selector
+      const wheelchairDiv = document.createElement("div");
+      wheelchairDiv.className = "entrance-wheelchair";
+
+      const wheelchairSelect = document.createElement("select");
+      wheelchairSelect.className = "entrance-wheelchair-select";
+      wheelchairSelect.innerHTML = `
+        <option value="" ${entrance.wheelchair_boarding === "" ? "selected" : ""}>♿ Unknown</option>
+        <option value="1" ${entrance.wheelchair_boarding === "1" ? "selected" : ""}>♿ Accessible</option>
+        <option value="2" ${entrance.wheelchair_boarding === "2" ? "selected" : ""}>♿ Not Accessible</option>
+      `;
+
+      wheelchairSelect.addEventListener("change", (e) => {
+        e.stopPropagation();
+        this.updateEntranceWheelchairBoarding(stop.stop_id, index, e.target.value);
+      });
+
+      wheelchairDiv.appendChild(wheelchairSelect);
+      infoDiv.appendChild(wheelchairDiv);
+
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "entrance-actions";
+
+      // Edit button (to move entrance on map)
+      const editBtn = document.createElement("button");
+      editBtn.className = "edit-entrance-btn";
+      editBtn.textContent = "📍";
+      editBtn.title = "Move entrance on map";
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.editStopEntrance(stop.stop_id, index);
+      });
+
+      // Delete button
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-entrance-btn";
+      deleteBtn.textContent = "×";
+      deleteBtn.title = "Delete entrance";
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.deleteStopEntrance(stop.stop_id, index);
+      });
+
+      actionsDiv.appendChild(editBtn);
+      actionsDiv.appendChild(deleteBtn);
+
+      item.appendChild(infoDiv);
+      item.appendChild(actionsDiv);
+      list.appendChild(item);
+    });
+
+    contentWrapper.appendChild(list);
+    container.appendChild(contentWrapper);
+  }
+
+  startAddingEntrance(stopId) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop) return;
+
+    // Store the parent stop ID for this entrance
+    this.addingEntranceForStop = stopId;
+
+    // Change cursor to crosshair
+    const mapContainer = document.getElementById("mapContainer");
+    if (mapContainer) {
+      mapContainer.style.cursor = "crosshair";
+    }
+
+    // Show instruction message
+    this.showMapMessage(
+      "Click on the map to place the station entrance",
+      "info"
+    );
+
+    // Set up one-time click handler
+    const clickHandler = (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+
+      // Remove the click handler
+      this.map.off("click", clickHandler);
+
+      // Reset cursor
+      if (mapContainer) {
+        mapContainer.style.cursor = "";
+      }
+
+      // Create with default name
+      const name = `${stop.stop_name} - Entrance ${(stop.entrances?.length || 0) + 1}`;
+      this.createEntranceAtLocation(stopId, lat, lng, name);
+      this.addingEntranceForStop = null;
+    };
+
+    this.map.on("click", clickHandler);
+  }
+
+  createEntranceAtLocation(stopId, lat, lng, name) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop) return;
+
+    // Initialize entrances array if needed
+    if (!stop.entrances) {
+      stop.entrances = [];
+    }
+
+    // Create entrance object with default accessibility (unknown)
+    const entrance = {
+      stop_id: `${stop.stop_id}_entrance_${Date.now()}`,
+      stop_name: name,
+      stop_lat: lat.toFixed(6),
+      stop_lon: lng.toFixed(6),
+      location_type: "2",
+      parent_station: stop.stop_id,
+      wheelchair_boarding: "" // Default to unknown
+    };
+
+    stop.entrances.push(entrance);
+
+    // Update parent stop to be a station
+    stop.location_type = "1";
+
+    // Save to parser
+    this.saveEntranceToParser(entrance);
+    this.updateStopInParser(stop);
+
+    // Add entrance marker to map
+    this.addEntranceMarker(entrance, stop);
+
+    // Refresh entire stops list to update badge count
+    this.updateStopsList();
+
+    // Re-expand the entrance section after refresh
+    const section = document.getElementById(`entrances-${stopId}`);
+    if (section) {
+      section.style.display = "block";
+      const content = document.getElementById(`entrances-content-${stopId}`);
+      if (content) content.style.display = "block";
+      const toggleBtn = document.querySelector(`[data-entrance-toggle="${stopId}"]`);
+      if (toggleBtn) toggleBtn.textContent = "▼";
+    }
+
+    this.showMapMessage("Entrance added successfully - set accessibility below", "success");
+  }
+
+  editEntranceName(stopId, entranceIndex) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop || !stop.entrances || !stop.entrances[entranceIndex]) return;
+
+    const entrance = stop.entrances[entranceIndex];
+
+    const name = prompt("Enter entrance name:", entrance.stop_name);
+    if (!name) return;
+
+    // Update entrance name
+    entrance.stop_name = name;
+
+    // Update in parser
+    this.saveEntranceToParser(entrance);
+
+    // Refresh UI
+    const section = document.getElementById(`entrances-${stopId}`);
+    if (section) {
+      this.renderStopEntrances(stop, section);
+    }
+
+    // Update map marker
+    this.updateEntranceMarker(entrance);
+
+    this.showMapMessage("Entrance name updated successfully", "success");
+  }
+
+  editStopEntrance(stopId, entranceIndex) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop || !stop.entrances || !stop.entrances[entranceIndex]) return;
+
+    const entrance = stop.entrances[entranceIndex];
+
+    // Store which entrance we're editing
+    this.editingEntranceForStop = { stopId, entranceIndex };
+
+    // Change cursor to crosshair
+    const mapContainer = document.getElementById("mapContainer");
+    if (mapContainer) {
+      mapContainer.style.cursor = "crosshair";
+    }
+
+    // Show instruction message
+    this.showMapMessage(
+      "Click on the map to move the entrance to a new location",
+      "info"
+    );
+
+    // Set up one-time click handler
+    const clickHandler = (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+
+      // Remove the click handler
+      this.map.off("click", clickHandler);
+
+      // Reset cursor
+      if (mapContainer) {
+        mapContainer.style.cursor = "";
+      }
+
+      // Update entrance location
+      entrance.stop_lat = lat.toFixed(6);
+      entrance.stop_lon = lng.toFixed(6);
+
+      // Update in parser
+      this.saveEntranceToParser(entrance);
+
+      // Refresh UI
+      const section = document.getElementById(`entrances-${stopId}`);
+      if (section) {
+        this.renderStopEntrances(stop, section);
+      }
+
+      // Update map marker
+      this.updateEntranceMarker(entrance);
+
+      this.showMapMessage("Entrance location updated successfully", "success");
+      this.editingEntranceForStop = null;
+    };
+
+    this.map.on("click", clickHandler);
+  }
+
+  updateEntranceWheelchairBoarding(stopId, entranceIndex, value) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop || !stop.entrances || !stop.entrances[entranceIndex]) return;
+
+    const entrance = stop.entrances[entranceIndex];
+    entrance.wheelchair_boarding = value;
+
+    // Update in parser
+    this.saveEntranceToParser(entrance);
+
+    // Update map marker
+    this.updateEntranceMarker(entrance);
+
+    const accessibilityText = value === "1" ? "accessible" : value === "2" ? "not accessible" : "unknown";
+    this.showMapMessage(`Entrance marked as ${accessibilityText}`, "success");
+  }
+
+  deleteStopEntrance(stopId, entranceIndex) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop || !stop.entrances || !stop.entrances[entranceIndex]) return;
+
+    if (!confirm("Delete this entrance? This cannot be undone.")) return;
+
+    const entrance = stop.entrances[entranceIndex];
+
+    // Remove from array
+    stop.entrances.splice(entranceIndex, 1);
+
+    // If no more entrances, change location_type back to 0
+    if (stop.entrances.length === 0) {
+      stop.location_type = "0";
+      this.updateStopInParser(stop);
+    }
+
+    // Remove from parser
+    this.deleteEntranceFromParser(entrance.stop_id);
+
+    // Remove map marker
+    this.removeEntranceMarker(entrance.stop_id);
+
+    // Refresh entire stops list to update badge count
+    this.updateStopsList();
+
+    // Re-expand the entrance section after refresh if there are still entrances
+    if (stop.entrances.length > 0) {
+      const section = document.getElementById(`entrances-${stopId}`);
+      if (section) {
+        section.style.display = "block";
+        const content = document.getElementById(`entrances-content-${stopId}`);
+        if (content) content.style.display = "block";
+        const toggleBtn = document.querySelector(`[data-entrance-toggle="${stopId}"]`);
+        if (toggleBtn) toggleBtn.textContent = "▼";
+      }
+    }
+
+    this.showMapMessage("Entrance deleted successfully", "success");
+  }
+
+  saveEntranceToParser(entrance) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) return;
+
+    const parser = this.gtfsEditor.parser;
+    const stopsData = parser.getFileData("stops.txt") || [];
+
+    // Find and update, or add new
+    const existingIndex = stopsData.findIndex((s) => s.stop_id === entrance.stop_id);
+
+    if (existingIndex !== -1) {
+      stopsData[existingIndex] = entrance;
+    } else {
+      stopsData.push(entrance);
+    }
+
+    parser.gtfsData["stops.txt"] = stopsData;
+
+    // Refresh table view if visible
+    try {
+      this.gtfsEditor.displayFileContent("stops.txt");
+    } catch (err) {
+      // Ignore
+    }
+  }
+
+  updateStopInParser(stop) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) return;
+
+    const parser = this.gtfsEditor.parser;
+    const stopsData = parser.getFileData("stops.txt") || [];
+
+    const stopIndex = stopsData.findIndex((s) => s.stop_id === stop.stop_id);
+    if (stopIndex !== -1) {
+      stopsData[stopIndex].location_type = stop.location_type;
+      parser.gtfsData["stops.txt"] = stopsData;
+
+      // Refresh table view if visible
+      try {
+        this.gtfsEditor.displayFileContent("stops.txt");
+      } catch (err) {
+        // Ignore
+      }
+    }
+  }
+
+  deleteEntranceFromParser(entranceId) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) return;
+
+    const parser = this.gtfsEditor.parser;
+    let stopsData = parser.getFileData("stops.txt") || [];
+
+    stopsData = stopsData.filter((s) => s.stop_id !== entranceId);
+    parser.gtfsData["stops.txt"] = stopsData;
+
+    // Refresh table view if visible
+    try {
+      this.gtfsEditor.displayFileContent("stops.txt");
+    } catch (err) {
+      // Ignore
+    }
+  }
+
+  addEntranceMarker(entrance, parentStop) {
+    const lat = parseFloat(entrance.stop_lat);
+    const lng = parseFloat(entrance.stop_lon);
+
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    const marker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: "entrance-marker",
+        html: `<div style="background: #ff9800; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">🚪</div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      }),
+    }).addTo(this.map);
+
+    marker.bindPopup(`
+      <div class="entrance-popup">
+        <h4>${entrance.stop_name}</h4>
+        <p><strong>Type:</strong> Station Entrance</p>
+        <p><strong>Parent Station:</strong> ${parentStop.stop_name}</p>
+        <p><strong>Wheelchair:</strong> ${entrance.wheelchair_boarding === "1" ? "Accessible" : entrance.wheelchair_boarding === "2" ? "Not Accessible" : "Unknown"}</p>
+      </div>
+    `);
+
+    // Store marker reference
+    if (!entrance.marker) {
+      entrance.marker = marker;
+    }
+  }
+
+  updateEntranceMarker(entrance) {
+    if (entrance.marker) {
+      const lat = parseFloat(entrance.stop_lat);
+      const lng = parseFloat(entrance.stop_lon);
+      entrance.marker.setLatLng([lat, lng]);
+      entrance.marker.setPopupContent(`
+        <div class="entrance-popup">
+          <h4>${entrance.stop_name}</h4>
+          <p><strong>Type:</strong> Station Entrance</p>
+          <p><strong>Wheelchair:</strong> ${entrance.wheelchair_boarding === "1" ? "Accessible" : entrance.wheelchair_boarding === "2" ? "Not Accessible" : "Unknown"}</p>
+        </div>
+      `);
+    }
+  }
+
+  removeEntranceMarker(entranceId) {
+    // Find entrance in all stops
+    for (const stop of this.routeStops) {
+      if (stop.entrances) {
+        const entrance = stop.entrances.find((e) => e.stop_id === entranceId);
+        if (entrance && entrance.marker) {
+          this.map.removeLayer(entrance.marker);
+          delete entrance.marker;
+          return;
+        }
+      }
+    }
   }
 
   updateStopWheelchairBoarding(stopId, value) {
