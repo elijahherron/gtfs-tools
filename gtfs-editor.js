@@ -1715,14 +1715,15 @@ class GTFSEditor {
     if (!stopsFile && this.parser) {
       const pd =
         this.parser.getFileData && this.parser.getFileData("stops.txt");
-      if (pd && Array.isArray(pd) && pd.length > 0) {
+      if (pd && Array.isArray(pd)) {
         stopsFile = { name: "stops", data: pd };
       }
     }
     console.log("stopsFile:", stopsFile);
 
-    if (!stopsFile || !stopsFile.data || stopsFile.data.length === 0) {
-      console.log("No stops file or no stops data");
+    // Show section if stops file exists (even if empty)
+    if (!stopsFile || !stopsFile.data) {
+      console.log("No stops file found");
       if (existingStopsSection) existingStopsSection.style.display = "none";
       return;
     }
@@ -1743,7 +1744,7 @@ class GTFSEditor {
       "stops"
     );
 
-    // Store stops for the selector
+    // Store stops for the selector (handle empty array)
     this.existingStopsOptions = stops.map((stop) => {
       // Fix NaN issue by providing fallback values and validation
       const lat = parseFloat(stop.stop_lat);
@@ -1772,6 +1773,17 @@ class GTFSEditor {
 
     // Initialize event listeners for the existing stops selector
     this.initializeExistingStopsEvents();
+
+    // Update search input placeholder based on availability
+    const searchInput = document.getElementById("existingStopsSearch");
+    if (searchInput) {
+      if (stops.length === 0) {
+        searchInput.placeholder = "No stops available yet - add stops by clicking the map";
+        searchInput.value = "";
+      } else {
+        searchInput.placeholder = "Click to select or type to search stops...";
+      }
+    }
   }
 
   initializeExistingStopsEvents() {
@@ -1839,8 +1851,14 @@ class GTFSEditor {
 
     // If search term is empty, show all options (dropdown behavior)
     if (searchTerm.trim() === "") {
-      this.renderExistingStopsDropdown(dropdown, this.existingStopsOptions);
-      this.showExistingStopsDropdown();
+      if (this.existingStopsOptions.length === 0) {
+        dropdown.innerHTML =
+          '<div class="search-option no-results">No existing stops available yet. Add stops by clicking on the map.</div>';
+        this.showExistingStopsDropdown();
+      } else {
+        this.renderExistingStopsDropdown(dropdown, this.existingStopsOptions);
+        this.showExistingStopsDropdown();
+      }
       return;
     }
 
@@ -1880,9 +1898,16 @@ class GTFSEditor {
   }
 
   showAllExistingStopsOptions() {
+    const dropdown = document.getElementById("existingStopsDropdown");
+    if (!dropdown) return;
+
     if (this.existingStopsOptions && this.existingStopsOptions.length > 0) {
-      const dropdown = document.getElementById("existingStopsDropdown");
       this.renderExistingStopsDropdown(dropdown, this.existingStopsOptions);
+      this.showExistingStopsDropdown();
+    } else {
+      // Show "no stops available" message when empty
+      dropdown.innerHTML =
+        '<div class="search-option no-results">No existing stops available yet. Add stops by clicking on the map.</div>';
       this.showExistingStopsDropdown();
     }
   }
@@ -2087,7 +2112,7 @@ Longitude: ${stop.stop_lon}`;
       const stopsFile = this.files
         ? this.files.find((f) => f.name === "stops")
         : null;
-      if (stopsFile && stopsFile.data && stopsFile.data.length > 0) {
+      if (stopsFile && stopsFile.data) {
         this.showExistingStops();
       } else {
         this.hideExistingStops();
@@ -2751,7 +2776,7 @@ Longitude: ${stop.stop_lon}`;
       const stopsFile = this.files
         ? this.files.find((f) => f.name === "stops")
         : null;
-      if (stopsFile && stopsFile.data && stopsFile.data.length > 0) {
+      if (stopsFile && stopsFile.data) {
         console.log(
           "Refreshing existing stops - found",
           stopsFile.data.length,
@@ -2759,7 +2784,7 @@ Longitude: ${stop.stop_lon}`;
         );
         this.showExistingStops();
       } else {
-        console.log("Refreshing existing stops - no stops found, hiding");
+        console.log("Refreshing existing stops - no stops file found, hiding");
         this.hideExistingStops();
       }
     }
@@ -2900,31 +2925,21 @@ Longitude: ${stop.stop_lon}`;
 
       // Restore state
       this.isNewGTFS = workData.isNewGTFS || false;
-      this.files = workData.files;
       this.parser.gtfsData = workData.gtfsData;
 
-      // Update parser's file list to match the files
+      // Update parser's file list to match the saved files
       // Normalize to ensure parser.fileList contains filenames WITH the .txt extension
-      this.parser.fileList = this.files.map((file) => {
+      this.parser.fileList = workData.files.map((file) => {
         const raw = typeof file === "string" ? file : file.name;
         return raw && raw.endsWith(".txt") ? raw : raw + ".txt";
       });
 
-      // Normalize this.files entries so UI code which expects names without
-      // the extension continues to work. If saved entries include '.txt', strip it.
-      this.files = this.files.map((file) => {
-        if (typeof file === "string") {
-          return file.endsWith(".txt") ? file.replace(/\.txt$/, "") : file;
-        }
-        if (file && file.name) {
-          return Object.assign({}, file, {
-            name: file.name.endsWith(".txt")
-              ? file.name.replace(/\.txt$/, "")
-              : file.name,
-          });
-        }
-        return file;
-      });
+      // Reconstruct this.files properly with data from gtfsData
+      // This is critical because saved work only stores file names, not the full objects
+      this.files = this.convertParsedDataToFiles(
+        workData.gtfsData,
+        this.parser.fileList
+      );
 
       this.currentFile = workData.currentFile || this.files[0];
       // If currentFile was saved with a .txt extension, normalize to the expected shape
