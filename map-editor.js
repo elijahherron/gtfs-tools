@@ -287,6 +287,9 @@ class MapEditor {
     safeOn("copyFromTripSelect", "change", () =>
       this.handleCopyTripSelectChange()
     );
+    safeOn("changeStartTimeCheckbox", "change", (e) =>
+      this.handleChangeStartTimeCheckbox(e.target.checked)
+    );
 
     // Sidebar collapse listener
     safeOn("collapseSidebarBtn", "click", () => this.toggleSidebarCollapse());
@@ -4515,6 +4518,19 @@ class MapEditor {
       .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
 
+  // Convert GTFS time string (HH:MM:SS) to total minutes
+  timeToMinutes(timeStr) {
+    const parts = timeStr.split(":");
+    const hours = parseInt(parts[0]);
+    const mins = parseInt(parts[1]);
+    return hours * 60 + mins;
+  }
+
+  // Calculate the difference in minutes between two GTFS time strings
+  getTimeDifferenceMinutes(fromTime, toTime) {
+    return this.timeToMinutes(toTime) - this.timeToMinutes(fromTime);
+  }
+
   generateDefaultTime(stopIndex) {
     const startTime =
       document.getElementById("tripStartTimeInput")?.value || "08:00";
@@ -6584,9 +6600,9 @@ class MapEditor {
     routeTrips.forEach((trip) => {
       const option = document.createElement("option");
       option.value = trip.trip_id;
-      option.textContent = `${trip.trip_headsign || trip.trip_id} (Dir ${
-        trip.direction_id || "0"
-      })`;
+      option.textContent = trip.trip_headsign
+        ? `${trip.trip_headsign} (${trip.trip_id}) - Dir ${trip.direction_id || "0"}`
+        : `${trip.trip_id} - Dir ${trip.direction_id || "0"}`;
       tripSelect.appendChild(option);
     });
 
@@ -6599,10 +6615,33 @@ class MapEditor {
   handleCopyTripSelectChange() {
     const tripSelect = document.getElementById("copyFromTripSelect");
     const loadBtn = document.getElementById("loadTripDataBtn");
+    const newStartTimeInput = document.getElementById("newStartTimeInput");
 
     if (!tripSelect || !loadBtn) return;
 
     loadBtn.disabled = tripSelect.value === "";
+
+    // Set default new start time to the first stop time of selected trip
+    if (tripSelect.value && newStartTimeInput) {
+      const stopTimesData = this.gtfsEditor.parser.getFileData("stop_times.txt");
+      const tripStopTimes = stopTimesData
+        .filter((st) => st.trip_id === tripSelect.value)
+        .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+      if (tripStopTimes.length > 0) {
+        // Get first stop's arrival time and convert to HH:MM format for time input
+        const firstStopTime = tripStopTimes[0].arrival_time;
+        const timeParts = firstStopTime.split(":");
+        newStartTimeInput.value = `${timeParts[0]}:${timeParts[1]}`;
+      }
+    }
+  }
+
+  handleChangeStartTimeCheckbox(checked) {
+    const newStartTimeGroup = document.getElementById("newStartTimeGroup");
+    if (newStartTimeGroup) {
+      newStartTimeGroup.style.display = checked ? "block" : "none";
+    }
   }
 
   loadTripData() {
@@ -6670,6 +6709,19 @@ class MapEditor {
         .filter((st) => st.trip_id === selectedTripId)
         .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
 
+      // Check if we need to adjust start time
+      let timeOffsetMinutes = 0;
+      const changeStartTimeCheckbox = document.getElementById("changeStartTimeCheckbox");
+      const newStartTimeInput = document.getElementById("newStartTimeInput");
+
+      if (changeStartTimeCheckbox && changeStartTimeCheckbox.checked && tripStopTimes.length > 0) {
+        const originalFirstStopTime = tripStopTimes[0].arrival_time;
+        const newStartTime = newStartTimeInput.value + ":00"; // Convert HH:MM to HH:MM:SS
+
+        timeOffsetMinutes = this.getTimeDifferenceMinutes(originalFirstStopTime, newStartTime);
+        console.log(`Applying time offset: ${timeOffsetMinutes} minutes (from ${originalFirstStopTime} to ${newStartTime})`);
+      }
+
       if (tripStopTimes.length > 0) {
         // Get stops data
         const stopsData = this.gtfsEditor.parser.getFileData("stops.txt");
@@ -6682,13 +6734,21 @@ class MapEditor {
             (stop) => stop.stop_id === stopTime.stop_id
           );
           if (stopData) {
+            // Apply time offset if needed
+            const arrivalTime = timeOffsetMinutes !== 0
+              ? this.addMinutesToTime(stopTime.arrival_time, timeOffsetMinutes)
+              : stopTime.arrival_time;
+            const departureTime = timeOffsetMinutes !== 0
+              ? this.addMinutesToTime(stopTime.departure_time, timeOffsetMinutes)
+              : stopTime.departure_time;
+
             const stopInfo = {
               stop_id: stopData.stop_id,
               stop_name: stopData.stop_name,
               stop_lat: parseFloat(stopData.stop_lat),
               stop_lon: parseFloat(stopData.stop_lon),
-              arrival_time: stopTime.arrival_time,
-              departure_time: stopTime.departure_time,
+              arrival_time: arrivalTime,
+              departure_time: departureTime,
               stop_sequence: index + 1,
               timepoint: stopTime.timepoint || 0,
             };
@@ -6698,8 +6758,8 @@ class MapEditor {
               stopInfo,
               [stopInfo.stop_lat, stopInfo.stop_lon],
               {
-                arrival: stopTime.arrival_time,
-                departure: stopTime.departure_time,
+                arrival: arrivalTime,
+                departure: departureTime,
               }
             );
           }

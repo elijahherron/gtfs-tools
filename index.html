@@ -546,6 +546,19 @@
                           <option value="">Choose an existing trip...</option>
                         </select>
                       </div>
+                      <div class="input-group">
+                        <label>
+                          <input type="checkbox" id="changeStartTimeCheckbox" />
+                          Change start time
+                        </label>
+                      </div>
+                      <div class="input-group" id="newStartTimeGroup" style="display: none">
+                        <label for="newStartTimeInput">New start time:</label>
+                        <input
+                          type="time"
+                          id="newStartTimeInput"
+                        />
+                      </div>
                       <button
                         id="loadTripDataBtn"
                         class="secondary-btn"
@@ -556,7 +569,8 @@
                       <p class="copy-trip-description">
                         This will load all trip details (headsign, direction,
                         stops, shape, timing) which you can then modify and save
-                        as a new trip.
+                        as a new trip. Use "Change start time" to adjust all stop
+                        times while maintaining the intervals between stops.
                       </p>
                     </div>
 
