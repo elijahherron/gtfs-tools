@@ -83,9 +83,9 @@ const GTFS_SPEC = {
             key_field: null // Composite key: trip_id + start_time
         },
         'transfers.txt': {
-            required_fields: ['from_stop_id', 'to_stop_id', 'transfer_type'],
-            optional_fields: ['min_transfer_time'],
-            key_field: null // Composite key: from_stop_id + to_stop_id
+            required_fields: ['transfer_type'],
+            optional_fields: ['from_stop_id', 'to_stop_id', 'from_trip_id', 'to_trip_id', 'min_transfer_time'],
+            key_field: null // Composite key: from_stop_id + to_stop_id + from_trip_id + to_trip_id
         },
         'feed_info.txt': {
             required_fields: ['feed_publisher_name', 'feed_publisher_url', 'feed_lang'],
@@ -115,6 +115,16 @@ const GTFS_SPEC = {
         2: 'Entrance/exit',
         3: 'Generic node',
         4: 'Boarding area'
+    },
+
+    // Transfer types for transfers.txt
+    transfer_types: {
+        0: 'Recommended transfer point',
+        1: 'Timed transfer (vehicle waits)',
+        2: 'Minimum transfer time required',
+        3: 'Transfer not possible',
+        4: 'In-seat transfer allowed (passengers stay on vehicle)',
+        5: 'In-seat transfer not allowed (passengers must alight and re-board)'
     },
     
     // Validation functions

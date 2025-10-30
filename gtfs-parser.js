@@ -360,6 +360,48 @@ class GTFSParser {
         return false;
     }
 
+    // Delete a transfer from transfers.txt
+    deleteTransfer(fromStopId, toStopId, fromTripId, toTripId) {
+        console.log('deleteTransfer called with:', { fromStopId, toStopId, fromTripId, toTripId });
+
+        if (!this.gtfsData['transfers.txt']) {
+            console.log('No transfers.txt in gtfsData');
+            return false;
+        }
+
+        console.log('Current transfers:', this.gtfsData['transfers.txt']);
+
+        const index = this.gtfsData['transfers.txt'].findIndex(
+            transfer => {
+                console.log('Comparing:', {
+                    transfer_from_stop: transfer.from_stop_id,
+                    transfer_to_stop: transfer.to_stop_id,
+                    transfer_from_trip: transfer.from_trip_id,
+                    transfer_to_trip: transfer.to_trip_id,
+                    fromStopId, toStopId, fromTripId, toTripId,
+                    match: transfer.from_stop_id === fromStopId &&
+                           transfer.to_stop_id === toStopId &&
+                           transfer.from_trip_id === fromTripId &&
+                           transfer.to_trip_id === toTripId
+                });
+                return transfer.from_stop_id === fromStopId &&
+                       transfer.to_stop_id === toStopId &&
+                       transfer.from_trip_id === fromTripId &&
+                       transfer.to_trip_id === toTripId;
+            }
+        );
+
+        console.log('Found index:', index);
+
+        if (index !== -1) {
+            this.gtfsData['transfers.txt'].splice(index, 1);
+            console.log('Deleted transfer, remaining:', this.gtfsData['transfers.txt']);
+            return true;
+        }
+        console.log('Transfer not found for deletion');
+        return false;
+    }
+
     // Check if a trip uses frequency-based service
     tripUsesFrequencies(tripId) {
         return this.getFrequenciesForTrip(tripId).length > 0;

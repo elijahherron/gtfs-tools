@@ -841,6 +841,49 @@
                       </div>
                     </div>
 
+                    <div class="trip-continuation-section">
+                      <h5>Trip Continuation</h5>
+                      <div class="continuation-toggle">
+                        <label for="useContinuationToggle" class="toggle-label">
+                          <input type="checkbox" id="useContinuationToggle" />
+                          <span class="toggle-text"
+                            >This trip continues as another trip</span
+                          >
+                        </label>
+                        <p class="toggle-description">
+                          Enable to indicate this trip continues as another trip (passengers stay on vehicle)
+                        </p>
+
+                        <div class="continuation-settings" id="continuationSettings" style="display: none">
+                          <div class="input-group">
+                            <label for="continuationTripSelect">Continues as:</label>
+                            <select id="continuationTripSelect">
+                              <option value="">Select a trip...</option>
+                            </select>
+                          </div>
+
+                          <div class="input-group">
+                            <label for="continuationTypeSelect">Transfer Type:</label>
+                            <select id="continuationTypeSelect">
+                              <option value="4">Type 4 - In-seat transfer allowed (passengers stay on vehicle)</option>
+                              <option value="5">Type 5 - In-seat transfer not allowed (passengers must re-board)</option>
+                            </select>
+                          </div>
+
+                          <div class="input-group" id="continuationMinTimeGroup" style="display: none">
+                            <label for="continuationMinTimeInput">Minimum Transfer Time (seconds):</label>
+                            <input
+                              type="number"
+                              id="continuationMinTimeInput"
+                              placeholder="e.g., 60"
+                              min="0"
+                            />
+                            <small>Time required for passengers to alight and re-board (for Type 5)</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div class="stop-naming-section">
                       <h5>Stop Naming</h5>
                       <div class="naming-toggle">
@@ -940,7 +983,7 @@
                       </button>
 
                       <!-- Existing Trips List -->
-                      <div class="existing-trips-section" id="existingTripsSection" style="display: none">
+                      <div class="existing-trips-section" id="tripsManagerTripsSection" style="display: none">
                         <h5>Existing Trips on This Route</h5>
                         <div class="trips-list" id="tripsManagerList">
                           <div class="empty-trips-message">No trips on this route yet</div>

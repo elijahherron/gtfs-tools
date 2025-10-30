@@ -166,6 +166,9 @@ class MapEditor {
     try {
       this.generateGTFSFromTrip();
 
+      // Save trip continuation if configured
+      this.saveTripContinuation(this.currentTrip.id);
+
       // Show success message
       this.showMapMessage(
         `Trip "${this.currentTrip.headsign}" saved successfully!`,
@@ -238,6 +241,14 @@ class MapEditor {
     safeOn("finishTripBtn", "click", () => this.finishTrip());
     safeOn("clearTripBtn", "click", () => this.clearCurrentTrip(true));
     safeOn("backToRouteBtn", "click", () => this.backToRouteCreation());
+
+    // Trip continuation listeners
+    safeOn("useContinuationToggle", "change", () =>
+      this.handleContinuationToggle()
+    );
+    safeOn("continuationTypeSelect", "change", () =>
+      this.handleContinuationTypeChange()
+    );
 
     // Location and coordinate listeners
     safeOn("searchLocationBtn", "click", () => this.searchLocation());
@@ -427,6 +438,9 @@ class MapEditor {
     // Get existing trips for this route
     const trips = this.getExistingTripsForRoute(this.currentRoute.id);
 
+    // Only show the section if:
+    // 1. There are existing trips on this route, OR
+    // 2. We're actively editing a trip (not just creating a route)
     if (trips.length > 0) {
       existingTripsSection.style.display = "block";
       emptyState.style.display = "none";
@@ -441,6 +455,8 @@ class MapEditor {
         tripsList.appendChild(tripItem);
       });
     } else {
+      // Hide the section if there are no trips
+      // (Don't show empty state when just creating a route)
       existingTripsSection.style.display = "none";
     }
   }
@@ -470,22 +486,22 @@ class MapEditor {
       ? ` • ${frequencyCount} freq periods`
       : "";
 
+    // Check if trip has continuations
+    const continuation = this.getTripContinuation(trip.trip_id);
+    const continuationText = continuation
+      ? ` • ⟳ → ${continuation.to_trip_id}`
+      : "";
+
     tripItem.innerHTML = `
       <div class="trip-info">
         <div class="trip-name">${trip.trip_headsign || trip.trip_id}</div>
-        <div class="trip-details">${direction} • ${stops} stops${frequencyText}</div>
+        <div class="trip-details">${direction} • ${stops} stops${frequencyText}${continuationText}</div>
       </div>
       <div class="trip-actions">
         <button class="edit-trip-btn" onclick="window.mapEditor.editExistingTrip('${
           trip.trip_id
         }')">
           Edit
-        </button>
-        <button class="frequencies-btn" onclick="window.mapEditor.manageFrequencies('${
-          trip.trip_id
-        }')"
-                title="Manage frequency-based service">
-          ${hasFrequencies ? "🕐 Edit" : "🕐 Add"} Freq
         </button>
       </div>
     `;
@@ -745,6 +761,9 @@ class MapEditor {
     // Show only the trip section
     document.getElementById("routeSection").style.display = "none";
     document.getElementById("tripSection").style.display = "block";
+    document.getElementById("createTripOnlySection").style.display = "none";
+    document.getElementById("editRouteSection").style.display = "none";
+    document.getElementById("feedInfoSection").style.display = "none";
 
     // Set up UI state
     document.getElementById("startTripBtn").disabled = true;
@@ -798,6 +817,9 @@ class MapEditor {
       );
       this.map.fitBounds(group.getBounds().pad(0.1));
     }
+
+    // Load trip continuation if exists
+    this.loadContinuationForTrip(tripId);
 
     console.log(
       `Loaded trip ${tripId} for editing with ${this.routeStops.length} stops`
@@ -1144,6 +1166,9 @@ class MapEditor {
     document.getElementById("routeSection").style.display = "none";
     document.getElementById("routeSelectSection").style.display = "none";
     document.getElementById("tripSection").style.display = "block";
+    document.getElementById("createTripOnlySection").style.display = "none";
+    document.getElementById("editRouteSection").style.display = "none";
+    document.getElementById("feedInfoSection").style.display = "none";
 
     // Update route info display with more details
     const routeStatus = this.currentRoute.isNew
@@ -2369,6 +2394,16 @@ class MapEditor {
 
   updateTripInfo() {
     if (!this.currentTrip) return;
+
+    // Update route info if we have a current route
+    if (this.currentRoute) {
+      document.getElementById("currentRouteName").textContent =
+        this.currentRoute.name || this.currentRoute.id;
+      document.getElementById("currentRouteType").textContent =
+        this.getRouteTypeName(this.currentRoute.type);
+      document.getElementById("currentRouteId").textContent =
+        this.currentRoute.id;
+    }
 
     document.getElementById("stopCount").textContent = this.routeStops.length;
     document.getElementById("currentHeadsign").textContent =
@@ -7015,6 +7050,503 @@ class MapEditor {
     }
   }
 
+  // Get trip continuation (from transfers.txt)
+  getTripContinuation(tripId) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) return null;
+
+    const transfersData = this.gtfsEditor.parser.getFileData("transfers.txt") || [];
+
+    // Find a transfer where this trip is the from_trip_id and transfer_type is 4 or 5
+    const continuation = transfersData.find(
+      (transfer) =>
+        transfer.from_trip_id === tripId &&
+        (transfer.transfer_type === "4" || transfer.transfer_type === "5")
+    );
+
+    return continuation || null;
+  }
+
+  // Manage trip continuation modal
+  manageTripContinuation(tripId) {
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) {
+      alert("No GTFS data available");
+      return;
+    }
+
+    // Get current continuation for this trip
+    const existingContinuation = this.getTripContinuation(tripId);
+
+    // Get all trips on the same route to show as options
+    const currentTrip = this.gtfsEditor.parser
+      .getFileData("trips.txt")
+      .find((t) => t.trip_id === tripId);
+
+    if (!currentTrip) {
+      alert("Trip not found");
+      return;
+    }
+
+    const routeTrips = this.gtfsEditor.parser
+      .getFileData("trips.txt")
+      .filter((t) => t.route_id === currentTrip.route_id && t.trip_id !== tripId);
+
+    // Create a modal dialog for managing trip continuation
+    const modal = document.createElement("div");
+    modal.className = "continuation-modal";
+    modal.innerHTML = `
+      <div class="continuation-modal-content">
+        <div class="continuation-modal-header">
+          <h3>Trip Continuation for ${tripId}</h3>
+          <button type="button" class="close-modal" id="closeContModal">×</button>
+        </div>
+        <div class="continuation-modal-body">
+          <div class="continuation-info">
+            <p><strong>Trip continuation</strong> means this trip continues as another trip. Passengers can stay on the vehicle.</p>
+          </div>
+
+          ${
+            existingContinuation
+              ? `
+          <div class="existing-continuation">
+            <h4>Current Continuation</h4>
+            <div class="continuation-display">
+              <span class="cont-from">From: ${existingContinuation.from_trip_id}</span>
+              <span class="cont-arrow">→</span>
+              <span class="cont-to">To: ${existingContinuation.to_trip_id}</span>
+              <span class="cont-type">(Type ${existingContinuation.transfer_type}${
+                  existingContinuation.transfer_type === "5"
+                    ? " - with brief stop"
+                    : ""
+                })</span>
+            </div>
+            <button type="button" class="delete-continuation-btn" id="deleteContBtn">
+              Remove Continuation
+            </button>
+          </div>
+          `
+              : '<p class="no-continuation">No continuation set for this trip</p>'
+          }
+
+          <div class="add-continuation">
+            <h4>${existingContinuation ? "Update" : "Set"} Trip Continuation</h4>
+            <div class="continuation-inputs">
+              <div class="input-group">
+                <label>This trip continues as:</label>
+                <select id="modalToTripId">
+                  <option value="">-- Select Trip --</option>
+                  ${routeTrips
+                    .map(
+                      (trip) => `
+                    <option value="${trip.trip_id}" ${
+                        existingContinuation &&
+                        existingContinuation.to_trip_id === trip.trip_id
+                          ? "selected"
+                          : ""
+                      }>
+                      ${trip.trip_headsign || trip.trip_id} (${trip.trip_id})
+                    </option>
+                  `
+                    )
+                    .join("")}
+                </select>
+              </div>
+              <div class="input-group">
+                <label>Transfer Type:</label>
+                <select id="modalTransferType">
+                  <option value="4" ${
+                    existingContinuation &&
+                    existingContinuation.transfer_type === "4"
+                      ? "selected"
+                      : ""
+                  }>Type 4 - Seamless continuation</option>
+                  <option value="5" ${
+                    existingContinuation &&
+                    existingContinuation.transfer_type === "5"
+                      ? "selected"
+                      : ""
+                  }>Type 5 - With brief stop</option>
+                </select>
+              </div>
+              <div class="input-group" id="minTransferTimeGroup">
+                <label>Minimum Transfer Time (seconds):</label>
+                <input type="number" id="modalMinTransferTime"
+                       value="${existingContinuation?.min_transfer_time || ""}"
+                       min="0" placeholder="Optional (e.g., 60)">
+                <small>For Type 5: How long the brief stop lasts</small>
+              </div>
+            </div>
+            <button type="button" class="set-continuation-btn" id="setContBtn">
+              ${existingContinuation ? "Update" : "Set"} Continuation
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Show/hide min transfer time based on transfer type
+    const transferTypeSelect = document.getElementById("modalTransferType");
+    const minTransferTimeGroup = document.getElementById("minTransferTimeGroup");
+
+    const updateMinTransferTimeVisibility = () => {
+      if (transferTypeSelect.value === "5") {
+        minTransferTimeGroup.style.display = "block";
+      } else {
+        minTransferTimeGroup.style.display = "none";
+      }
+    };
+
+    updateMinTransferTimeVisibility();
+    transferTypeSelect.addEventListener("change", updateMinTransferTimeVisibility);
+
+    // Attach event listener to close button
+    const closeBtn = document.getElementById("closeContModal");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        modal.remove();
+      });
+    }
+
+    // Attach event listener to Delete button
+    const deleteBtn = document.getElementById("deleteContBtn");
+    if (deleteBtn) {
+      deleteBtn.addEventListener("click", () => {
+        this.deleteTripContinuation(tripId);
+        modal.remove();
+      });
+    }
+
+    // Attach event listener to Set Continuation button
+    const setBtn = document.getElementById("setContBtn");
+    if (setBtn) {
+      setBtn.addEventListener("click", () => {
+        this.addTripContinuation(tripId);
+        modal.remove();
+      });
+    }
+
+    // Make modal closable by clicking outside
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  // Add or update trip continuation
+  addTripContinuation(fromTripId) {
+    const toTripId = document.getElementById("modalToTripId").value;
+    const transferType = document.getElementById("modalTransferType").value;
+    const minTransferTime = document.getElementById("modalMinTransferTime").value;
+
+    if (!toTripId) {
+      alert("Please select a trip to continue to");
+      return;
+    }
+
+    if (toTripId === fromTripId) {
+      alert("A trip cannot continue to itself");
+      return;
+    }
+
+    // Get the last stop of the from_trip and first stop of the to_trip
+    const stopTimesData =
+      this.gtfsEditor.parser.getFileData("stop_times.txt") || [];
+
+    const fromTripStops = stopTimesData
+      .filter((st) => st.trip_id === fromTripId)
+      .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+    const toTripStops = stopTimesData
+      .filter((st) => st.trip_id === toTripId)
+      .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+    if (fromTripStops.length === 0) {
+      alert("From trip has no stops");
+      return;
+    }
+
+    if (toTripStops.length === 0) {
+      alert("To trip has no stops");
+      return;
+    }
+
+    const fromStopId = fromTripStops[fromTripStops.length - 1].stop_id;
+    const toStopId = toTripStops[0].stop_id;
+
+    // Remove existing continuation if it exists
+    const existingContinuation = this.getTripContinuation(fromTripId);
+    if (existingContinuation) {
+      this.gtfsEditor.parser.deleteTransfer(
+        existingContinuation.from_stop_id,
+        existingContinuation.to_stop_id,
+        existingContinuation.from_trip_id,
+        existingContinuation.to_trip_id
+      );
+    }
+
+    // Add the new continuation to transfers.txt
+    const transfer = {
+      from_stop_id: fromStopId,
+      to_stop_id: toStopId,
+      from_trip_id: fromTripId,
+      to_trip_id: toTripId,
+      transfer_type: transferType,
+      min_transfer_time: minTransferTime || "",
+    };
+
+    this.gtfsEditor.parser.addRow("transfers.txt", transfer);
+
+    // Update the files list to reflect changes
+    if (this.gtfsEditor) {
+      this.gtfsEditor.updateFileTabs();
+
+      // Refresh table view if transfers.txt is currently displayed
+      const currentFile = this.gtfsEditor.currentFile;
+      const isTransfersFile =
+        currentFile === "transfers.txt" ||
+        (currentFile && currentFile.name === "transfers");
+
+      if (isTransfersFile) {
+        this.gtfsEditor.displayFileContent(currentFile);
+      }
+    }
+
+    // Refresh existing trips list to show updated continuation
+    this.updateExistingTripsDisplay();
+
+    alert("Trip continuation set successfully!");
+  }
+
+  // Delete trip continuation
+  deleteTripContinuation(tripId) {
+    if (confirm("Are you sure you want to remove this trip continuation?")) {
+      const continuation = this.getTripContinuation(tripId);
+
+      if (!continuation) {
+        alert("No continuation found for this trip");
+        return;
+      }
+
+      const deleted = this.gtfsEditor.parser.deleteTransfer(
+        continuation.from_stop_id,
+        continuation.to_stop_id,
+        continuation.from_trip_id,
+        continuation.to_trip_id
+      );
+
+      if (!deleted) {
+        alert("Failed to delete trip continuation. Please try again.");
+        return;
+      }
+
+      // Update the files list to reflect changes
+      if (this.gtfsEditor) {
+        this.gtfsEditor.updateFileTabs();
+
+        // Refresh table view if transfers.txt is currently displayed
+        const currentFile = this.gtfsEditor.currentFile;
+        const isTransfersFile =
+          currentFile === "transfers.txt" ||
+          (currentFile && currentFile.name === "transfers");
+
+        if (isTransfersFile) {
+          this.gtfsEditor.displayFileContent(currentFile);
+        }
+      }
+
+      // Refresh existing trips list to show updated continuation
+      this.updateExistingTripsDisplay();
+
+      alert("Trip continuation removed successfully!");
+    }
+  }
+
+  // Trip continuation form handlers
+  handleContinuationToggle() {
+    const toggle = document.getElementById("useContinuationToggle");
+    const settings = document.getElementById("continuationSettings");
+
+    if (!toggle || !settings) return;
+
+    if (toggle.checked) {
+      settings.style.display = "block";
+      this.populateContinuationTripsDropdown();
+    } else {
+      settings.style.display = "none";
+    }
+  }
+
+  handleContinuationTypeChange() {
+    const typeSelect = document.getElementById("continuationTypeSelect");
+    const minTimeGroup = document.getElementById("continuationMinTimeGroup");
+
+    if (!typeSelect || !minTimeGroup) return;
+
+    // Show min transfer time only for Type 5 (with brief stop)
+    if (typeSelect.value === "5") {
+      minTimeGroup.style.display = "block";
+    } else {
+      minTimeGroup.style.display = "none";
+    }
+  }
+
+  populateContinuationTripsDropdown() {
+    const select = document.getElementById("continuationTripSelect");
+    if (!select || !this.gtfsEditor || !this.gtfsEditor.parser) return;
+
+    // Get ALL trips from ALL routes
+    const allTrips = this.gtfsEditor.parser.getFileData("trips.txt") || [];
+
+    // Filter out the current trip if we're editing
+    const currentTripId = this.currentTrip ? this.currentTrip.id : null;
+    const availableTrips = currentTripId
+      ? allTrips.filter((t) => t.trip_id !== currentTripId)
+      : allTrips;
+
+    // Clear existing options except the first one
+    select.innerHTML = '<option value="">Select a trip...</option>';
+
+    // Group trips by route for better organization
+    const tripsByRoute = {};
+    availableTrips.forEach((trip) => {
+      if (!tripsByRoute[trip.route_id]) {
+        tripsByRoute[trip.route_id] = [];
+      }
+      tripsByRoute[trip.route_id].push(trip);
+    });
+
+    // Add options grouped by route
+    Object.keys(tripsByRoute).forEach((routeId) => {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = `Route: ${routeId}`;
+
+      tripsByRoute[routeId].forEach((trip) => {
+        const option = document.createElement("option");
+        option.value = trip.trip_id;
+        option.textContent = `${trip.trip_headsign || trip.trip_id} (${
+          trip.trip_id
+        })`;
+        optgroup.appendChild(option);
+      });
+
+      select.appendChild(optgroup);
+    });
+  }
+
+  loadContinuationForTrip(tripId) {
+    // Load existing continuation when editing a trip
+    const continuation = this.getTripContinuation(tripId);
+    const toggle = document.getElementById("useContinuationToggle");
+    const settings = document.getElementById("continuationSettings");
+    const tripSelect = document.getElementById("continuationTripSelect");
+    const typeSelect = document.getElementById("continuationTypeSelect");
+    const minTimeInput = document.getElementById("continuationMinTimeInput");
+
+    if (!toggle) return;
+
+    if (continuation) {
+      // Enable toggle and show settings
+      toggle.checked = true;
+      if (settings) settings.style.display = "block";
+
+      // Populate dropdown
+      this.populateContinuationTripsDropdown();
+
+      // Set values
+      if (tripSelect) tripSelect.value = continuation.to_trip_id || "";
+      if (typeSelect) typeSelect.value = continuation.transfer_type || "4";
+      if (minTimeInput)
+        minTimeInput.value = continuation.min_transfer_time || "";
+
+      // Update min time visibility
+      this.handleContinuationTypeChange();
+    } else {
+      // No continuation - reset form
+      toggle.checked = false;
+      if (settings) settings.style.display = "none";
+      if (tripSelect) tripSelect.value = "";
+      if (typeSelect) typeSelect.value = "4";
+      if (minTimeInput) minTimeInput.value = "";
+    }
+  }
+
+  saveTripContinuation(tripId) {
+    // Save continuation when finishing the trip
+    const toggle = document.getElementById("useContinuationToggle");
+
+    if (!toggle || !toggle.checked) {
+      // If toggle is off, delete any existing continuation
+      const existing = this.getTripContinuation(tripId);
+      if (existing) {
+        this.gtfsEditor.parser.deleteTransfer(
+          existing.from_stop_id,
+          existing.to_stop_id,
+          existing.from_trip_id,
+          existing.to_trip_id
+        );
+      }
+      return;
+    }
+
+    // Get form values
+    const toTripId = document.getElementById("continuationTripSelect").value;
+    const transferType =
+      document.getElementById("continuationTypeSelect").value;
+    const minTransferTime =
+      document.getElementById("continuationMinTimeInput").value;
+
+    if (!toTripId) {
+      console.warn("No to_trip_id selected for continuation");
+      return;
+    }
+
+    // Get stop IDs
+    const stopTimesData =
+      this.gtfsEditor.parser.getFileData("stop_times.txt") || [];
+
+    const fromTripStops = stopTimesData
+      .filter((st) => st.trip_id === tripId)
+      .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+    const toTripStops = stopTimesData
+      .filter((st) => st.trip_id === toTripId)
+      .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+    if (fromTripStops.length === 0 || toTripStops.length === 0) {
+      console.warn("Cannot create continuation - trips have no stops");
+      return;
+    }
+
+    const fromStopId = fromTripStops[fromTripStops.length - 1].stop_id;
+    const toStopId = toTripStops[0].stop_id;
+
+    // Delete existing continuation if it exists
+    const existingContinuation = this.getTripContinuation(tripId);
+    if (existingContinuation) {
+      this.gtfsEditor.parser.deleteTransfer(
+        existingContinuation.from_stop_id,
+        existingContinuation.to_stop_id,
+        existingContinuation.from_trip_id,
+        existingContinuation.to_trip_id
+      );
+    }
+
+    // Add new continuation
+    const transfer = {
+      from_stop_id: fromStopId,
+      to_stop_id: toStopId,
+      from_trip_id: tripId,
+      to_trip_id: toTripId,
+      transfer_type: transferType,
+      min_transfer_time: minTransferTime || "",
+    };
+
+    this.gtfsEditor.parser.addRow("transfers.txt", transfer);
+    console.log("Trip continuation saved:", transfer);
+  }
+
   updateExistingTripsDisplay() {
     // This method refreshes the existing trips display - just call the existing method
     this.refreshExistingTripsVisibility();
@@ -7438,19 +7970,20 @@ class MapEditor {
     // Populate route dropdown and reset state
     this.populateCreateTripRouteDropdown();
     document.getElementById("createNewTripBtn").disabled = true;
-    document.getElementById("existingTripsSection").style.display = "none";
+    const tripsSection = document.getElementById("tripsManagerTripsSection");
+    if (tripsSection) tripsSection.style.display = "none";
   }
 
   handleTripsManagerRouteSelect() {
     const select = document.getElementById("createTripRouteSelect");
     const createBtn = document.getElementById("createNewTripBtn");
     const existingTripsSection = document.getElementById(
-      "existingTripsSection"
+      "tripsManagerTripsSection"
     );
 
     if (!select.value) {
       createBtn.disabled = true;
-      existingTripsSection.style.display = "none";
+      if (existingTripsSection) existingTripsSection.style.display = "none";
       return;
     }
 
@@ -7458,7 +7991,7 @@ class MapEditor {
     createBtn.disabled = false;
 
     // Show and populate trips list
-    existingTripsSection.style.display = "block";
+    if (existingTripsSection) existingTripsSection.style.display = "block";
     this.populateTripsManagerList(select.value);
   }
 
@@ -7480,40 +8013,9 @@ class MapEditor {
 
     listContainer.innerHTML = "";
     routeTrips.forEach((trip) => {
-      const tripItem = document.createElement("div");
-      tripItem.className = "trip-item";
-      tripItem.innerHTML = `
-        <div class="trip-info">
-          <div class="trip-name">${trip.trip_headsign || trip.trip_id}</div>
-          <div class="trip-details">ID: ${trip.trip_id} | Direction: ${
-        trip.direction_id || 0
-      }</div>
-        </div>
-        <div class="trip-actions">
-          <button class="edit-trip-btn" data-trip-id="${
-            trip.trip_id
-          }">Edit</button>
-          <button class="delete-trip-btn" data-trip-id="${
-            trip.trip_id
-          }">Delete</button>
-        </div>
-      `;
+      // Use the same createTripItem method for consistency
+      const tripItem = this.createTripItem(trip);
       listContainer.appendChild(tripItem);
-    });
-
-    // Add event listeners to buttons
-    listContainer.querySelectorAll(".edit-trip-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const tripId = e.target.dataset.tripId;
-        this.editTripFromManager(tripId);
-      });
-    });
-
-    listContainer.querySelectorAll(".delete-trip-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const tripId = e.target.dataset.tripId;
-        this.deleteTripFromManager(tripId);
-      });
     });
   }
 
@@ -7546,18 +8048,12 @@ class MapEditor {
 
       // Show trip section
       this.showTripSection();
-      document.getElementById("createTripOnlySection").style.display = "none";
-      document.getElementById("tripSection").style.display = "block";
     }
   }
 
   editTripFromManager(tripId) {
-    // Load the trip for editing
+    // Load the trip for editing (this will show tripSection and hide createTripOnlySection)
     this.loadTripForEditing(tripId);
-
-    // Hide trips manager, show trip section
-    document.getElementById("createTripOnlySection").style.display = "none";
-    document.getElementById("tripSection").style.display = "block";
   }
 
   deleteTripFromManager(tripId) {
@@ -7759,8 +8255,6 @@ class MapEditor {
 
       // Show trip section
       this.showTripSection();
-      document.getElementById("createTripOnlySection").style.display = "none";
-      document.getElementById("tripSection").style.display = "block";
     }
   }
 
