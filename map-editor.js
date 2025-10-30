@@ -468,7 +468,7 @@ class MapEditor {
     return tripsData.filter((trip) => trip.route_id === routeId);
   }
 
-  createTripItem(trip) {
+  createTripItem(trip, showDelete = false) {
     const tripItem = document.createElement("div");
     tripItem.className = "trip-item";
 
@@ -492,6 +492,12 @@ class MapEditor {
       ? ` • ⟳ → ${continuation.to_trip_id}`
       : "";
 
+    const deleteButton = showDelete
+      ? `<button class="delete-trip-btn" onclick="window.mapEditor.deleteTripFromManager('${trip.trip_id}')">
+          Delete
+        </button>`
+      : "";
+
     tripItem.innerHTML = `
       <div class="trip-info">
         <div class="trip-name">${trip.trip_headsign || trip.trip_id}</div>
@@ -503,6 +509,7 @@ class MapEditor {
         }')">
           Edit
         </button>
+        ${deleteButton}
       </div>
     `;
 
@@ -4463,7 +4470,7 @@ class MapEditor {
       }
     }
 
-    // 9. Apply frequencies if enabled
+    // 9. Apply frequencies (both for new and edited trips)
     console.log("=== Checking if frequencies should be applied ===");
     console.log("this.gtfsEditor exists?", !!this.gtfsEditor);
     console.log(
@@ -4472,14 +4479,9 @@ class MapEditor {
     );
     console.log("isEditing:", isEditing);
 
-    if (
-      this.gtfsEditor &&
-      this.gtfsEditor.currentFrequencyPeriods &&
-      this.gtfsEditor.currentFrequencyPeriods.length > 0 &&
-      !isEditing
-    ) {
+    if (this.gtfsEditor) {
       console.log("=== Applying frequencies to trip ===");
-      // Only apply frequencies for new trips
+      // Apply frequencies for both new and edited trips
       const frequencyApplied = this.gtfsEditor.applyFrequenciesToTrip(
         this.currentTrip.id
       );
@@ -4492,15 +4494,13 @@ class MapEditor {
         setTimeout(() => {
           this.populateCreateTableView();
         }, 100);
+      } else {
+        console.log(
+          `No frequency periods to apply for trip ${this.currentTrip.id} (or all deleted)`
+        );
       }
     } else {
-      console.log("=== NOT applying frequencies - condition failed ===");
-      if (!this.gtfsEditor) console.log("  - gtfsEditor is null/undefined");
-      if (!this.gtfsEditor?.currentFrequencyPeriods)
-        console.log("  - currentFrequencyPeriods is null/undefined");
-      if (this.gtfsEditor?.currentFrequencyPeriods?.length === 0)
-        console.log("  - currentFrequencyPeriods is empty array");
-      if (isEditing) console.log("  - isEditing is true");
+      console.log("=== NOT applying frequencies - gtfsEditor not available ===");
     }
   }
 
@@ -7417,10 +7417,23 @@ class MapEditor {
       tripsByRoute[trip.route_id].push(trip);
     });
 
+    // Get routes data for route names
+    const routes = this.gtfsEditor.parser.getFileData("routes.txt") || [];
+    const routesById = {};
+    routes.forEach((route) => {
+      routesById[route.route_id] = route;
+    });
+
     // Add options grouped by route
     Object.keys(tripsByRoute).forEach((routeId) => {
       const optgroup = document.createElement("optgroup");
-      optgroup.label = `Route: ${routeId}`;
+      const route = routesById[routeId];
+      const routeLabel = route
+        ? `Route: ${route.route_short_name || routeId} - ${
+            route.route_long_name || ""
+          }`
+        : `Route: ${routeId}`;
+      optgroup.label = routeLabel;
 
       tripsByRoute[routeId].forEach((trip) => {
         const option = document.createElement("option");
@@ -8014,7 +8027,7 @@ class MapEditor {
     listContainer.innerHTML = "";
     routeTrips.forEach((trip) => {
       // Use the same createTripItem method for consistency
-      const tripItem = this.createTripItem(trip);
+      const tripItem = this.createTripItem(trip, true);
       listContainer.appendChild(tripItem);
     });
   }
@@ -8130,8 +8143,8 @@ class MapEditor {
     routes.forEach((route) => {
       const option = document.createElement("option");
       option.value = route.route_id;
-      option.textContent = `${
-        route.route_short_name || route.route_long_name || route.route_id
+      option.textContent = `${route.route_short_name || route.route_id} - ${
+        route.route_long_name || ""
       }`;
       select.appendChild(option);
     });
@@ -8152,8 +8165,8 @@ class MapEditor {
     routes.forEach((route) => {
       const option = document.createElement("option");
       option.value = route.route_id;
-      option.textContent = `${
-        route.route_short_name || route.route_long_name || route.route_id
+      option.textContent = `${route.route_short_name || route.route_id} - ${
+        route.route_long_name || ""
       }`;
       select.appendChild(option);
     });

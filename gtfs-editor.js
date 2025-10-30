@@ -3696,7 +3696,9 @@ Longitude: ${stop.stop_lon}`;
     routeTrips.forEach((trip) => {
       const option = document.createElement("option");
       option.value = trip.trip_id;
-      option.textContent = trip.trip_headsign || trip.trip_id;
+      option.textContent = trip.trip_headsign
+        ? `${trip.trip_headsign} (${trip.trip_id})`
+        : trip.trip_id;
       tripSelect.appendChild(option);
     });
 
@@ -4243,6 +4245,9 @@ Longitude: ${stop.stop_lon}`;
       this.updateFrequencyDisplay();
       this.updateTripButtonsForFrequencies();
     } else {
+      // Clear frequency periods when disabled
+      this.currentFrequencyPeriods = [];
+      this.updateFrequencyDisplay();
       this.updateTripButtonsForFrequencies();
     }
   }
@@ -4392,11 +4397,23 @@ Longitude: ${stop.stop_lon}`;
     console.log("applyFrequenciesToTrip called with tripId:", tripId);
     console.log("currentFrequencyPeriods:", this.currentFrequencyPeriods);
 
+    // First, remove all existing frequencies for this trip to avoid duplicates
+    // This is important when editing an existing trip or when user wants to remove all frequencies
+    if (this.parser.gtfsData['frequencies.txt']) {
+      const existingFrequencies = this.parser.getFrequenciesForTrip(tripId);
+      console.log(`Removing ${existingFrequencies.length} existing frequencies for trip ${tripId}`);
+
+      existingFrequencies.forEach(freq => {
+        this.parser.deleteFrequency(tripId, freq.start_time);
+      });
+    }
+
+    // If no frequency periods to add, we're done (existing ones already removed above)
     if (
       !this.currentFrequencyPeriods ||
       this.currentFrequencyPeriods.length === 0
     ) {
-      console.log("No frequency periods to apply");
+      console.log("No frequency periods to apply (all removed if any existed)");
       return false; // No frequencies to apply
     }
 
@@ -4461,14 +4478,14 @@ Longitude: ${stop.stop_lon}`;
     const finishBtn = document.getElementById("finishTripBtn");
     if (finishBtn) {
       if (useFrequencies && hasFrequencyPeriods) {
-        finishBtn.textContent = `Finish Trip (🕐 ${this.currentFrequencyPeriods.length} freq periods)`;
+        finishBtn.textContent = `Save Trip (🕐 ${this.currentFrequencyPeriods.length} freq periods)`;
         finishBtn.title = "This trip will use frequency-based service";
       } else if (useFrequencies) {
-        finishBtn.textContent = "Finish Trip (⚠️ No frequencies)";
+        finishBtn.textContent = "Save Trip (⚠️ No frequencies)";
         finishBtn.title =
           "Enable frequency-based service but no periods defined";
       } else {
-        finishBtn.textContent = "Finish Trip";
+        finishBtn.textContent = "Save Trip";
         finishBtn.title = "Standard trip with fixed stop times";
       }
     }
