@@ -231,16 +231,20 @@ class MapEditor {
     });
 
     // Route creation listeners
-    safeOn("createRouteBtn", "click", () => this.createNewRoute());
+    safeOn("createRouteBtn", "click", () => this.saveRoute());
     safeOn("selectExistingRouteBtn", "click", () => this.showExistingRoutes());
     safeOn("selectRouteBtn", "click", () => this.selectExistingRoute());
     safeOn("cancelSelectBtn", "click", () => this.cancelRouteSelection());
+    safeOn("createTripOnSavedRouteBtn", "click", () => this.createTripOnSavedRoute());
+    safeOn("backToMenuFromSavedRouteBtn", "click", () => this.showModeSelection());
 
     // Trip creation listeners
     safeOn("startTripBtn", "click", () => this.startNewTrip());
     safeOn("finishTripBtn", "click", () => this.finishTrip());
     safeOn("clearTripBtn", "click", () => this.clearCurrentTrip(true));
-    safeOn("backToRouteBtn", "click", () => this.backToRouteCreation());
+    safeOn("backToTripsManagerBtn", "click", () => this.backToTripsManager());
+    safeOn("backToRoutesManagerBtn", "click", () => this.backToRoutesManager());
+    safeOn("backToMenuFromTripBtn", "click", () => this.showModeSelection());
 
     // Trip continuation listeners
     safeOn("useContinuationToggle", "change", () =>
@@ -1116,6 +1120,81 @@ class MapEditor {
     this.updateModeButtonStates();
   }
 
+  saveRoute() {
+    const routeName = document.getElementById("routeNameInput").value.trim();
+    const routeLongName = document.getElementById("routeLongNameInput").value.trim();
+
+    if (!routeName && !routeLongName) {
+      alert("Please enter either a route short name or route long name");
+      return;
+    }
+
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) {
+      alert("GTFS parser not initialized");
+      return;
+    }
+
+    const routeColor = document.getElementById("routeColorInput").value;
+    const routeTextColor = document.getElementById("routeTextColorInput").value;
+    const parser = this.gtfsEditor.parser;
+
+    // Create route data object
+    const routeData = {
+      route_id: `route_${this.getNextRouteSequence()}`,
+      route_short_name: routeName,
+      route_long_name: routeLongName || `${routeName} Line`,
+      route_type: document.getElementById("routeTypeSelect").value,
+      route_color: routeColor.substring(1), // Remove # for GTFS format
+      agency_id: "agency_1",
+    };
+
+    if (routeTextColor) {
+      routeData.route_text_color = routeTextColor.substring(1);
+    }
+
+    // Save route to GTFS
+    parser.addRow("routes.txt", routeData);
+
+    // Store reference to the saved route for potential trip creation
+    this.currentRoute = {
+      id: routeData.route_id,
+      name: routeData.route_short_name,
+      longName: routeData.route_long_name,
+      type: routeData.route_type,
+      color: routeData.route_color,
+      textColor: routeData.route_text_color || "ffffff",
+      isNew: false, // Already saved
+    };
+
+    // Hide the form buttons
+    document.querySelector(".create-action-area").style.display = "none";
+
+    // Show success message with options
+    document.getElementById("routeSavedMessage").style.display = "block";
+
+    // Update mode button states
+    this.updateModeButtonStates();
+
+    console.log("Route saved:", routeData);
+  }
+
+  createTripOnSavedRoute() {
+    if (!this.currentRoute) {
+      alert("No route available. Please create a route first.");
+      return;
+    }
+
+    // Clear any existing trip data
+    this.clearTripData();
+    this.routeStops = [];
+
+    // Enable shape drawing for the route
+    this.enableRouteShapeDrawing();
+
+    // Show trip section
+    this.showTripSection();
+  }
+
   showExistingRoutes() {
     const parser = this.gtfsEditor.parser;
     const routes = parser.getFileData("routes.txt");
@@ -1241,12 +1320,41 @@ class MapEditor {
     // They will populate stops list from this.routeStops which may contain stale data
   }
 
-  backToRouteCreation() {
+  backToTripsManager() {
+    // Store the current route ID before clearing
+    const routeId = this.currentRoute ? this.currentRoute.id : null;
+
+    // Clear current trip state
     this.clearCurrentTrip(true);
-    document.getElementById("routeSection").style.display = "block";
+
+    // Hide trip section and show Trips Manager
     document.getElementById("tripSection").style.display = "none";
     this.hideInfoPanel();
-    this.currentRoute = null;
+
+    // Navigate to Trips Manager
+    this.showCreateTripMode();
+
+    // Restore the route selection if we had one
+    if (routeId) {
+      const select = document.getElementById("createTripRouteSelect");
+      if (select) {
+        select.value = routeId;
+        // Trigger the route selection handler to populate the trips list
+        this.handleTripsManagerRouteSelect();
+      }
+    }
+  }
+
+  backToRoutesManager() {
+    // Clear current trip state
+    this.clearCurrentTrip(true);
+
+    // Hide trip section and show Routes Manager
+    document.getElementById("tripSection").style.display = "none";
+    this.hideInfoPanel();
+
+    // Navigate to Routes Manager
+    this.showEditRouteMode();
   }
 
   startNewTrip() {
@@ -4572,6 +4680,23 @@ class MapEditor {
     } else {
       console.log("Keeping frequency periods (not clearing)");
     }
+  }
+
+  clearRouteForm() {
+    // Clear route input fields to start with a blank slate
+    document.getElementById("routeNameInput").value = "";
+    document.getElementById("routeLongNameInput").value = "";
+    document.getElementById("routeTypeSelect").value = "3"; // Default to Bus
+    document.getElementById("routeColorInput").value = "#4caf50";
+    document.getElementById("routeColorHex").value = "#4caf50";
+    document.getElementById("routeTextColorInput").value = "#ffffff";
+    document.getElementById("routeTextColorHex").value = "#ffffff";
+
+    // Reset UI state - show form buttons and hide success message
+    const createActionArea = document.querySelector(".create-action-area");
+    const savedMessage = document.getElementById("routeSavedMessage");
+    if (createActionArea) createActionArea.style.display = "block";
+    if (savedMessage) savedMessage.style.display = "none";
   }
 
   clearTripData() {
@@ -8016,6 +8141,9 @@ class MapEditor {
     document.getElementById("editRouteSection").style.display = "none";
     document.getElementById("createTripOnlySection").style.display = "none";
     document.getElementById("feedInfoSection").style.display = "none";
+
+    // Clear route form to start with a blank slate
+    this.clearRouteForm();
   }
 
   showEditRouteMode() {

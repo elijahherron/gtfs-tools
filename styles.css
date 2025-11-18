@@ -2097,9 +2097,38 @@ td input:focus {
     flex-wrap: wrap;
 }
 
+.trip-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.trip-action-buttons,
+.trip-nav-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.trip-action-buttons {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
 .trip-buttons button {
     font-size: 13px;
     padding: 8px 12px;
+}
+
+.trip-nav-buttons .nav-btn {
+    background-color: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+}
+
+.trip-nav-buttons .nav-btn:hover {
+    background-color: #e8e8e8;
+    color: #333;
 }
 
 .route-creator h3 {

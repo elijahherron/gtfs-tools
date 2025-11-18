@@ -480,10 +480,22 @@
                       </div>
                     </div>
                     <div class="create-action-area">
-                      <button id="createRouteBtn" class="create-option-button">Create Route</button>
+                      <button id="createRouteBtn" class="create-option-button">Save Route</button>
                       <button id="selectExistingRouteBtn" class="create-option-button secondary">
                         Use Existing Route
                       </button>
+                    </div>
+
+                    <!-- Route Saved Success Message -->
+                    <div id="routeSavedMessage" style="display: none; margin-top: 20px; text-align: center;">
+                      <div style="padding: 15px; background-color: #4caf50; color: white; border-radius: 5px; margin-bottom: 15px;">
+                        <strong>✓ Route saved successfully!</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 0.9em;">What would you like to do next?</p>
+                      </div>
+                      <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button id="createTripOnSavedRouteBtn" class="create-option-button">Create Trip on This Route</button>
+                        <button id="backToMenuFromSavedRouteBtn" class="create-option-button secondary">Back to Menu</button>
+                      </div>
                     </div>
                   </div>
 
@@ -914,10 +926,16 @@
                     </div>
 
                     <div class="trip-buttons">
-                      <button id="startTripBtn">Start Creating Trip</button>
-                      <button id="finishTripBtn" disabled>Save Trip</button>
-                      <button id="clearTripBtn">Clear Trip</button>
-                      <button id="backToRouteBtn">Back to Route</button>
+                      <div class="trip-action-buttons">
+                        <button id="startTripBtn">Start Creating Trip</button>
+                        <button id="finishTripBtn" disabled>Save Trip</button>
+                        <button id="clearTripBtn">Clear Trip</button>
+                      </div>
+                      <div class="trip-nav-buttons">
+                        <button id="backToTripsManagerBtn" class="nav-btn">Back to Trips Manager</button>
+                        <button id="backToRoutesManagerBtn" class="nav-btn">Routes Manager</button>
+                        <button id="backToMenuFromTripBtn" class="nav-btn">Back to Menu</button>
+                      </div>
                     </div>
                   </div> <!-- Close tripSection -->
 
