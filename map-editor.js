@@ -2020,6 +2020,10 @@ class MapEditor {
       stop_lon: lng.toFixed(6),
       stop_sequence: this.routeStops.length + 1,
       sequence: this.routeStops.length + 1,
+      location_type: existingStopData.location_type || "0",
+      parent_station: existingStopData.parent_station || "",
+      wheelchair_boarding: existingStopData.wheelchair_boarding || "",
+      entrances: [] // Initialize empty entrances array
     };
 
     // Add timing information for existing stops
@@ -2086,6 +2090,94 @@ class MapEditor {
 
     // Continue with marker creation
     this.createStopMarkerAndFinalize(stop);
+  }
+
+  attachStopPopupListeners(stopId) {
+    console.log(`Attaching popup listeners for ${stopId}`);
+
+    const arrivalInput = document.getElementById(`arrivalTime_${stopId}`);
+    const departureInput = document.getElementById(`departureTime_${stopId}`);
+
+    if (!arrivalInput || !departureInput) {
+      console.warn(`Time inputs not found for ${stopId}`);
+      return;
+    }
+
+    // Add change event listeners to auto-save times
+    arrivalInput.addEventListener('change', () => {
+      console.log(`Arrival time changed for ${stopId}: ${arrivalInput.value}`);
+      this.updateStopTimes(stopId, arrivalInput.value, departureInput.value);
+    });
+
+    departureInput.addEventListener('change', () => {
+      console.log(`Departure time changed for ${stopId}: ${departureInput.value}`);
+      this.updateStopTimes(stopId, arrivalInput.value, departureInput.value);
+    });
+
+    console.log(`Listeners attached successfully for ${stopId}`);
+  }
+
+  updateStopTimes(stopId, arrivalValue, departureValue) {
+    const stop = this.routeStops.find((s) => s.stop_id === stopId);
+    if (!stop) {
+      console.warn(`Stop ${stopId} not found`);
+      return;
+    }
+
+    console.log(`updateStopTimes called for ${stopId}:`, {
+      arrivalValue,
+      departureValue
+    });
+
+    let newArrivalTime = stop.arrival_time;
+    let newDepartureTime = stop.departure_time;
+
+    if (arrivalValue) {
+      newArrivalTime = this.convertToGTFSTime(arrivalValue);
+      console.log(`Converted arrival: ${arrivalValue} -> ${newArrivalTime}`);
+    }
+    if (departureValue) {
+      newDepartureTime = this.convertToGTFSTime(departureValue);
+      console.log(`Converted departure: ${departureValue} -> ${newDepartureTime}`);
+    } else if (newArrivalTime) {
+      // If departure is empty but arrival is set, default departure to arrival
+      newDepartureTime = newArrivalTime;
+      console.log(`Departure empty, defaulting to arrival: ${newDepartureTime}`);
+    }
+
+    // Validate the new times
+    const validation = this.validateStopTimes(
+      stopId,
+      newArrivalTime,
+      newDepartureTime
+    );
+    console.log(`Validation result:`, validation);
+
+    if (!validation.valid) {
+      alert(validation.message);
+      // Reset inputs to previous values
+      const arrivalInput = document.getElementById(`arrivalTime_${stopId}`);
+      const departureInput = document.getElementById(`departureTime_${stopId}`);
+      if (arrivalInput) arrivalInput.value = this.convertGTFSTimeToHTML(stop.arrival_time);
+      if (departureInput) departureInput.value = this.convertGTFSTimeToHTML(stop.departure_time);
+      return;
+    }
+
+    // Save validated times
+    console.log(`Saving times to stop ${stopId}:`, {
+      old_arrival: stop.arrival_time,
+      old_departure: stop.departure_time,
+      new_arrival: newArrivalTime,
+      new_departure: newDepartureTime
+    });
+
+    stop.arrival_time = newArrivalTime;
+    stop.departure_time = newDepartureTime;
+
+    console.log(`Stop ${stopId} times updated successfully`);
+
+    // Update UI to show new times
+    this.updateTripInfo();
   }
 
   createStopPopup(stop) {
@@ -2161,7 +2253,7 @@ class MapEditor {
                         <input type="time" id="arrivalTime_${
                           stop.stop_id
                         }" value="${
-      stop.arrival_time || defaultArrivalTime
+      this.convertGTFSTimeToHTML(stop.arrival_time) || defaultArrivalTime
     }" step="60">
                     </div>
                     <div class="time-field">
@@ -2169,7 +2261,7 @@ class MapEditor {
                         <input type="time" id="departureTime_${
                           stop.stop_id
                         }" value="${
-      stop.departure_time || defaultDepartureTime
+      this.convertGTFSTimeToHTML(stop.departure_time) || defaultDepartureTime
     }" step="60">
                     </div>
                 </div>
@@ -2198,12 +2290,21 @@ class MapEditor {
     const stop = this.routeStops.find((s) => s.stop_id === stopId);
     if (!stop) return;
 
+    console.log(`updateStop called for ${stopId}`);
+
     const nameInput = document.getElementById(`stopName_${stopId}`);
     const codeInput = document.getElementById(`stopCode_${stopId}`);
     const descInput = document.getElementById(`stopDesc_${stopId}`);
     const wheelchairBoardingInput = document.getElementById(`wheelchairBoarding_${stopId}`);
     const arrivalInput = document.getElementById(`arrivalTime_${stopId}`);
     const departureInput = document.getElementById(`departureTime_${stopId}`);
+
+    console.log(`Time inputs found:`, {
+      arrivalInput: !!arrivalInput,
+      departureInput: !!departureInput,
+      arrivalValue: arrivalInput?.value,
+      departureValue: departureInput?.value
+    });
 
     if (nameInput) {
       stop.stop_name = nameInput.value.trim() || stop.stop_name;
@@ -2223,9 +2324,11 @@ class MapEditor {
 
     if (arrivalInput && arrivalInput.value) {
       newArrivalTime = this.convertToGTFSTime(arrivalInput.value);
+      console.log(`Converted arrival time: ${arrivalInput.value} -> ${newArrivalTime}`);
     }
     if (departureInput && departureInput.value) {
       newDepartureTime = this.convertToGTFSTime(departureInput.value);
+      console.log(`Converted departure time: ${departureInput.value} -> ${newDepartureTime}`);
     }
 
     // Validate the new times
@@ -2234,14 +2337,28 @@ class MapEditor {
       newArrivalTime,
       newDepartureTime
     );
+    console.log(`Validation result:`, validation);
+
     if (!validation.valid) {
       alert(validation.message);
       return; // Don't update invalid times
     }
 
     // Save validated times
+    console.log(`Saving times to stop ${stopId}:`, {
+      old_arrival: stop.arrival_time,
+      old_departure: stop.departure_time,
+      new_arrival: newArrivalTime,
+      new_departure: newDepartureTime
+    });
+
     stop.arrival_time = newArrivalTime;
     stop.departure_time = newDepartureTime;
+
+    console.log(`Stop ${stopId} times updated. New values:`, {
+      arrival_time: stop.arrival_time,
+      departure_time: stop.departure_time
+    });
 
     stop.marker.closePopup();
     // Update UI
@@ -2326,13 +2443,39 @@ class MapEditor {
 
   convertToGTFSTime(timeString) {
     // Convert HH:MM to HH:MM:SS format for GTFS
-    if (timeString && timeString.includes(":")) {
+    if (!timeString) {
+      return "08:00:00";
+    }
+
+    if (timeString.includes(":")) {
       const parts = timeString.split(":");
       if (parts.length === 2) {
+        // HH:MM -> HH:MM:SS
         return `${parts[0]}:${parts[1]}:00`;
+      } else if (parts.length === 3) {
+        // Already HH:MM:SS format
+        return timeString;
       }
     }
-    return timeString + ":00" || "08:00:00";
+
+    return `${timeString}:00:00`;
+  }
+
+  convertGTFSTimeToHTML(gtfsTime) {
+    // Convert HH:MM:SS format to HH:MM for HTML time inputs
+    if (!gtfsTime) {
+      return "";
+    }
+
+    if (gtfsTime.includes(":")) {
+      const parts = gtfsTime.split(":");
+      if (parts.length >= 2) {
+        // Return just HH:MM
+        return `${parts[0]}:${parts[1]}`;
+      }
+    }
+
+    return gtfsTime;
   }
 
   removeStop(stopId) {
@@ -4047,14 +4190,26 @@ class MapEditor {
     arrivalInput.focus();
 
     const saveEdit = () => {
+      console.log(`saveEdit called for stop ${stop.stop_id}`);
       let newArrivalTime = stop.arrival_time;
       let newDepartureTime = stop.departure_time;
 
+      console.log(`Input values:`, {
+        arrivalInputValue: arrivalInput.value,
+        departureInputValue: departureInput.value
+      });
+
       if (arrivalInput.value) {
         newArrivalTime = this.convertToGTFSTime(arrivalInput.value);
+        console.log(`Converted arrival: ${arrivalInput.value} -> ${newArrivalTime}`);
       }
       if (departureInput.value) {
         newDepartureTime = this.convertToGTFSTime(departureInput.value);
+        console.log(`Converted departure: ${departureInput.value} -> ${newDepartureTime}`);
+      } else if (newArrivalTime) {
+        // If departure is empty but arrival is set, default departure to arrival
+        newDepartureTime = newArrivalTime;
+        console.log(`Departure empty, defaulting to arrival: ${newDepartureTime}`);
       }
 
       // Validate the new times
@@ -4063,6 +4218,8 @@ class MapEditor {
         newArrivalTime,
         newDepartureTime
       );
+      console.log(`Validation result:`, validation);
+
       if (!validation.valid) {
         alert(validation.message);
         // Keep the inputs open and focus back to the problematic input
@@ -4077,12 +4234,27 @@ class MapEditor {
         } else {
           arrivalInput.focus();
         }
-        return; // Don't save invalid times
+        return false; // Return false to indicate save failed
       }
 
       // Save the validated times
+      console.log(`Saving times to stop ${stop.stop_id}:`, {
+        old_arrival: stop.arrival_time,
+        old_departure: stop.departure_time,
+        new_arrival: newArrivalTime,
+        new_departure: newDepartureTime
+      });
+
       stop.arrival_time = newArrivalTime;
       stop.departure_time = newDepartureTime;
+
+      console.log(`Stop ${stop.stop_id} updated. Verifying in routeStops array...`);
+      const stopInArray = this.routeStops.find(s => s.stop_id === stop.stop_id);
+      console.log(`Stop in routeStops array:`, {
+        stop_id: stopInArray?.stop_id,
+        arrival_time: stopInArray?.arrival_time,
+        departure_time: stopInArray?.departure_time
+      });
 
       // Replace inputs with updated time div
       const newTimeDiv = document.createElement("div");
@@ -4098,6 +4270,8 @@ class MapEditor {
       newTimeDiv.addEventListener("click", (e) => this.editStopTime(e, stop));
 
       inputContainer.parentNode.replaceChild(newTimeDiv, inputContainer);
+
+      return true; // Return true to indicate save succeeded
     };
 
     // Use a flag to prevent double execution and timeout for blur events
@@ -4115,8 +4289,11 @@ class MapEditor {
       // Set a short timeout to allow both inputs to blur before saving
       saveTimeout = setTimeout(() => {
         if (!editCompleted) {
-          editCompleted = true;
-          saveEdit();
+          const success = saveEdit();
+          if (success !== false) {
+            // Only mark as completed if save succeeded
+            editCompleted = true;
+          }
         }
       }, 100);
     };
@@ -4124,8 +4301,10 @@ class MapEditor {
     const handleKeyPress = (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        editCompleted = true;
-        saveEdit();
+        const success = saveEdit();
+        if (success !== false) {
+          editCompleted = true;
+        }
       }
     };
 
@@ -4549,6 +4728,14 @@ class MapEditor {
     this.routeStops.forEach((stop, index) => {
       const arrivalTime = stop.arrival_time || this.generateDefaultTime(index);
       const departureTime = stop.departure_time || arrivalTime;
+
+      console.log(`Adding stop_time for ${stop.stop_id}:`, {
+        stop_arrival_time: stop.arrival_time,
+        stop_departure_time: stop.departure_time,
+        arrivalTime,
+        departureTime,
+        stop_sequence: stop.sequence || index + 1
+      });
 
       parser.addRow("stop_times.txt", {
         trip_id: this.currentTrip.id,
@@ -6503,9 +6690,19 @@ class MapEditor {
   addTimingToStop(stop, customTimes) {
     const timingMethod =
       document.getElementById("timingMethodSelect")?.value || "auto";
+    console.log(`addTimingToStop for ${stop.stop_id}:`, {
+      timingMethod,
+      customTimes,
+      stop_sequence: stop.stop_sequence
+    });
+
     if (timingMethod === "manual" && customTimes) {
       stop.arrival_time = this.convertToGTFSTime(customTimes.arrival);
       stop.departure_time = this.convertToGTFSTime(customTimes.departure);
+      console.log(`Set manual times:`, {
+        arrival_time: stop.arrival_time,
+        departure_time: stop.departure_time
+      });
     } else if (timingMethod === "auto") {
       // Auto-calculate times based on interval
       const defaultInterval = parseInt(
@@ -6522,6 +6719,13 @@ class MapEditor {
       // For new stops, just use calculated time (validation will happen after stop is added)
       stop.arrival_time = gtfsTime;
       stop.departure_time = gtfsTime;
+      console.log(`Set auto times:`, {
+        arrival_time: stop.arrival_time,
+        departure_time: stop.departure_time,
+        defaultInterval,
+        startTime,
+        calculatedTime
+      });
     }
   }
 
@@ -6580,6 +6784,11 @@ class MapEditor {
     // Create popup for editing stop details
     const popupContent = this.createStopPopup(stop, marker);
     marker.bindPopup(popupContent);
+
+    // Add event listener to attach time input listeners when popup opens
+    marker.on('popupopen', () => {
+      this.attachStopPopupListeners(stop.stop_id);
+    });
 
     stop.marker = marker;
     stop.label = label;
