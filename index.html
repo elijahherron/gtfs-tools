@@ -389,6 +389,11 @@
                         <div class="mode-title">Feed Info</div>
                         <div class="mode-description">Edit feed metadata and contact information</div>
                       </button>
+                      <button id="modeStopsBtn" class="mode-selection-button">
+                        <div class="mode-icon">🚏</div>
+                        <div class="mode-title">Stops</div>
+                        <div class="mode-description">View and edit stop details</div>
+                      </button>
                     </div>
                   </div>
 
@@ -571,6 +576,12 @@
                           id="newStartTimeInput"
                         />
                       </div>
+                      <div class="input-group">
+                        <label>
+                          <input type="checkbox" id="reverseTripCheckbox" />
+                          Reverse trip direction (create inbound/return trip)
+                        </label>
+                      </div>
                       <button
                         id="loadTripDataBtn"
                         class="secondary-btn"
@@ -582,7 +593,8 @@
                         This will load all trip details (headsign, direction,
                         stops, shape, timing) which you can then modify and save
                         as a new trip. Use "Change start time" to adjust all stop
-                        times while maintaining the intervals between stops.
+                        times while maintaining the intervals. Use "Reverse trip direction"
+                        to create the return journey with stops in reverse order.
                       </p>
                     </div>
 
@@ -1084,6 +1096,117 @@
                       </div>
 
                       <button id="saveFeedInfoBtn" class="create-option-button">Save Feed Info</button>
+                    </div>
+                  </div>
+
+                  <!-- Stops Editor Section -->
+                  <div class="creator-section" id="stopSection" style="display: none">
+                    <div class="section-header-with-back">
+                      <h4>Stops Editor</h4>
+                      <button id="backToMenuFromStopBtn" class="back-to-menu-btn">← Back to Menu</button>
+                    </div>
+
+                    <div class="stop-editor">
+                      <p class="section-description">Create new stops or edit existing ones. Changes to stop IDs will update all trips using those stops.</p>
+
+                      <!-- Create New Stop Button -->
+                      <button id="createNewStopBtn" class="create-option-button" style="margin-bottom: 15px;">
+                        ➕ Create New Stop
+                      </button>
+
+                      <!-- Stop Selection (for Edit mode) -->
+                      <div class="input-group" id="stopSelectionGroup">
+                        <label for="stopEditorSelect">Edit Existing Stop:</label>
+                        <div class="searchable-select">
+                          <input type="text" id="stopEditorSearch" placeholder="Click to select or type to search stops..." autocomplete="off" />
+                          <div class="search-dropdown" id="stopEditorDropdown"></div>
+                        </div>
+                      </div>
+
+                      <div id="stopEditorForm" style="display: none;">
+                        <div class="route-inputs">
+                          <div class="input-group">
+                            <label for="stopIdInput">Stop ID: *</label>
+                            <input type="text" id="stopIdInput" placeholder="stop_1" />
+                            <small>Warning: Changing this will affect all trips using this stop</small>
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopNameInput">Stop Name: *</label>
+                            <input type="text" id="stopNameInput" placeholder="Main St & 1st Ave" />
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopCodeInput">Stop Code:</label>
+                            <input type="text" id="stopCodeInput" placeholder="Optional stop code" />
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopDescInput">Stop Description:</label>
+                            <input type="text" id="stopDescInput" placeholder="Optional description" />
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopLatInput">Latitude: *</label>
+                            <input type="number" id="stopLatInput" step="0.000001" placeholder="40.7128" />
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopLonInput">Longitude: *</label>
+                            <input type="number" id="stopLonInput" step="0.000001" placeholder="-74.0060" />
+                          </div>
+
+                          <div id="stopLocationHint" style="display: none; padding: 8px; margin-bottom: 10px; background: #e7f3ff; border-left: 3px solid #007bff; border-radius: 4px; font-size: 13px; color: #004085;">
+                            💡 Tip: Click on the map to set the stop location automatically
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopWheelchairInput">Wheelchair Boarding:</label>
+                            <select id="stopWheelchairInput">
+                              <option value="">No information</option>
+                              <option value="1">Accessible</option>
+                              <option value="2">Not accessible</option>
+                            </select>
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopLocationTypeInput">Location Type:</label>
+                            <select id="stopLocationTypeInput">
+                              <option value="0">Stop/Platform</option>
+                              <option value="1">Station</option>
+                              <option value="2">Entrance/Exit</option>
+                              <option value="3">Generic Node</option>
+                              <option value="4">Boarding Area</option>
+                            </select>
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopParentStationInput">Parent Station:</label>
+                            <input type="text" id="stopParentStationInput" placeholder="Optional parent station ID" />
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopZoneIdInput">Zone ID:</label>
+                            <input type="text" id="stopZoneIdInput" placeholder="Optional zone ID" />
+                          </div>
+
+                          <div class="input-group">
+                            <label for="stopUrlInput">Stop URL:</label>
+                            <input type="url" id="stopUrlInput" placeholder="https://example.com/stops/1" />
+                          </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                          <button id="saveStopBtn" class="create-option-button">Save Stop</button>
+                          <button id="deleteStopBtn" class="create-option-button" style="background: #dc3545; display: none;">Delete Stop</button>
+                          <button id="cancelStopBtn" class="create-option-button secondary">Cancel</button>
+                        </div>
+
+                        <div id="stopUsageInfo" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; display: none;">
+                          <strong>Stop Usage:</strong>
+                          <div id="stopUsageDetails"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 

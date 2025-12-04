@@ -987,13 +987,15 @@ td input:focus {
     left: 0;
     right: 0;
     background: white;
-    border: 1px solid #ddd;
-    border-top: none;
+    border: 1px solid #bbb;
+    border-top: 1px solid #ddd;
     border-radius: 0 0 4px 4px;
-    max-height: 200px;
+    max-height: 250px;
     overflow-y: auto;
-    z-index: 9999;
+    z-index: 10000;
     display: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    margin-top: 2px;
 }
 
 .search-dropdown.show {
@@ -1028,6 +1030,22 @@ td input:focus {
 
 .search-option.no-results:hover {
     background-color: transparent;
+}
+
+/* Dropdown item (used in stop editor) */
+.dropdown-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+}
+
+.dropdown-item:hover {
+    background-color: #f0f7ff;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
 }
 
 /* View switching - let JavaScript handle this */
@@ -3845,6 +3863,24 @@ html, body, .app-container {
 
 .copy-trip-section .input-group {
     margin-bottom: 10px;
+}
+
+.copy-trip-section .input-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: normal;
+    text-transform: none;
+    color: #333;
+    cursor: pointer;
+}
+
+.copy-trip-section .input-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
 .copy-trip-description {

@@ -305,6 +305,7 @@ class MapEditor {
     safeOn("modeEditRouteBtn", "click", () => this.showEditRouteMode());
     safeOn("modeCreateTripBtn", "click", () => this.showCreateTripMode());
     safeOn("modeFeedInfoBtn", "click", () => this.showFeedInfoMode());
+    safeOn("modeStopsBtn", "click", () => this.showStopsMode());
 
     // Back to menu listeners
     safeOn("backToMenuFromRouteBtn", "click", () => this.showModeSelection());
@@ -315,6 +316,20 @@ class MapEditor {
     safeOn("backToMenuFromFeedInfoBtn", "click", () =>
       this.showModeSelection()
     );
+    safeOn("backToMenuFromStopBtn", "click", () => this.showModeSelection());
+
+    // Stop editor listeners
+    safeOn("createNewStopBtn", "click", () => this.createNewStop());
+    safeOn("stopEditorSearch", "focus", () => this.showStopEditorDropdown());
+    safeOn("stopEditorSearch", "input", (e) => this.filterStopEditorDropdown(e.target.value));
+    safeOn("stopEditorSearch", "blur", () => {
+      setTimeout(() => {
+        document.getElementById("stopEditorDropdown").style.display = "none";
+      }, 200);
+    });
+    safeOn("saveStopBtn", "click", () => this.saveStopChanges());
+    safeOn("deleteStopBtn", "click", () => this.deleteStop());
+    safeOn("cancelStopBtn", "click", () => this.cancelStopEdit());
 
     // Edit route listeners
     safeOn("editRouteSelect", "change", () => this.handleEditRouteSelect());
@@ -505,9 +520,13 @@ class MapEditor {
         </button>`
       : "";
 
+    const tripDisplayName = trip.trip_headsign
+      ? `${trip.trip_headsign} <span style="color: #666; font-size: 0.9em;">(${trip.trip_id})</span>`
+      : trip.trip_id;
+
     tripItem.innerHTML = `
       <div class="trip-info">
-        <div class="trip-name">${trip.trip_headsign || trip.trip_id}</div>
+        <div class="trip-name">${tripDisplayName}</div>
         <div class="trip-details">${direction} • ${stops} stops${frequencyText}${continuationText}</div>
       </div>
       <div class="trip-actions">
@@ -6999,11 +7018,21 @@ class MapEditor {
       // Clear current trip data completely to start fresh
       this.clearTripData();
 
+      // Check if we need to reverse the trip (before loading data)
+      const reverseTripCheckbox = document.getElementById("reverseTripCheckbox");
+      const shouldReverse = reverseTripCheckbox && reverseTripCheckbox.checked;
+
+      // Determine direction_id based on reverse setting
+      let directionId = selectedTrip.direction_id || "0";
+      if (shouldReverse) {
+        directionId = directionId === "0" ? "1" : "0";
+        console.log(`Flipping direction_id from ${selectedTrip.direction_id || "0"} to ${directionId}`);
+      }
+
       // Load trip basic info into form
       document.getElementById("tripHeadsignInput").value =
         selectedTrip.trip_headsign || "";
-      document.getElementById("directionSelect").value =
-        selectedTrip.direction_id || "0";
+      document.getElementById("directionSelect").value = directionId;
       document.getElementById("tripShortNameInput").value =
         selectedTrip.trip_short_name || "";
       document.getElementById("wheelchairAccessibleSelect").value =
@@ -7014,7 +7043,7 @@ class MapEditor {
       this.currentTrip = {
         id: `trip_${this.currentRoute.id}_${nextSeq}`,
         headsign: selectedTrip.trip_headsign || "",
-        direction: selectedTrip.direction_id || "0",
+        direction: directionId,
         shortName: selectedTrip.trip_short_name || "",
         wheelchairAccessible: selectedTrip.wheelchair_accessible || "",
         isNew: true, // Mark as new trip since we're copying
@@ -7039,9 +7068,54 @@ class MapEditor {
       // Get stop times for the selected trip
       const stopTimesData =
         this.gtfsEditor.parser.getFileData("stop_times.txt");
-      const tripStopTimes = stopTimesData
+      let tripStopTimes = stopTimesData
         .filter((st) => st.trip_id === selectedTripId)
         .sort((a, b) => parseInt(a.stop_sequence) - parseInt(b.stop_sequence));
+
+      if (shouldReverse && tripStopTimes.length > 1) {
+        console.log("Reversing trip direction");
+
+        // Calculate time intervals between consecutive stops in original order
+        const intervals = [];
+        for (let i = 0; i < tripStopTimes.length - 1; i++) {
+          const currentStop = tripStopTimes[i];
+          const nextStop = tripStopTimes[i + 1];
+          const interval = this.getTimeDifferenceMinutes(
+            currentStop.departure_time,
+            nextStop.arrival_time
+          );
+          intervals.push(interval);
+        }
+
+        // Reverse the stops array
+        tripStopTimes = tripStopTimes.reverse();
+
+        // Apply the intervals to the reversed stops
+        // Start with the first stop's time (will be adjusted if change start time is checked)
+        let cumulativeMinutes = 0;
+        const firstStopArrival = tripStopTimes[0].arrival_time;
+
+        tripStopTimes = tripStopTimes.map((stopTime, index) => {
+          if (index === 0) {
+            // First stop keeps its times
+            return {
+              ...stopTime,
+              arrival_time: firstStopArrival,
+              departure_time: firstStopArrival
+            };
+          } else {
+            // Apply interval from the corresponding position in reversed order
+            const intervalIndex = intervals.length - index;
+            cumulativeMinutes += intervals[intervalIndex];
+            const newTime = this.addMinutesToTime(firstStopArrival, cumulativeMinutes);
+            return {
+              ...stopTime,
+              arrival_time: newTime,
+              departure_time: newTime
+            };
+          }
+        });
+      }
 
       // Check if we need to adjust start time
       let timeOffsetMinutes = 0;
@@ -7103,7 +7177,7 @@ class MapEditor {
       // Load shape if exists
       if (selectedTrip.shape_id) {
         const shapesData = this.gtfsEditor.parser.getFileData("shapes.txt");
-        const shapePoints = shapesData
+        let shapePoints = shapesData
           .filter((shape) => shape.shape_id === selectedTrip.shape_id)
           .sort(
             (a, b) =>
@@ -7113,6 +7187,12 @@ class MapEditor {
             parseFloat(point.shape_pt_lat),
             parseFloat(point.shape_pt_lon),
           ]);
+
+        // Reverse shape points if trip is reversed
+        if (shouldReverse && shapePoints.length > 0) {
+          shapePoints = shapePoints.reverse();
+          console.log("Reversed shape points");
+        }
 
         if (shapePoints.length > 0) {
           this.currentTripShapePoints = shapePoints;
@@ -8316,6 +8396,13 @@ class MapEditor {
     document.getElementById("editRouteSection").style.display = "none";
     document.getElementById("createTripOnlySection").style.display = "none";
     document.getElementById("feedInfoSection").style.display = "none";
+    document.getElementById("stopSection").style.display = "none";
+
+    // Clean up stop creation/edit mode if active
+    if (this.stopCreationMapClickHandler) {
+      this.disableStopCreationMapClick();
+    }
+    this.removeStopEditMarker();
 
     console.log("All other sections hidden");
 
@@ -8818,6 +8905,644 @@ class MapEditor {
 
     alert("Feed info saved successfully!");
     console.log("Feed info saved:", feedInfo);
+  }
+
+  // ===== Stops Editor Functions =====
+
+  showStopsMode() {
+    console.log("Showing stops mode");
+    document.getElementById("modeSelectionSection").style.display = "none";
+    document.getElementById("routeSection").style.display = "none";
+    document.getElementById("routeSelectSection").style.display = "none";
+    document.getElementById("tripSection").style.display = "none";
+    document.getElementById("editRouteSection").style.display = "none";
+    document.getElementById("createTripOnlySection").style.display = "none";
+    document.getElementById("feedInfoSection").style.display = "none";
+    document.getElementById("stopSection").style.display = "block";
+
+    // Initialize the stop editor
+    this.initializeStopEditor();
+  }
+
+  initializeStopEditor() {
+    console.log("Initializing stop editor");
+
+    if (!this.gtfsEditor || !this.gtfsEditor.parser) {
+      console.warn("No parser available");
+      return;
+    }
+
+    // Clean up any existing map click handlers and markers
+    this.disableStopCreationMapClick();
+    this.removeStopEditMarker();
+
+    // Load all stops
+    this.stopEditorStops = this.gtfsEditor.parser.getFileData("stops.txt") || [];
+    console.log(`Loaded ${this.stopEditorStops.length} stops`);
+
+    // Reset form and UI
+    document.getElementById("stopEditorForm").style.display = "none";
+    document.getElementById("stopEditorSearch").value = "";
+    document.getElementById("stopSelectionGroup").style.display = "block";
+    document.getElementById("createNewStopBtn").style.display = "block";
+
+    // Clear selected stop
+    this.selectedStopForEdit = null;
+    this.isCreatingNewStop = false;
+  }
+
+  createNewStop() {
+    console.log("Creating new stop");
+
+    // Set flag indicating we're creating a new stop
+    this.isCreatingNewStop = true;
+    this.selectedStopForEdit = null;
+    this.originalStopId = null;
+
+    // Hide the selection UI and create button
+    document.getElementById("stopSelectionGroup").style.display = "none";
+    document.getElementById("createNewStopBtn").style.display = "none";
+
+    // Show the form with empty fields
+    document.getElementById("stopEditorForm").style.display = "block";
+
+    // Generate a new stop ID suggestion
+    const suggestedId = this.generateNewStopId();
+
+    // Clear and populate with defaults
+    document.getElementById("stopIdInput").value = suggestedId;
+    document.getElementById("stopNameInput").value = "";
+    document.getElementById("stopCodeInput").value = "";
+    document.getElementById("stopDescInput").value = "";
+    document.getElementById("stopLatInput").value = "";
+    document.getElementById("stopLonInput").value = "";
+    document.getElementById("stopWheelchairInput").value = "";
+    document.getElementById("stopLocationTypeInput").value = "0";
+    document.getElementById("stopParentStationInput").value = "";
+    document.getElementById("stopZoneIdInput").value = "";
+    document.getElementById("stopUrlInput").value = "";
+
+    // Update UI elements
+    document.getElementById("stopUsageInfo").style.display = "none";
+    document.getElementById("deleteStopBtn").style.display = "none";
+    document.getElementById("stopLocationHint").style.display = "block";
+
+    // Enable map clicking for stop creation
+    this.enableStopCreationMapClick();
+
+    // Show instruction message
+    this.showMapMessage("Click on the map to set the stop location", "info", 5000);
+  }
+
+
+  generateNewStopId() {
+    // Find the highest numeric stop ID and increment
+    let maxNum = 0;
+    this.stopEditorStops.forEach(stop => {
+      const match = stop.stop_id.match(/stop_(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    });
+
+    return `stop_${maxNum + 1}`;
+  }
+
+  cancelStopEdit() {
+    console.log("Cancelling stop edit/create");
+
+    // Hide the form
+    document.getElementById("stopEditorForm").style.display = "none";
+
+    // Show the selection UI and create button
+    document.getElementById("stopSelectionGroup").style.display = "block";
+    document.getElementById("createNewStopBtn").style.display = "block";
+
+    // Clear the search field
+    document.getElementById("stopEditorSearch").value = "";
+
+    // Remove markers based on what mode we were in
+    if (this.isCreatingNewStop) {
+      this.removeStopCreationMarker();
+      this.disableStopCreationMapClick();
+    } else {
+      this.removeStopEditMarker();
+    }
+
+    // Hide location hint
+    document.getElementById("stopLocationHint").style.display = "none";
+
+    // Clear state
+    this.selectedStopForEdit = null;
+    this.isCreatingNewStop = false;
+  }
+
+  enableStopCreationMapClick() {
+    console.log("Enabling stop creation map click");
+
+    // Remove any existing handler first
+    if (this.stopCreationMapClickHandler) {
+      this.map.off("click", this.stopCreationMapClickHandler);
+    }
+
+    // Create the click handler
+    this.stopCreationMapClickHandler = (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+
+      console.log(`Map clicked for stop creation at: ${lat}, ${lng}`);
+
+      // Update form fields
+      document.getElementById("stopLatInput").value = lat.toFixed(6);
+      document.getElementById("stopLonInput").value = lng.toFixed(6);
+
+      // Add or update temporary marker
+      this.updateStopCreationMarker(lat, lng);
+
+      // Suggest a stop name based on reverse geocoding (if available)
+      this.reverseGeocodeForStopName(lat, lng);
+    };
+
+    // Add the click handler
+    this.map.on("click", this.stopCreationMapClickHandler);
+
+    // Change cursor to crosshair
+    const mapContainer = document.getElementById("mapContainer");
+    if (mapContainer) {
+      mapContainer.style.cursor = "crosshair";
+    }
+  }
+
+  disableStopCreationMapClick() {
+    console.log("Disabling stop creation map click");
+
+    // Remove the click handler
+    if (this.stopCreationMapClickHandler) {
+      this.map.off("click", this.stopCreationMapClickHandler);
+      this.stopCreationMapClickHandler = null;
+    }
+
+    // Remove temporary marker
+    this.removeStopCreationMarker();
+
+    // Reset cursor
+    const mapContainer = document.getElementById("mapContainer");
+    if (mapContainer) {
+      mapContainer.style.cursor = "";
+    }
+  }
+
+  updateStopCreationMarker(lat, lng) {
+    // Remove existing marker if any
+    this.removeStopCreationMarker();
+
+    // Create a new temporary marker
+    this.stopCreationMarker = L.circleMarker([lat, lng], {
+      radius: 10,
+      fillColor: "#28a745",
+      color: "white",
+      weight: 3,
+      opacity: 1,
+      fillOpacity: 0.9,
+    }).addTo(this.map);
+
+    // Add a pulsing animation
+    let pulseUp = true;
+    this.stopCreationPulseInterval = setInterval(() => {
+      if (this.stopCreationMarker && this.stopCreationMarker._map) {
+        const currentRadius = this.stopCreationMarker.getRadius();
+        if (pulseUp) {
+          this.stopCreationMarker.setRadius(Math.min(currentRadius + 0.5, 12));
+          if (currentRadius >= 12) pulseUp = false;
+        } else {
+          this.stopCreationMarker.setRadius(Math.max(currentRadius - 0.5, 8));
+          if (currentRadius <= 8) pulseUp = true;
+        }
+      } else {
+        clearInterval(this.stopCreationPulseInterval);
+      }
+    }, 100);
+
+    // Pan to the marker
+    this.map.panTo([lat, lng]);
+  }
+
+  removeStopCreationMarker() {
+    if (this.stopCreationMarker) {
+      this.stopCreationMarker.remove();
+      this.stopCreationMarker = null;
+    }
+    if (this.stopCreationPulseInterval) {
+      clearInterval(this.stopCreationPulseInterval);
+      this.stopCreationPulseInterval = null;
+    }
+  }
+
+  async reverseGeocodeForStopName(lat, lng) {
+    // Only suggest if stop name is empty
+    const stopNameInput = document.getElementById("stopNameInput");
+    if (stopNameInput.value.trim()) {
+      return; // Don't override existing name
+    }
+
+    // Use reverse geocoding to get a street name
+    const streetName = await this.reverseGeocode(lat, lng);
+    if (streetName) {
+      stopNameInput.value = streetName;
+      console.log(`Suggested stop name: ${streetName}`);
+    }
+  }
+
+  showStopOnMap(stop) {
+    const lat = parseFloat(stop.stop_lat);
+    const lng = parseFloat(stop.stop_lon);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      console.warn(`Invalid coordinates for stop ${stop.stop_id}`);
+      return;
+    }
+
+    console.log(`Showing stop ${stop.stop_id} on map at ${lat}, ${lng}`);
+
+    // Remove any existing edit marker
+    this.removeStopEditMarker();
+
+    // Create a marker for the stop being edited
+    this.stopEditMarker = L.circleMarker([lat, lng], {
+      radius: 10,
+      fillColor: "#007bff",
+      color: "white",
+      weight: 3,
+      opacity: 1,
+      fillOpacity: 0.9,
+    }).addTo(this.map);
+
+    // Add a label with the stop name
+    this.stopEditLabel = L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: "stop-edit-label",
+        html: `<div style="background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${stop.stop_name || stop.stop_id}</div>`,
+        iconSize: [120, 20],
+        iconAnchor: [60, 30], // Position label above marker
+      }),
+    }).addTo(this.map);
+
+    // Add a pulsing animation
+    let pulseUp = true;
+    this.stopEditPulseInterval = setInterval(() => {
+      if (this.stopEditMarker && this.stopEditMarker._map) {
+        const currentRadius = this.stopEditMarker.getRadius();
+        if (pulseUp) {
+          this.stopEditMarker.setRadius(Math.min(currentRadius + 0.5, 12));
+          if (currentRadius >= 12) pulseUp = false;
+        } else {
+          this.stopEditMarker.setRadius(Math.max(currentRadius - 0.5, 8));
+          if (currentRadius <= 8) pulseUp = true;
+        }
+      } else {
+        clearInterval(this.stopEditPulseInterval);
+      }
+    }, 100);
+
+    // Zoom to the stop
+    this.map.setView([lat, lng], Math.max(this.map.getZoom(), 16));
+  }
+
+  removeStopEditMarker() {
+    if (this.stopEditMarker) {
+      this.stopEditMarker.remove();
+      this.stopEditMarker = null;
+    }
+    if (this.stopEditLabel) {
+      this.stopEditLabel.remove();
+      this.stopEditLabel = null;
+    }
+    if (this.stopEditPulseInterval) {
+      clearInterval(this.stopEditPulseInterval);
+      this.stopEditPulseInterval = null;
+    }
+  }
+
+  showStopEditorDropdown() {
+    const dropdown = document.getElementById("stopEditorDropdown");
+
+    if (!this.stopEditorStops || this.stopEditorStops.length === 0) {
+      dropdown.innerHTML = '<div class="dropdown-item" style="color: #999;">No stops available</div>';
+      dropdown.style.display = "block";
+      return;
+    }
+
+    this.filterStopEditorDropdown("");
+  }
+
+  filterStopEditorDropdown(searchTerm) {
+    const dropdown = document.getElementById("stopEditorDropdown");
+    const lowerSearch = searchTerm.toLowerCase();
+
+    const filtered = this.stopEditorStops.filter(stop => {
+      const stopId = (stop.stop_id || "").toLowerCase();
+      const stopName = (stop.stop_name || "").toLowerCase();
+      return stopId.includes(lowerSearch) || stopName.includes(lowerSearch);
+    });
+
+    if (filtered.length === 0) {
+      dropdown.innerHTML = '<div class="dropdown-item" style="color: #999;">No matching stops</div>';
+      dropdown.style.display = "block";
+      return;
+    }
+
+    dropdown.innerHTML = "";
+    filtered.slice(0, 50).forEach(stop => {
+      const item = document.createElement("div");
+      item.className = "dropdown-item";
+      item.textContent = `${stop.stop_id} - ${stop.stop_name || "Unnamed"}`;
+      item.addEventListener("click", () => this.selectStopForEdit(stop));
+      dropdown.appendChild(item);
+    });
+
+    dropdown.style.display = "block";
+  }
+
+  selectStopForEdit(stop) {
+    console.log("Selected stop for edit:", stop);
+    this.selectedStopForEdit = stop;
+    this.originalStopId = stop.stop_id; // Save original ID for comparison
+    this.isCreatingNewStop = false;
+
+    // Hide the selection UI and create button
+    document.getElementById("stopSelectionGroup").style.display = "none";
+    document.getElementById("createNewStopBtn").style.display = "none";
+
+    // Hide dropdown
+    document.getElementById("stopEditorDropdown").style.display = "none";
+
+    // Show and populate form
+    document.getElementById("stopEditorForm").style.display = "block";
+    this.populateStopForm(stop);
+
+    // Show stop usage info and delete button
+    this.displayStopUsage(stop.stop_id);
+    document.getElementById("deleteStopBtn").style.display = "block";
+
+    // Hide location hint (only shown when creating)
+    document.getElementById("stopLocationHint").style.display = "none";
+
+    // Show the stop on the map
+    this.showStopOnMap(stop);
+  }
+
+  populateStopForm(stop) {
+    document.getElementById("stopIdInput").value = stop.stop_id || "";
+    document.getElementById("stopNameInput").value = stop.stop_name || "";
+    document.getElementById("stopCodeInput").value = stop.stop_code || "";
+    document.getElementById("stopDescInput").value = stop.stop_desc || "";
+    document.getElementById("stopLatInput").value = stop.stop_lat || "";
+    document.getElementById("stopLonInput").value = stop.stop_lon || "";
+    document.getElementById("stopWheelchairInput").value = stop.wheelchair_boarding || "";
+    document.getElementById("stopLocationTypeInput").value = stop.location_type || "0";
+    document.getElementById("stopParentStationInput").value = stop.parent_station || "";
+    document.getElementById("stopZoneIdInput").value = stop.zone_id || "";
+    document.getElementById("stopUrlInput").value = stop.stop_url || "";
+  }
+
+  displayStopUsage(stopId) {
+    const usageDiv = document.getElementById("stopUsageInfo");
+    const detailsDiv = document.getElementById("stopUsageDetails");
+
+    // Find all trips using this stop
+    const stopTimes = this.gtfsEditor.parser.getFileData("stop_times.txt") || [];
+    const tripsUsingStop = new Set();
+
+    stopTimes.forEach(st => {
+      if (st.stop_id === stopId) {
+        tripsUsingStop.add(st.trip_id);
+      }
+    });
+
+    if (tripsUsingStop.size === 0) {
+      usageDiv.style.display = "none";
+      return;
+    }
+
+    usageDiv.style.display = "block";
+    detailsDiv.innerHTML = `This stop is used in <strong>${tripsUsingStop.size}</strong> trip(s).`;
+  }
+
+  saveStopChanges() {
+    // Get form values
+    const stopId = document.getElementById("stopIdInput").value.trim();
+    const stopName = document.getElementById("stopNameInput").value.trim();
+    const stopLat = document.getElementById("stopLatInput").value.trim();
+    const stopLon = document.getElementById("stopLonInput").value.trim();
+
+    // Validate required fields
+    if (!stopId || !stopName || !stopLat || !stopLon) {
+      alert("Please fill in all required fields (Stop ID, Name, Latitude, Longitude)");
+      return;
+    }
+
+    // Validate lat/lon ranges
+    const lat = parseFloat(stopLat);
+    const lon = parseFloat(stopLon);
+    if (lat < -90 || lat > 90) {
+      alert("Latitude must be between -90 and 90");
+      return;
+    }
+    if (lon < -180 || lon > 180) {
+      alert("Longitude must be between -180 and 180");
+      return;
+    }
+
+    const stopsData = this.gtfsEditor.parser.getFileData("stops.txt");
+
+    if (this.isCreatingNewStop) {
+      // Creating a new stop
+      console.log("Creating new stop:", stopId);
+
+      // Check if stop ID already exists
+      const existingStop = stopsData.find(s => s.stop_id === stopId);
+      if (existingStop) {
+        alert(`Stop ID "${stopId}" already exists. Please choose a different ID.`);
+        return;
+      }
+
+      // Create new stop object
+      const newStop = {
+        stop_id: stopId,
+        stop_name: stopName,
+        stop_code: document.getElementById("stopCodeInput").value.trim(),
+        stop_desc: document.getElementById("stopDescInput").value.trim(),
+        stop_lat: stopLat,
+        stop_lon: stopLon,
+        wheelchair_boarding: document.getElementById("stopWheelchairInput").value,
+        location_type: document.getElementById("stopLocationTypeInput").value,
+        parent_station: document.getElementById("stopParentStationInput").value.trim(),
+        zone_id: document.getElementById("stopZoneIdInput").value.trim(),
+        stop_url: document.getElementById("stopUrlInput").value.trim()
+      };
+
+      // Add to stops data
+      stopsData.push(newStop);
+      this.gtfsEditor.parser.gtfsData["stops.txt"] = stopsData;
+
+      alert("Stop created successfully!");
+      console.log("Stop created:", newStop);
+
+    } else {
+      // Editing existing stop
+      if (!this.selectedStopForEdit) {
+        alert("No stop selected");
+        return;
+      }
+
+      console.log("Updating existing stop:", stopId);
+
+      // Check if stop ID changed
+      const stopIdChanged = stopId !== this.originalStopId;
+
+      if (stopIdChanged) {
+        // Check if new stop ID already exists
+        const existingStop = stopsData.find(s => s.stop_id === stopId && s !== this.selectedStopForEdit);
+        if (existingStop) {
+          alert(`Stop ID "${stopId}" already exists. Please choose a different ID.`);
+          return;
+        }
+
+        // Ask if they want to update all trips
+        const updateTrips = confirm(
+          `You are changing the stop ID from "${this.originalStopId}" to "${stopId}".\n\n` +
+          `Do you want to update all trips that use this stop with the new ID?\n\n` +
+          `Click OK to update all trips, or Cancel to only update the stop (this will break existing trips).`
+        );
+
+        if (updateTrips) {
+          this.updateStopIdInTrips(this.originalStopId, stopId);
+        }
+      }
+
+      // Update the stop object
+      const stopIndex = stopsData.findIndex(s => s.stop_id === this.originalStopId);
+
+      if (stopIndex !== -1) {
+        stopsData[stopIndex] = {
+          ...stopsData[stopIndex],
+          stop_id: stopId,
+          stop_name: stopName,
+          stop_code: document.getElementById("stopCodeInput").value.trim(),
+          stop_desc: document.getElementById("stopDescInput").value.trim(),
+          stop_lat: stopLat,
+          stop_lon: stopLon,
+          wheelchair_boarding: document.getElementById("stopWheelchairInput").value,
+          location_type: document.getElementById("stopLocationTypeInput").value,
+          parent_station: document.getElementById("stopParentStationInput").value.trim(),
+          zone_id: document.getElementById("stopZoneIdInput").value.trim(),
+          stop_url: document.getElementById("stopUrlInput").value.trim()
+        };
+
+        // Update the GTFS data
+        this.gtfsEditor.parser.gtfsData["stops.txt"] = stopsData;
+
+        alert("Stop updated successfully!");
+        console.log("Stop updated:", stopsData[stopIndex]);
+      }
+    }
+
+    // Update file tabs
+    if (this.gtfsEditor && this.gtfsEditor.currentFile) {
+      this.gtfsEditor.updateFileTabs();
+      this.gtfsEditor.displayFileContent(this.gtfsEditor.currentFile);
+    }
+
+    // Remove the temporary markers if they exist
+    this.removeStopCreationMarker();
+    this.removeStopEditMarker();
+
+    // Reinitialize to reflect changes
+    this.initializeStopEditor();
+  }
+
+  updateStopIdInTrips(oldStopId, newStopId) {
+    console.log(`Updating stop ID in trips: ${oldStopId} -> ${newStopId}`);
+
+    // Update stop_times.txt
+    const stopTimes = this.gtfsEditor.parser.getFileData("stop_times.txt") || [];
+    let updatedCount = 0;
+
+    stopTimes.forEach(st => {
+      if (st.stop_id === oldStopId) {
+        st.stop_id = newStopId;
+        updatedCount++;
+      }
+    });
+
+    if (updatedCount > 0) {
+      this.gtfsEditor.parser.gtfsData["stop_times.txt"] = stopTimes;
+      console.log(`Updated ${updatedCount} stop_time entries`);
+    }
+
+    // Update transfers.txt if it exists
+    const transfers = this.gtfsEditor.parser.getFileData("transfers.txt") || [];
+    let transfersUpdated = 0;
+
+    transfers.forEach(transfer => {
+      if (transfer.from_stop_id === oldStopId) {
+        transfer.from_stop_id = newStopId;
+        transfersUpdated++;
+      }
+      if (transfer.to_stop_id === oldStopId) {
+        transfer.to_stop_id = newStopId;
+        transfersUpdated++;
+      }
+    });
+
+    if (transfersUpdated > 0) {
+      this.gtfsEditor.parser.gtfsData["transfers.txt"] = transfers;
+      console.log(`Updated ${transfersUpdated} transfer entries`);
+    }
+  }
+
+  deleteStop() {
+    if (!this.selectedStopForEdit) {
+      alert("No stop selected");
+      return;
+    }
+
+    const stopId = this.selectedStopForEdit.stop_id;
+
+    // Check if stop is used in any trips
+    const stopTimes = this.gtfsEditor.parser.getFileData("stop_times.txt") || [];
+    const usedInTrips = stopTimes.some(st => st.stop_id === stopId);
+
+    if (usedInTrips) {
+      alert(
+        `Cannot delete stop "${stopId}" because it is used in one or more trips.\n\n` +
+        `Please remove the stop from all trips before deleting it, or edit the trip data to use a different stop.`
+      );
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete stop "${stopId}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    // Remove the stop
+    const stopsData = this.gtfsEditor.parser.getFileData("stops.txt");
+    const filteredStops = stopsData.filter(s => s.stop_id !== stopId);
+
+    this.gtfsEditor.parser.gtfsData["stops.txt"] = filteredStops;
+
+    // Update file tabs
+    if (this.gtfsEditor && this.gtfsEditor.currentFile) {
+      this.gtfsEditor.updateFileTabs();
+      this.gtfsEditor.displayFileContent(this.gtfsEditor.currentFile);
+    }
+
+    alert("Stop deleted successfully!");
+    console.log("Stop deleted:", stopId);
+
+    // Reinitialize to reflect changes
+    this.initializeStopEditor();
   }
 }
 
