@@ -422,6 +422,11 @@
                 const repoPath = window.location.pathname.split('/')[1];
                 githubRepo = repoPath || 'gtfs-tools'; // Default to gtfs-tools
 
+                // For local development, force the correct repo name
+                if (window.location.protocol === 'file:' || repoPath === 'Users' || repoPath === 'home') {
+                    githubRepo = 'gtfs-tools';
+                }
+
                 document.getElementById('authSection').classList.add('authenticated');
                 document.getElementById('statusBadge').textContent = 'Connected';
                 document.getElementById('statusBadge').className = 'status-badge connected';
