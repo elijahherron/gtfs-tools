@@ -49,21 +49,21 @@ This guide will help you set up the GTFS file hosting feature to upload and host
 
 ## Trip Modifications Hosting
 
-In addition to GTFS feeds, you can also host **Trip Modifications** JSON files. These are used for GTFS-realtime TripModifications to communicate detours, service changes, and other modifications.
+In addition to GTFS feeds, you can also host **Trip Modifications** Protocol Buffer files. These are used for GTFS-realtime TripModifications to communicate detours, service changes, and other modifications.
 
 ### Uploading Trip Modifications
 
 1. Scroll down to the **Trip Modifications** section on `upload.html`
 2. Enter a **modifications name** (e.g., "detours", "service-changes")
-3. Select your `.json` file
+3. Select your `.pb` file
 4. Click "Upload Modifications"
 
 ### Trip Modifications URLs
 
 Files are stored in the `trip-modifications/` directory:
 ```
-https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/trip-modifications/detours.json
-https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/trip-modifications/service-changes.json
+https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/trip-modifications/detours.pb
+https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/trip-modifications/service-changes.pb
 ```
 
 ### Managing Trip Modifications
@@ -150,8 +150,8 @@ gtfs-tools/
 │   ├── city-transit.zip     ← Stable URL: .../gtfs-feeds/city-transit.zip
 │   └── metro.zip            ← Stable URL: .../gtfs-feeds/metro.zip
 ├── trip-modifications/
-│   ├── detours.json         ← Stable URL: .../trip-modifications/detours.json
-│   └── service-changes.json ← Stable URL: .../trip-modifications/service-changes.json
+│   ├── detours.pb           ← Stable URL: .../trip-modifications/detours.pb
+│   └── service-changes.pb   ← Stable URL: .../trip-modifications/service-changes.pb
 ├── index.html
 ├── upload.html
 └── ...

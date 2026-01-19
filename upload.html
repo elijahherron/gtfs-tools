@@ -388,7 +388,7 @@
                     <input type="text" id="tripModsName" placeholder="e.g., detours, service-changes, alerts">
                     <div class="form-help">
                         This name creates your stable URL. Use lowercase letters, numbers, and hyphens only.<br>
-                        Example: "detours" creates the stable URL ending in <strong>/detours.json</strong>
+                        Example: "detours" creates the stable URL ending in <strong>/detours.pb</strong>
                     </div>
                 </div>
 
@@ -398,9 +398,9 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="tripModsFile">Select Trip Modifications .json file</label>
-                    <input type="file" id="tripModsFile" accept=".json">
-                    <div class="form-help">GTFS-rt TripModifications JSON file</div>
+                    <label for="tripModsFile">Select Trip Modifications .pb file</label>
+                    <input type="file" id="tripModsFile" accept=".pb">
+                    <div class="form-help">GTFS-rt TripModifications Protocol Buffer file</div>
                 </div>
 
                 <div class="warning-box" id="tripModsOverwriteWarning">
@@ -768,7 +768,7 @@
             const previewUrl = document.getElementById('tripModsPreviewUrl');
 
             if (name && githubUser) {
-                const url = `https://raw.githubusercontent.com/${githubUser.login}/${githubRepo}/main/trip-modifications/${name}.json`;
+                const url = `https://raw.githubusercontent.com/${githubUser.login}/${githubRepo}/main/trip-modifications/${name}.pb`;
                 previewUrl.textContent = url;
                 preview.classList.add('show');
             } else {
@@ -778,7 +778,7 @@
 
         function checkExistingTripMods(name) {
             const warning = document.getElementById('tripModsOverwriteWarning');
-            const exists = existingTripMods.some(file => file.name === `${name}.json`);
+            const exists = existingTripMods.some(file => file.name === `${name}.pb`);
 
             if (exists && name) {
                 warning.classList.add('show');
@@ -804,8 +804,8 @@
                 return;
             }
 
-            if (!file.name.endsWith('.json')) {
-                alert('Please select a .json file');
+            if (!file.name.endsWith('.pb')) {
+                alert('Please select a .pb file');
                 return;
             }
 
@@ -824,7 +824,7 @@
                 progressFill.style.width = '30%';
 
                 // Check if file already exists (to get SHA for update)
-                const path = `trip-modifications/${name}.json`;
+                const path = `trip-modifications/${name}.pb`;
                 let sha = null;
 
                 try {
@@ -911,7 +911,7 @@
                 }
 
                 const files = await response.json();
-                existingTripMods = files.filter(file => file.name.endsWith('.json'));
+                existingTripMods = files.filter(file => file.name.endsWith('.pb'));
 
                 const filesSection = document.getElementById('tripModsFilesSection');
                 const filesList = document.getElementById('tripModsFilesList');
@@ -921,7 +921,7 @@
                     filesList.innerHTML = '';
 
                     existingTripMods.forEach(file => {
-                        const name = file.name.replace('.json', '');
+                        const name = file.name.replace('.pb', '');
                         const fileItem = document.createElement('div');
                         fileItem.className = 'feed-item';
                         fileItem.innerHTML = `
