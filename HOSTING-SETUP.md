@@ -45,6 +45,34 @@ This guide will help you set up the GTFS file hosting feature to upload and host
 - You can manage (view/delete) your uploaded feeds from the page
 - Your GitHub token is stored securely in your browser's localStorage (not on any server)
 
+---
+
+## Trip Modifications Hosting
+
+In addition to GTFS feeds, you can also host **Trip Modifications** JSON files. These are used for GTFS-realtime TripModifications to communicate detours, service changes, and other modifications.
+
+### Uploading Trip Modifications
+
+1. Scroll down to the **Trip Modifications** section on `upload.html`
+2. Enter a **modifications name** (e.g., "detours", "service-changes")
+3. Select your `.json` file
+4. Click "Upload Modifications"
+
+### Trip Modifications URLs
+
+Files are stored in the `trip-modifications/` directory:
+```
+https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/trip-modifications/detours.json
+https://raw.githubusercontent.com/YOUR_USERNAME/gtfs-tools/main/trip-modifications/service-changes.json
+```
+
+### Managing Trip Modifications
+
+- View all uploaded files in the "Your Hosted Trip Modifications" section
+- Copy URLs with the "Copy URL" button
+- Delete files with the "Delete" button
+- Update by re-uploading with the same name
+
 ## File Limits
 
 - Maximum file size: 100MB (GitHub's file size limit)
@@ -121,6 +149,9 @@ gtfs-tools/
 │   ├── stm.zip              ← Stable URL: .../gtfs-feeds/stm.zip
 │   ├── city-transit.zip     ← Stable URL: .../gtfs-feeds/city-transit.zip
 │   └── metro.zip            ← Stable URL: .../gtfs-feeds/metro.zip
+├── trip-modifications/
+│   ├── detours.json         ← Stable URL: .../trip-modifications/detours.json
+│   └── service-changes.json ← Stable URL: .../trip-modifications/service-changes.json
 ├── index.html
 ├── upload.html
 └── ...
