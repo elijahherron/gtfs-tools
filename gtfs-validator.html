@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GTFS & GTFS-rt Validator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="gtfs-validator.css" />
+    <style>
+      /* Page-specific overrides */
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+        background: #f5f5f5;
+      }
+      .page-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .page-header {
+        background: linear-gradient(135deg, #2c5aa0 0%, #1c4580 100%);
+        color: white;
+        padding: 20px 30px;
+        margin: -20px -20px 20px -20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .page-header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      .page-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+      }
+      .back-link {
+        color: white;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+      .back-link:hover {
+        background: rgba(255,255,255,0.2);
+      }
+      .main-content {
+        display: flex;
+        gap: 24px;
+      }
+      .validators-column {
+        flex: 1;
+        min-width: 0;
+      }
+      .info-column {
+        width: 320px;
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-container">
+      <div class="page-header">
+        <div>
+          <h1>GTFS & GTFS-rt Validator</h1>
+          <p>Validate static GTFS, realtime GTFS-rt, and cross-feed compatibility</p>
+        </div>
+        <a href="index.html" class="back-link">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to GTFS Tools
+        </a>
+      </div>
+
+      <div class="main-content">
+        <!-- Validators Column -->
+        <div class="validators-column">
+          <!-- Static GTFS Validation Section -->
+          <section class="validator-section" id="static-section">
+            <div class="section-header">
+              <div class="section-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                  <polyline points="13 2 13 9 20 9"/>
+                </svg>
+              </div>
+              <div>
+                <h2>Static GTFS Validation</h2>
+                <p>Validate required files, fields, data integrity, and feed expiry</p>
+              </div>
+            </div>
+
+            <div class="upload-row">
+              <div class="upload-option">
+                <label for="staticGtfsUpload">Upload GTFS .zip file:</label>
+                <input type="file" id="staticGtfsUpload" accept=".zip" />
+              </div>
+              <div class="upload-divider">OR</div>
+              <div class="upload-option">
+                <label for="staticGtfsUrl">Load from URL:</label>
+                <input type="text" id="staticGtfsUrl" placeholder="https://example.com/gtfs.zip" />
+              </div>
+              <button id="validateStaticBtn" class="validate-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 11l3 3L22 4"/>
+                </svg>
+                Validate
+              </button>
+            </div>
+
+            <div id="staticValidationStatus" class="validation-status"></div>
+            <div id="staticValidationResults" class="validation-results" style="display: none;">
+              <div class="results-summary" id="staticSummary"></div>
+              <div class="results-details" id="staticDetails"></div>
+            </div>
+          </section>
+
+          <!-- GTFS Realtime Validation Section -->
+          <section class="validator-section" id="realtime-section">
+            <div class="section-header">
+              <div class="section-icon realtime">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="2"/>
+                  <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+                </svg>
+              </div>
+              <div>
+                <h2>GTFS Realtime Validation</h2>
+                <p>Validate feed structure, entities, and specification compliance</p>
+              </div>
+            </div>
+
+            <div class="upload-row">
+              <div class="upload-option flex-2">
+                <label for="realtimeUrl">GTFS-rt Feed URL:</label>
+                <input type="text" id="realtimeUrl" placeholder="https://example.com/gtfs-rt/trip-updates" />
+              </div>
+              <div class="upload-option">
+                <label for="feedTypeSelect">Feed Type:</label>
+                <select id="feedTypeSelect">
+                  <option value="trip_update">Trip Updates</option>
+                  <option value="vehicle_position">Vehicle Positions</option>
+                  <option value="service_alert">Service Alerts</option>
+                </select>
+              </div>
+              <button id="validateRealtimeBtn" class="validate-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 11l3 3L22 4"/>
+                </svg>
+                Validate
+              </button>
+            </div>
+
+            <div class="proxy-option">
+              <label>
+                <input type="checkbox" id="useProxyCheckbox" checked />
+                Use CORS proxy for fetching (required for most feeds)
+              </label>
+              <div class="proxy-url-row" id="proxyUrlRow">
+                <label for="proxyUrl">Proxy URL:</label>
+                <input type="text" id="proxyUrl" value="https://corsproxy.io/?" placeholder="https://corsproxy.io/?" />
+                <span class="proxy-hint">Feed URL will be appended</span>
+              </div>
+            </div>
+
+            <div id="realtimeValidationStatus" class="validation-status"></div>
+            <div id="realtimeValidationResults" class="validation-results" style="display: none;">
+              <div class="results-summary" id="realtimeSummary"></div>
+              <div class="results-details" id="realtimeDetails"></div>
+            </div>
+          </section>
+
+          <!-- Combined Validation Section -->
+          <section class="validator-section" id="combined-section">
+            <div class="section-header">
+              <div class="section-icon combined">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/>
+                  <circle cx="6" cy="12" r="3"/>
+                  <circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </div>
+              <div>
+                <h2>Combined Validation</h2>
+                <p>Validate that GTFS-rt correctly references static GTFS data</p>
+              </div>
+            </div>
+
+            <div class="combined-summary">
+              <div class="combined-source" id="combinedStaticSource">
+                <div class="source-icon static">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                    <polyline points="13 2 13 9 20 9"/>
+                  </svg>
+                </div>
+                <div class="source-info">
+                  <span class="source-label">Static GTFS</span>
+                  <span class="source-value" id="combinedStaticValue">Not loaded - enter above</span>
+                </div>
+                <span class="source-status" id="combinedStaticIndicator"></span>
+              </div>
+
+              <div class="combined-connector">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </div>
+
+              <div class="combined-source" id="combinedRealtimeSource">
+                <div class="source-icon realtime">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="2"/>
+                    <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49"/>
+                  </svg>
+                </div>
+                <div class="source-info">
+                  <span class="source-label">GTFS Realtime</span>
+                  <span class="source-value" id="combinedRealtimeValue">Not loaded - enter above</span>
+                </div>
+                <span class="source-status" id="combinedRealtimeIndicator"></span>
+              </div>
+
+              <button id="validateCombinedBtn" class="validate-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 11l3 3L22 4"/>
+                </svg>
+                Compare
+              </button>
+            </div>
+
+            <div id="combinedValidationStatus" class="validation-status"></div>
+            <div id="combinedValidationResults" class="validation-results" style="display: none;">
+              <div class="results-summary" id="combinedSummary"></div>
+              <div class="results-details" id="combinedDetails"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Information Column -->
+        <aside class="info-column">
+          <div class="info-panel">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+              Validation Information
+            </h3>
+
+            <div class="info-section">
+              <h4>Static GTFS Checks</h4>
+              <ul class="check-list">
+                <li><span class="check-icon required"></span>Required files present (agency, stops, routes, trips, stop_times)</li>
+                <li><span class="check-icon required"></span>Required fields in each file</li>
+                <li><span class="check-icon required"></span>Field format validation (lat/lon, times, dates, URLs)</li>
+                <li><span class="check-icon required"></span>Feed expiry dates (feed_info, calendar)</li>
+                <li><span class="check-icon required"></span>Referential integrity between files</li>
+                <li><span class="check-icon required"></span>Duplicate ID detection</li>
+                <li><span class="check-icon optional"></span>Optional file presence</li>
+              </ul>
+            </div>
+
+            <div class="info-section">
+              <h4>GTFS-rt Checks</h4>
+              <ul class="check-list">
+                <li><span class="check-icon required"></span>Feed header (version, timestamp)</li>
+                <li><span class="check-icon required"></span>Entity structure validation</li>
+                <li><span class="check-icon required"></span>Required fields per entity type</li>
+                <li><span class="check-icon required"></span>Timestamp freshness</li>
+                <li><span class="check-icon optional"></span>Trip descriptor completeness</li>
+                <li><span class="check-icon optional"></span>Vehicle position accuracy</li>
+              </ul>
+            </div>
+
+            <div class="info-section">
+              <h4>Combined Checks</h4>
+              <ul class="check-list">
+                <li><span class="check-icon required"></span>trip_id matching</li>
+                <li><span class="check-icon required"></span>route_id matching</li>
+                <li><span class="check-icon required"></span>stop_id matching</li>
+                <li><span class="check-icon optional"></span>Schedule relationship analysis</li>
+              </ul>
+            </div>
+
+            <div class="info-section">
+              <h4>Result Key</h4>
+              <div class="legend-compact">
+                <div class="legend-row">
+                  <span class="result-icon pass"></span>
+                  <span>Pass</span>
+                </div>
+                <div class="legend-row">
+                  <span class="result-icon warning"></span>
+                  <span>Warning</span>
+                </div>
+                <div class="legend-row">
+                  <span class="result-icon error"></span>
+                  <span>Error</span>
+                </div>
+                <div class="legend-row">
+                  <span class="result-icon info"></span>
+                  <span>Info</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="info-section">
+              <h4>References</h4>
+              <ul class="reference-list">
+                <li><a href="https://gtfs.org/schedule/reference/" target="_blank">GTFS Schedule Spec</a></li>
+                <li><a href="https://gtfs.org/realtime/reference/" target="_blank">GTFS Realtime Spec</a></li>
+                <li><a href="https://gtfs.org/schedule/best-practices/" target="_blank">Best Practices</a></li>
+              </ul>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="gtfs-spec.js"></script>
+    <script src="gtfs-validator.js"></script>
+    <script>
+      // Initialize when DOM is ready
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.gtfsValidator) {
+          window.gtfsValidator.initialize();
+          console.log('GTFS Validator initialized');
+        }
+      });
+    </script>
+  </body>
+</html>
