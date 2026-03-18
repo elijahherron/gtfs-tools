@@ -1,5 +1,52 @@
 /* GTFS Validator Styles */
 
+/* Global Proxy Setting */
+.proxy-setting-global {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  border: 1px solid #e8e8e8;
+  flex-wrap: wrap;
+}
+
+.proxy-setting-global > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.proxy-setting-global > label input[type="checkbox"] {
+  margin: 0;
+}
+
+.proxy-setting-global > select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+  min-width: 150px;
+}
+
+.proxy-setting-global > input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: monospace;
+}
+
 /* Validator Sections */
 .validator-section {
   background: white;
@@ -116,6 +163,78 @@
   padding-bottom: 12px;
 }
 
+/* Realtime Feeds Layout */
+.realtime-feeds {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.realtime-feed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.realtime-feed-row:last-of-type {
+  margin-bottom: 16px;
+}
+
+.realtime-feed-row input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.realtime-feed-row input[type="text"]:focus {
+  outline: none;
+  border-color: #2c5aa0;
+  box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+}
+
+.feed-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.feed-type-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+
+.feed-type-badge.trip-updates {
+  background: linear-gradient(135deg, #2c5aa0 0%, #1c4580 100%);
+}
+
+.feed-type-badge.vehicle-positions {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+}
+
+.feed-type-badge.service-alerts {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.realtime-feeds .validate-btn {
+  width: 100%;
+}
+
 /* Validate Button */
 .validate-btn {
   display: inline-flex;
@@ -175,6 +294,15 @@
   flex-shrink: 0;
 }
 
+.proxy-url-row select {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+}
+
 .proxy-url-row input[type="text"] {
   flex: 1;
   padding: 8px 10px;
@@ -182,12 +310,6 @@
   border-radius: 4px;
   font-size: 13px;
   font-family: monospace;
-}
-
-.proxy-hint {
-  font-size: 11px;
-  color: #999;
-  flex-shrink: 0;
 }
 
 
@@ -695,6 +817,16 @@
     justify-content: center;
   }
 
+  .realtime-feed-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feed-label {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
   .combined-summary {
     flex-direction: column;
   }
@@ -719,9 +851,5 @@
   .proxy-url-row {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .proxy-hint {
-    text-align: center;
   }
 }

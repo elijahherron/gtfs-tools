@@ -83,6 +83,20 @@
       <div class="main-content">
         <!-- Validators Column -->
         <div class="validators-column">
+          <!-- Global Proxy Setting -->
+          <div class="proxy-setting-global">
+            <label>
+              <input type="checkbox" id="useProxyCheckbox" checked />
+              Use CORS proxy for URL fetching
+            </label>
+            <select id="proxySelect">
+              <option value="https://corsproxy.io/?">corsproxy.io</option>
+              <option value="https://api.allorigins.win/raw?url=">allorigins.win</option>
+              <option value="https://cors.sh/">cors.sh (no encoding)</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <input type="text" id="proxyUrlCustom" placeholder="https://your-proxy.com/?url=" style="display: none;" />
+          </div>
           <!-- Static GTFS Validation Section -->
           <section class="validator-section" id="static-section">
             <div class="section-header">
@@ -100,13 +114,13 @@
 
             <div class="upload-row">
               <div class="upload-option">
-                <label for="staticGtfsUpload">Upload GTFS .zip file:</label>
-                <input type="file" id="staticGtfsUpload" accept=".zip" />
+                <label for="staticGtfsUrl">Load from URL:</label>
+                <input type="text" id="staticGtfsUrl" placeholder="https://example.com/gtfs.zip" />
               </div>
               <div class="upload-divider">OR</div>
               <div class="upload-option">
-                <label for="staticGtfsUrl">Load from URL:</label>
-                <input type="text" id="staticGtfsUrl" placeholder="https://example.com/gtfs.zip" />
+                <label for="staticGtfsUpload">Upload GTFS .zip file:</label>
+                <input type="file" id="staticGtfsUpload" accept=".zip" />
               </div>
               <button id="validateStaticBtn" class="validate-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -138,37 +152,34 @@
               </div>
             </div>
 
-            <div class="upload-row">
-              <div class="upload-option flex-2">
-                <label for="realtimeUrl">GTFS-rt Feed URL:</label>
-                <input type="text" id="realtimeUrl" placeholder="https://example.com/gtfs-rt/trip-updates" />
+            <div class="realtime-feeds">
+              <div class="realtime-feed-row">
+                <div class="feed-label">
+                  <span class="feed-type-badge trip-updates">TU</span>
+                  Trip Updates
+                </div>
+                <input type="text" id="realtimeTripUpdatesUrl" placeholder="https://example.com/gtfs-rt/trip-updates" />
               </div>
-              <div class="upload-option">
-                <label for="feedTypeSelect">Feed Type:</label>
-                <select id="feedTypeSelect">
-                  <option value="trip_update">Trip Updates</option>
-                  <option value="vehicle_position">Vehicle Positions</option>
-                  <option value="service_alert">Service Alerts</option>
-                </select>
+              <div class="realtime-feed-row">
+                <div class="feed-label">
+                  <span class="feed-type-badge vehicle-positions">VP</span>
+                  Vehicle Positions
+                </div>
+                <input type="text" id="realtimeVehiclePositionsUrl" placeholder="https://example.com/gtfs-rt/vehicle-positions" />
+              </div>
+              <div class="realtime-feed-row">
+                <div class="feed-label">
+                  <span class="feed-type-badge service-alerts">SA</span>
+                  Service Alerts
+                </div>
+                <input type="text" id="realtimeServiceAlertsUrl" placeholder="https://example.com/gtfs-rt/service-alerts" />
               </div>
               <button id="validateRealtimeBtn" class="validate-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M9 11l3 3L22 4"/>
                 </svg>
-                Validate
+                Validate All
               </button>
-            </div>
-
-            <div class="proxy-option">
-              <label>
-                <input type="checkbox" id="useProxyCheckbox" checked />
-                Use CORS proxy for fetching (required for most feeds)
-              </label>
-              <div class="proxy-url-row" id="proxyUrlRow">
-                <label for="proxyUrl">Proxy URL:</label>
-                <input type="text" id="proxyUrl" value="https://corsproxy.io/?" placeholder="https://corsproxy.io/?" />
-                <span class="proxy-hint">Feed URL will be appended</span>
-              </div>
             </div>
 
             <div id="realtimeValidationStatus" class="validation-status"></div>
@@ -276,21 +287,26 @@
             <div class="info-section">
               <h4>GTFS-rt Checks</h4>
               <ul class="check-list">
-                <li><span class="check-icon required"></span>Feed header (version, timestamp)</li>
-                <li><span class="check-icon required"></span>Entity structure validation</li>
-                <li><span class="check-icon required"></span>Required fields per entity type</li>
-                <li><span class="check-icon required"></span>Timestamp freshness</li>
-                <li><span class="check-icon optional"></span>Trip descriptor completeness</li>
-                <li><span class="check-icon optional"></span>Vehicle position accuracy</li>
+                <li><span class="check-icon required"></span>E038: Valid gtfs_realtime_version (1.0/2.0)</li>
+                <li><span class="check-icon required"></span>E048/E049: Header timestamp & incrementality</li>
+                <li><span class="check-icon required"></span>E001: POSIX timestamp format</li>
+                <li><span class="check-icon required"></span>E040: stop_time_update has stop_id/sequence</li>
+                <li><span class="check-icon required"></span>E002: Stop sequences sorted</li>
+                <li><span class="check-icon required"></span>E025: Departure not before arrival</li>
+                <li><span class="check-icon required"></span>E026/E027: Valid coordinates & bearing</li>
+                <li><span class="check-icon required"></span>E032/E033: Alert informed_entity</li>
+                <li><span class="check-icon optional"></span>W002: Vehicle ID presence</li>
+                <li><span class="check-icon optional"></span>W008: Feed freshness (&lt;65s)</li>
               </ul>
             </div>
 
             <div class="info-section">
               <h4>Combined Checks</h4>
               <ul class="check-list">
-                <li><span class="check-icon required"></span>trip_id matching</li>
-                <li><span class="check-icon required"></span>route_id matching</li>
-                <li><span class="check-icon required"></span>stop_id matching</li>
+                <li><span class="check-icon required"></span>E003: trip_id matching</li>
+                <li><span class="check-icon required"></span>E004: route_id matching</li>
+                <li><span class="check-icon required"></span>E011: stop_id matching</li>
+                <li><span class="check-icon required"></span>E051: stop_sequence matching</li>
                 <li><span class="check-icon optional"></span>Schedule relationship analysis</li>
               </ul>
             </div>
@@ -323,6 +339,7 @@
                 <li><a href="https://gtfs.org/schedule/reference/" target="_blank">GTFS Schedule Spec</a></li>
                 <li><a href="https://gtfs.org/realtime/reference/" target="_blank">GTFS Realtime Spec</a></li>
                 <li><a href="https://gtfs.org/schedule/best-practices/" target="_blank">Best Practices</a></li>
+                <li><a href="https://github.com/MobilityData/gtfs-realtime-validator" target="_blank">MobilityData Validator Rules</a></li>
               </ul>
             </div>
           </div>

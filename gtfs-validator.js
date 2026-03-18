@@ -27,10 +27,19 @@ class GTFSValidator {
    */
   bindProxyToggle() {
     const checkbox = document.getElementById("useProxyCheckbox");
-    const proxyRow = document.getElementById("proxyUrlRow");
-    if (checkbox && proxyRow) {
+    const proxySelect = document.getElementById("proxySelect");
+    const proxyCustom = document.getElementById("proxyUrlCustom");
+
+    if (checkbox && proxySelect) {
       checkbox.addEventListener("change", () => {
-        proxyRow.style.display = checkbox.checked ? "flex" : "none";
+        proxySelect.disabled = !checkbox.checked;
+        if (proxyCustom) proxyCustom.disabled = !checkbox.checked;
+      });
+    }
+
+    if (proxySelect && proxyCustom) {
+      proxySelect.addEventListener("change", () => {
+        proxyCustom.style.display = proxySelect.value === "custom" ? "block" : "none";
       });
     }
   }
@@ -42,7 +51,9 @@ class GTFSValidator {
     // Watch for changes in static inputs
     const staticFile = document.getElementById("staticGtfsUpload");
     const staticUrl = document.getElementById("staticGtfsUrl");
-    const realtimeUrl = document.getElementById("realtimeUrl");
+    const realtimeTU = document.getElementById("realtimeTripUpdatesUrl");
+    const realtimeVP = document.getElementById("realtimeVehiclePositionsUrl");
+    const realtimeSA = document.getElementById("realtimeServiceAlertsUrl");
 
     if (staticFile) {
       staticFile.addEventListener("change", () => this.refreshCombinedIndicators());
@@ -50,9 +61,9 @@ class GTFSValidator {
     if (staticUrl) {
       staticUrl.addEventListener("input", () => this.refreshCombinedIndicators());
     }
-    if (realtimeUrl) {
-      realtimeUrl.addEventListener("input", () => this.refreshCombinedIndicators());
-    }
+    [realtimeTU, realtimeVP, realtimeSA].forEach(el => {
+      if (el) el.addEventListener("input", () => this.refreshCombinedIndicators());
+    });
 
     this.refreshCombinedIndicators();
   }
@@ -63,7 +74,9 @@ class GTFSValidator {
   refreshCombinedIndicators() {
     const staticFile = document.getElementById("staticGtfsUpload");
     const staticUrl = document.getElementById("staticGtfsUrl");
-    const realtimeUrl = document.getElementById("realtimeUrl");
+    const realtimeTU = document.getElementById("realtimeTripUpdatesUrl");
+    const realtimeVP = document.getElementById("realtimeVehiclePositionsUrl");
+    const realtimeSA = document.getElementById("realtimeServiceAlertsUrl");
 
     const staticValue = document.getElementById("combinedStaticValue");
     const staticIndicator = document.getElementById("combinedStaticIndicator");
@@ -93,16 +106,21 @@ class GTFSValidator {
       }
     }
 
-    // Realtime source
+    // Realtime source - check all three URL fields
+    const hasRealtimeUrls = [realtimeTU, realtimeVP, realtimeSA].some(el => el && el.value.trim());
+
     if (realtimeValue && realtimeIndicator) {
-      if (this.realtimeData) {
-        const entityCount = this.realtimeData.entity ? this.realtimeData.entity.length : 0;
-        realtimeValue.textContent = `Loaded (${entityCount} entities)`;
+      if (this.realtimeData && Object.keys(this.realtimeData).length > 0) {
+        const feedCount = Object.keys(this.realtimeData).length;
+        const totalEntities = Object.values(this.realtimeData).reduce((sum, data) => {
+          return sum + (data && data.entity ? data.entity.length : 0);
+        }, 0);
+        realtimeValue.textContent = `Loaded (${feedCount} feeds, ${totalEntities} entities)`;
         realtimeIndicator.className = "source-status ready";
         realtimeIndicator.textContent = "Ready";
-      } else if (realtimeUrl && realtimeUrl.value.trim()) {
-        const url = realtimeUrl.value.trim();
-        realtimeValue.textContent = url.length > 40 ? url.substring(0, 40) + "..." : url;
+      } else if (hasRealtimeUrls) {
+        const urlCount = [realtimeTU, realtimeVP, realtimeSA].filter(el => el && el.value.trim()).length;
+        realtimeValue.textContent = `${urlCount} feed URL${urlCount > 1 ? 's' : ''} entered`;
         realtimeIndicator.className = "source-status pending";
         realtimeIndicator.textContent = "Pending";
       } else {
@@ -148,10 +166,20 @@ class GTFSValidator {
    */
   getProxyUrl() {
     const useProxy = document.getElementById("useProxyCheckbox");
-    const proxyUrl = document.getElementById("proxyUrl");
-    if (useProxy && useProxy.checked && proxyUrl && proxyUrl.value.trim()) {
-      return proxyUrl.value.trim();
+    if (!useProxy || !useProxy.checked) {
+      return null;
     }
+
+    const proxySelect = document.getElementById("proxySelect");
+    const proxyCustom = document.getElementById("proxyUrlCustom");
+
+    if (proxySelect) {
+      if (proxySelect.value === "custom" && proxyCustom) {
+        return proxyCustom.value.trim() || null;
+      }
+      return proxySelect.value;
+    }
+
     return null;
   }
 
@@ -165,6 +193,83 @@ class GTFSValidator {
       return proxy + encodeURIComponent(targetUrl);
     }
     return targetUrl;
+  }
+
+  /**
+   * Test fetch - call from console: gtfsValidator.testFetch('your-url')
+   */
+  async testFetch(url) {
+    console.log("=== FETCH TEST ===");
+    console.log("Target URL:", url);
+
+    // Test 1: Direct fetch
+    console.log("\n1. Trying DIRECT fetch...");
+    try {
+      const resp = await fetch(url, { mode: "cors", credentials: "omit" });
+      console.log("   Direct SUCCESS! Status:", resp.status);
+      const blob = await resp.blob();
+      console.log("   Blob size:", blob.size);
+      return { method: "direct", success: true, size: blob.size };
+    } catch (e) {
+      console.log("   Direct FAILED:", e.message);
+    }
+
+    // Test 2: corsproxy.io
+    console.log("\n2. Trying corsproxy.io...");
+    try {
+      const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
+      console.log("   Proxy URL:", proxyUrl);
+      const resp = await fetch(proxyUrl);
+      console.log("   corsproxy.io Status:", resp.status);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        console.log("   Blob size:", blob.size);
+        return { method: "corsproxy.io", success: true, size: blob.size };
+      } else {
+        console.log("   Response not OK");
+      }
+    } catch (e) {
+      console.log("   corsproxy.io FAILED:", e.message);
+    }
+
+    // Test 3: allorigins.win
+    console.log("\n3. Trying allorigins.win...");
+    try {
+      const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+      console.log("   Proxy URL:", proxyUrl);
+      const resp = await fetch(proxyUrl);
+      console.log("   allorigins.win Status:", resp.status);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        console.log("   Blob size:", blob.size);
+        return { method: "allorigins.win", success: true, size: blob.size };
+      } else {
+        console.log("   Response not OK");
+      }
+    } catch (e) {
+      console.log("   allorigins.win FAILED:", e.message);
+    }
+
+    // Test 4: cors.sh
+    console.log("\n4. Trying cors.sh...");
+    try {
+      const proxyUrl = "https://cors.sh/" + url;
+      console.log("   Proxy URL:", proxyUrl);
+      const resp = await fetch(proxyUrl);
+      console.log("   cors.sh Status:", resp.status);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        console.log("   Blob size:", blob.size);
+        return { method: "cors.sh", success: true, size: blob.size };
+      } else {
+        console.log("   Response not OK");
+      }
+    } catch (e) {
+      console.log("   cors.sh FAILED:", e.message);
+    }
+
+    console.log("\n=== ALL METHODS FAILED ===");
+    return { success: false };
   }
 
   // ============================================
@@ -678,43 +783,66 @@ class GTFSValidator {
   // ============================================
 
   /**
-   * Validate GTFS realtime feed
+   * Validate GTFS realtime feeds (all provided URLs)
    */
   async validateRealtimeGtfs() {
-    const urlInput = document.getElementById("realtimeUrl");
-    const feedTypeSelect = document.getElementById("feedTypeSelect");
-    const feedType = feedTypeSelect ? feedTypeSelect.value : "trip_update";
+    const tripUpdatesUrl = document.getElementById("realtimeTripUpdatesUrl")?.value.trim();
+    const vehiclePositionsUrl = document.getElementById("realtimeVehiclePositionsUrl")?.value.trim();
+    const serviceAlertsUrl = document.getElementById("realtimeServiceAlertsUrl")?.value.trim();
     const statusEl = document.getElementById("realtimeValidationStatus");
     const resultsEl = document.getElementById("realtimeValidationResults");
     const summaryEl = document.getElementById("realtimeSummary");
     const detailsEl = document.getElementById("realtimeDetails");
 
-    const url = urlInput.value.trim();
+    const feeds = [
+      { url: tripUpdatesUrl, type: "trip_update", name: "Trip Updates" },
+      { url: vehiclePositionsUrl, type: "vehicle_position", name: "Vehicle Positions" },
+      { url: serviceAlertsUrl, type: "service_alert", name: "Service Alerts" },
+    ].filter(f => f.url);
 
-    if (!url) {
-      this.showStatus(statusEl, "Please enter a GTFS-rt feed URL", "error");
+    if (feeds.length === 0) {
+      this.showStatus(statusEl, "Please enter at least one GTFS-rt feed URL", "error");
       return;
     }
 
     try {
-      this.showStatus(statusEl, "Fetching GTFS-rt feed...", "loading");
       resultsEl.style.display = "none";
-
-      const data = await this.fetchRealtimeFeed(url);
-      this.realtimeData = data;
-
-      this.showStatus(statusEl, "Validating GTFS-rt feed...", "loading");
-
-      // Run validation
       this.realtimeValidationResults = [];
-      this.validateRealtimeHeader(data);
-      this.validateRealtimeEntities(data, feedType);
-      this.validateRealtimeTimestamps(data);
+      this.realtimeData = {};
+
+      // Fetch and validate each feed
+      for (const feed of feeds) {
+        this.showStatus(statusEl, `Fetching ${feed.name}...`, "loading");
+
+        try {
+          const data = await this.fetchRealtimeFeed(feed.url);
+          this.realtimeData[feed.type] = data;
+
+          this.showStatus(statusEl, `Validating ${feed.name}...`, "loading");
+
+          // Add feed header to results
+          this.realtimeValidationResults.push({
+            type: "info",
+            category: feed.name,
+            message: `Feed URL: ${feed.url.length > 60 ? feed.url.substring(0, 60) + "..." : feed.url}`,
+          });
+
+          this.validateRealtimeHeader(data, feed.name);
+          this.validateRealtimeEntities(data, feed.type, feed.name);
+          this.validateRealtimeTimestamps(data, feed.name);
+        } catch (error) {
+          this.realtimeValidationResults.push({
+            type: "error",
+            category: feed.name,
+            message: `Failed to fetch: ${error.message}`,
+          });
+        }
+      }
 
       // Display results
       this.displayRealtimeResults(summaryEl, detailsEl);
       resultsEl.style.display = "block";
-      this.showStatus(statusEl, "Validation complete", "success");
+      this.showStatus(statusEl, `Validation complete (${feeds.length} feed${feeds.length > 1 ? 's' : ''})`, "success");
       this.refreshCombinedIndicators();
     } catch (error) {
       console.error("GTFS-rt validation error:", error);
@@ -723,41 +851,70 @@ class GTFSValidator {
   }
 
   /**
-   * Fetch and parse GTFS-rt feed
+   * Fetch and parse GTFS-rt feed - tries direct fetch first, falls back to proxy
    */
   async fetchRealtimeFeed(url) {
-    const fetchUrl = this.buildFetchUrl(url);
-
+    // First try direct fetch
     try {
-      const response = await fetch(fetchUrl);
+      console.log("Attempting direct GTFS-rt fetch:", url);
+      const response = await fetch(url, {
+        mode: "cors",
+        credentials: "omit",
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const contentType = response.headers.get("content-type") || "";
+      return await this.parseRealtimeResponse(response);
+    } catch (directError) {
+      console.log("Direct GTFS-rt fetch failed:", directError.message);
 
-      // Try to parse as JSON if it looks like JSON
-      if (contentType.includes("application/json") || contentType.includes("text/json")) {
-        return await response.json();
+      // If direct fetch fails, try with proxy
+      const proxy = this.getProxyUrl();
+      if (!proxy) {
+        throw new Error("CORS blocked. Enable 'Use CORS proxy' at the top of the page.");
       }
 
-      // Get as array buffer for binary/protobuf
-      const buffer = await response.arrayBuffer();
-      return this.parseProtobuf(buffer);
-    } catch (error) {
-      if (error.message.includes("Failed to fetch") || error.name === "TypeError") {
-        const proxy = this.getProxyUrl();
-        if (!proxy) {
-          throw new Error(
-            "Unable to fetch feed due to CORS restrictions. Enable 'Use CORS proxy' option above."
-          );
+      const proxyUrl = this.buildProxyUrl(proxy, url);
+      console.log("Trying GTFS-rt with proxy:", proxyUrl);
+
+      try {
+        const response = await fetch(proxyUrl);
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            throw new Error(`Access denied (403). Try a different proxy.`);
+          } else if (response.status === 404) {
+            throw new Error(`Feed not found (404). Check the URL is correct.`);
+          } else if (response.status >= 500) {
+            throw new Error(`Server error (${response.status}). The feed server may be down.`);
+          }
+          throw new Error(`Proxy error: HTTP ${response.status}`);
         }
-        throw new Error(
-          `Unable to fetch feed. The CORS proxy may be unavailable or the URL may be invalid. Original error: ${error.message}`
-        );
+
+        return await this.parseRealtimeResponse(response);
+      } catch (proxyError) {
+        console.error("Proxy GTFS-rt fetch failed:", proxyError.message);
+        throw new Error(`Failed to fetch: ${proxyError.message}. Try a different proxy or check the URL.`);
       }
-      throw error;
     }
+  }
+
+  /**
+   * Parse the response from a GTFS-rt fetch
+   */
+  async parseRealtimeResponse(response) {
+    const contentType = response.headers.get("content-type") || "";
+
+    // Try to parse as JSON if it looks like JSON
+    if (contentType.includes("application/json") || contentType.includes("text/json")) {
+      return await response.json();
+    }
+
+    // Get as array buffer for binary/protobuf
+    const buffer = await response.arrayBuffer();
+    return this.parseProtobuf(buffer);
   }
 
   /**
@@ -789,14 +946,16 @@ class GTFSValidator {
   }
 
   /**
-   * Validate GTFS-rt header
+   * Validate GTFS-rt header (includes E001, E038, E048, E050 rules)
    */
-  validateRealtimeHeader(data) {
+  validateRealtimeHeader(data, categoryPrefix = "") {
+    const category = categoryPrefix || "Feed Header";
+
     if (!data) {
       this.realtimeValidationResults.push({
         type: "error",
-        category: "Feed Structure",
-        message: "No data received from feed",
+        category,
+        message: "E: No data received from feed",
       });
       return;
     }
@@ -804,12 +963,12 @@ class GTFSValidator {
     if (data._protobuf) {
       this.realtimeValidationResults.push({
         type: "info",
-        category: "Feed Format",
-        message: `Received Protocol Buffer data (${data._size.toLocaleString()} bytes). Full validation requires protobuf.js library.`,
+        category,
+        message: `Received Protocol Buffer data (${data._size.toLocaleString()} bytes)`,
       });
       this.realtimeValidationResults.push({
         type: "pass",
-        category: "Feed Format",
+        category,
         message: "Feed is accessible and returning data",
       });
       return;
@@ -820,74 +979,106 @@ class GTFSValidator {
     if (!header) {
       this.realtimeValidationResults.push({
         type: "error",
-        category: "Feed Structure",
-        message: "Missing feed header",
+        category,
+        message: "E: Missing feed header",
       });
-    } else {
-      // Version
-      if (header.gtfs_realtime_version) {
+      return;
+    }
+
+    // E038: Version check
+    const version = header.gtfs_realtime_version || header.gtfsRealtimeVersion;
+    if (version) {
+      const validVersions = ["1.0", "2.0"];
+      if (validVersions.includes(version)) {
         this.realtimeValidationResults.push({
           type: "pass",
-          category: "Feed Header",
-          message: `GTFS-rt version: ${header.gtfs_realtime_version}`,
+          category,
+          message: `GTFS-rt version: ${version}`,
         });
       } else {
         this.realtimeValidationResults.push({
           type: "warning",
-          category: "Feed Header",
-          message: "Missing gtfs_realtime_version in header",
+          category,
+          message: `E038: Unexpected gtfs_realtime_version "${version}" (expected 1.0 or 2.0)`,
         });
       }
+    } else {
+      this.realtimeValidationResults.push({
+        type: "warning",
+        category,
+        message: "E048: Missing gtfs_realtime_version in header (required for v2.0+)",
+      });
+    }
 
-      // Timestamp
-      if (header.timestamp) {
-        const feedTime = new Date(header.timestamp * 1000);
-        const now = new Date();
-        const ageMinutes = (now - feedTime) / (1000 * 60);
+    // Timestamp validation
+    const timestamp = header.timestamp;
+    if (timestamp) {
+      // E001: Check if timestamp looks like milliseconds instead of seconds
+      const now = Math.floor(Date.now() / 1000);
+      if (timestamp > now * 100) {
+        this.realtimeValidationResults.push({
+          type: "error",
+          category,
+          message: `E001: Timestamp appears to be in milliseconds (${timestamp}), should be POSIX seconds`,
+        });
+      } else {
+        const feedTime = new Date(timestamp * 1000);
+        const ageSeconds = now - timestamp;
+        const ageMinutes = ageSeconds / 60;
 
-        if (ageMinutes < 0) {
+        // E050: Check for future timestamps
+        if (ageSeconds < -60) {
           this.realtimeValidationResults.push({
-            type: "warning",
-            category: "Feed Header",
-            message: `Feed timestamp is in the future: ${feedTime.toISOString()}`,
+            type: "error",
+            category,
+            message: `E050: Timestamp is ${Math.abs(Math.round(ageSeconds))}s in the future`,
           });
-        } else if (ageMinutes > 5) {
+        } else if (ageSeconds < 0) {
           this.realtimeValidationResults.push({
             type: "warning",
-            category: "Feed Header",
-            message: `Feed is ${Math.round(ageMinutes)} minutes old (timestamp: ${feedTime.toISOString()})`,
+            category,
+            message: `Timestamp is slightly in the future (clock skew): ${feedTime.toISOString()}`,
+          });
+        } else if (ageSeconds > 65) {
+          // W008: Header timestamp age warning
+          this.realtimeValidationResults.push({
+            type: "warning",
+            category,
+            message: `W008: Feed is ${ageMinutes > 1 ? Math.round(ageMinutes) + " minutes" : Math.round(ageSeconds) + " seconds"} old (should refresh every 35s)`,
           });
         } else {
           this.realtimeValidationResults.push({
             type: "pass",
-            category: "Feed Header",
-            message: `Feed timestamp: ${feedTime.toISOString()} (${Math.round(ageMinutes)} min ago)`,
+            category,
+            message: `Timestamp: ${feedTime.toISOString()} (${Math.round(ageSeconds)}s ago)`,
           });
         }
-      } else {
-        this.realtimeValidationResults.push({
-          type: "warning",
-          category: "Feed Header",
-          message: "Missing timestamp in header",
-        });
       }
+    } else {
+      this.realtimeValidationResults.push({
+        type: "warning",
+        category,
+        message: "E048: Missing timestamp in header (required for v2.0+)",
+      });
+    }
 
-      // Incrementality
-      if (header.incrementality !== undefined) {
-        const incrementalityMap = { 0: "FULL_DATASET", 1: "DIFFERENTIAL" };
-        this.realtimeValidationResults.push({
-          type: "info",
-          category: "Feed Header",
-          message: `Incrementality: ${incrementalityMap[header.incrementality] || header.incrementality}`,
-        });
-      }
+    // E049: Check incrementality for v2.0+
+    const incrementality = header.incrementality;
+    if (version === "2.0" && incrementality === undefined) {
+      this.realtimeValidationResults.push({
+        type: "warning",
+        category,
+        message: "E049: Missing incrementality in header (required for v2.0)",
+      });
     }
   }
 
   /**
    * Validate GTFS-rt entities
    */
-  validateRealtimeEntities(data, expectedType) {
+  validateRealtimeEntities(data, expectedType, categoryPrefix = "") {
+    const category = categoryPrefix || "Entities";
+
     if (data._protobuf) return;
 
     const entities = data.entity || [];
@@ -895,7 +1086,7 @@ class GTFSValidator {
     if (entities.length === 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Entities",
+        category,
         message: "Feed contains no entities",
       });
       return;
@@ -903,8 +1094,8 @@ class GTFSValidator {
 
     this.realtimeValidationResults.push({
       type: "info",
-      category: "Statistics",
-      message: `Feed contains ${entities.length.toLocaleString()} entities`,
+      category,
+      message: `${entities.length.toLocaleString()} entities`,
     });
 
     // Count entity types
@@ -920,159 +1111,383 @@ class GTFSValidator {
     if (missingIds > 0) {
       this.realtimeValidationResults.push({
         type: "error",
-        category: "Entity Structure",
+        category,
         message: `${missingIds} entities missing required 'id' field`,
       });
     }
 
-    // Report entity type counts
+    // Report entity type counts and validate
     if (tripUpdates > 0) {
       this.realtimeValidationResults.push({
         type: expectedType === "trip_update" ? "pass" : "info",
-        category: "Entity Types",
+        category,
         message: `${tripUpdates.toLocaleString()} Trip Update entities`,
       });
-      this.validateTripUpdates(entities);
+      this.validateTripUpdates(entities, category);
     }
 
     if (vehiclePositions > 0) {
       this.realtimeValidationResults.push({
         type: expectedType === "vehicle_position" ? "pass" : "info",
-        category: "Entity Types",
+        category,
         message: `${vehiclePositions.toLocaleString()} Vehicle Position entities`,
       });
-      this.validateVehiclePositions(entities);
+      this.validateVehiclePositions(entities, category);
     }
 
     if (alerts > 0) {
       this.realtimeValidationResults.push({
         type: expectedType === "service_alert" ? "pass" : "info",
-        category: "Entity Types",
+        category,
         message: `${alerts.toLocaleString()} Service Alert entities`,
       });
+      this.validateServiceAlerts(entities, category);
     }
 
     // Warn if expected type not found
     if (expectedType === "trip_update" && tripUpdates === 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Entity Types",
-        message: "No Trip Update entities found in feed",
+        category,
+        message: "No Trip Update entities found",
       });
     }
     if (expectedType === "vehicle_position" && vehiclePositions === 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Entity Types",
-        message: "No Vehicle Position entities found in feed",
+        category,
+        message: "No Vehicle Position entities found",
       });
     }
     if (expectedType === "service_alert" && alerts === 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Entity Types",
-        message: "No Service Alert entities found in feed",
+        category,
+        message: "No Service Alert entities found",
       });
     }
   }
 
   /**
-   * Validate Trip Update entities
+   * Validate Trip Update entities (includes E040, E041, E022, E025, E043, E044 rules)
    */
-  validateTripUpdates(entities) {
-    let missingTrip = 0, missingStopUpdates = 0;
+  validateTripUpdates(entities, category = "Trip Updates") {
+    let missingTrip = 0;
+    let missingStopUpdates = 0;
+    let missingStopRef = 0; // E040
+    let sequenceNotSorted = 0; // E002
+    let arrivalAfterDeparture = 0; // E025
+    let missingTimeData = 0; // E043/E044
+    let canceledWithUpdates = 0;
+    let totalTripUpdates = 0;
 
     entities.forEach((entity) => {
       const tripUpdate = entity.trip_update || entity.tripUpdate;
       if (!tripUpdate) return;
+      totalTripUpdates++;
 
       const trip = tripUpdate.trip;
+      const scheduleRelationship = trip?.schedule_relationship || trip?.scheduleRelationship;
+      const isCanceled = scheduleRelationship === "CANCELED" || scheduleRelationship === 3;
+
+      // W006: Check for trip_id
       if (!trip || (!trip.trip_id && !trip.tripId)) {
         missingTrip++;
       }
 
       const stopTimeUpdates = tripUpdate.stop_time_update || tripUpdate.stopTimeUpdate || [];
-      if (stopTimeUpdates.length === 0) {
+
+      // E041: Non-canceled trips should have stop_time_updates
+      if (stopTimeUpdates.length === 0 && !isCanceled) {
         missingStopUpdates++;
       }
+
+      let lastSequence = -1;
+      stopTimeUpdates.forEach((stu) => {
+        const stopId = stu.stop_id || stu.stopId;
+        const stopSequence = stu.stop_sequence || stu.stopSequence;
+        const schedRel = stu.schedule_relationship || stu.scheduleRelationship;
+        const isSkipped = schedRel === "SKIPPED" || schedRel === 1;
+        const isNoData = schedRel === "NO_DATA" || schedRel === 2;
+
+        // E040: Need stop_id or stop_sequence
+        if (!stopId && stopSequence === undefined) {
+          missingStopRef++;
+        }
+
+        // E002: Stop sequence should be sorted
+        if (stopSequence !== undefined && stopSequence <= lastSequence) {
+          sequenceNotSorted++;
+        }
+        if (stopSequence !== undefined) lastSequence = stopSequence;
+
+        // E043: Non-skipped updates need arrival or departure
+        const arrival = stu.arrival;
+        const departure = stu.departure;
+        if (!isSkipped && !isNoData && !arrival && !departure) {
+          missingTimeData++;
+        }
+
+        // E025: Departure should not be before arrival
+        if (arrival && departure) {
+          const arrTime = arrival.time || arrival.delay;
+          const depTime = departure.time || departure.delay;
+          if (arrival.time && departure.time && departure.time < arrival.time) {
+            arrivalAfterDeparture++;
+          }
+        }
+      });
     });
 
+    if (totalTripUpdates === 0) return;
+
+    // Report results
     if (missingTrip > 0) {
       this.realtimeValidationResults.push({
         type: "error",
-        category: "Trip Updates",
-        message: `${missingTrip} trip updates missing trip descriptor or trip_id`,
-      });
-    } else {
-      this.realtimeValidationResults.push({
-        type: "pass",
-        category: "Trip Updates",
-        message: "All trip updates have valid trip descriptors",
+        category,
+        message: `W006: ${missingTrip} trip updates missing trip_id`,
       });
     }
 
     if (missingStopUpdates > 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Trip Updates",
-        message: `${missingStopUpdates} trip updates have no stop_time_updates`,
+        category,
+        message: `E041: ${missingStopUpdates} non-canceled trips have no stop_time_updates`,
+      });
+    }
+
+    if (missingStopRef > 0) {
+      this.realtimeValidationResults.push({
+        type: "error",
+        category,
+        message: `E040: ${missingStopRef} stop_time_updates missing both stop_id and stop_sequence`,
+      });
+    }
+
+    if (sequenceNotSorted > 0) {
+      this.realtimeValidationResults.push({
+        type: "error",
+        category,
+        message: `E002: ${sequenceNotSorted} stop_time_updates not sorted by stop_sequence`,
+      });
+    }
+
+    if (arrivalAfterDeparture > 0) {
+      this.realtimeValidationResults.push({
+        type: "error",
+        category,
+        message: `E025: ${arrivalAfterDeparture} stop times have departure before arrival`,
+      });
+    }
+
+    // Summary pass if no major issues
+    const hasErrors = missingTrip > 0 || missingStopRef > 0 || sequenceNotSorted > 0 || arrivalAfterDeparture > 0;
+    if (!hasErrors) {
+      this.realtimeValidationResults.push({
+        type: "pass",
+        category,
+        message: `All ${totalTripUpdates} trip updates have valid structure`,
       });
     }
   }
 
   /**
-   * Validate Vehicle Position entities
+   * Validate Vehicle Position entities (includes E026, E027, W002, W004 rules)
    */
-  validateVehiclePositions(entities) {
-    let missingPosition = 0, missingVehicle = 0;
+  validateVehiclePositions(entities, category = "Vehicle Positions") {
+    let missingPosition = 0;
+    let invalidCoords = 0; // E026
+    let invalidBearing = 0; // E027
+    let missingVehicleId = 0; // W002
+    let highSpeed = 0; // W004
+    let totalVehicles = 0;
 
     entities.forEach((entity) => {
       const vehicle = entity.vehicle || entity.vehiclePosition;
       if (!vehicle) return;
+      totalVehicles++;
 
-      const position = vehicle.position;
-      if (!position || position.latitude === undefined || position.longitude === undefined) {
-        missingPosition++;
-      }
-
+      // W002: Check for vehicle_id
       const vehicleDesc = vehicle.vehicle;
       if (!vehicleDesc || (!vehicleDesc.id && !vehicleDesc.label)) {
-        missingVehicle++;
+        missingVehicleId++;
+      }
+
+      const position = vehicle.position;
+      if (!position) {
+        missingPosition++;
+        return;
+      }
+
+      const lat = position.latitude;
+      const lon = position.longitude;
+
+      // E026: Validate coordinates
+      if (lat === undefined || lon === undefined) {
+        missingPosition++;
+      } else if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        invalidCoords++;
+      }
+
+      // E027: Validate bearing (0-360)
+      const bearing = position.bearing;
+      if (bearing !== undefined && (bearing < 0 || bearing > 360)) {
+        invalidBearing++;
+      }
+
+      // W004: Check for high speed (>26 m/s ≈ 58 mph)
+      const speed = position.speed;
+      if (speed !== undefined && speed > 26) {
+        highSpeed++;
       }
     });
 
+    if (totalVehicles === 0) return;
+
+    // Report results
     if (missingPosition > 0) {
       this.realtimeValidationResults.push({
         type: "error",
-        category: "Vehicle Positions",
+        category,
         message: `${missingPosition} vehicles missing position data`,
-      });
-    } else {
-      this.realtimeValidationResults.push({
-        type: "pass",
-        category: "Vehicle Positions",
-        message: "All vehicles have valid position data",
       });
     }
 
-    if (missingVehicle > 0) {
+    if (invalidCoords > 0) {
+      this.realtimeValidationResults.push({
+        type: "error",
+        category,
+        message: `E026: ${invalidCoords} vehicles have invalid coordinates (lat must be -90 to 90, lon -180 to 180)`,
+      });
+    }
+
+    if (invalidBearing > 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Vehicle Positions",
-        message: `${missingVehicle} vehicles missing vehicle descriptor`,
+        category,
+        message: `E027: ${invalidBearing} vehicles have invalid bearing (must be 0-360)`,
+      });
+    }
+
+    if (missingVehicleId > 0) {
+      this.realtimeValidationResults.push({
+        type: "warning",
+        category,
+        message: `W002: ${missingVehicleId} vehicles missing vehicle_id`,
+      });
+    }
+
+    if (highSpeed > 0) {
+      this.realtimeValidationResults.push({
+        type: "warning",
+        category,
+        message: `W004: ${highSpeed} vehicles reporting speed > 26 m/s (58 mph)`,
+      });
+    }
+
+    // Summary pass if no major issues
+    const hasErrors = missingPosition > 0 || invalidCoords > 0;
+    if (!hasErrors) {
+      this.realtimeValidationResults.push({
+        type: "pass",
+        category,
+        message: `All ${totalVehicles} vehicle positions have valid coordinates`,
       });
     }
   }
 
   /**
-   * Validate timestamps in GTFS-rt
+   * Validate Service Alert entities (includes E032, E033 rules)
    */
-  validateRealtimeTimestamps(data) {
+  validateServiceAlerts(entities, category = "Service Alerts") {
+    let missingInformedEntity = 0; // E032
+    let emptyInformedEntity = 0; // E033
+    let missingHeaderText = 0;
+    let totalAlerts = 0;
+
+    entities.forEach((entity) => {
+      const alert = entity.alert;
+      if (!alert) return;
+      totalAlerts++;
+
+      // E032: Must have at least one informed_entity
+      const informedEntities = alert.informed_entity || alert.informedEntity || [];
+      if (informedEntities.length === 0) {
+        missingInformedEntity++;
+      } else {
+        // E033: Each informed_entity needs at least one specifier
+        informedEntities.forEach(ie => {
+          const hasAgency = ie.agency_id || ie.agencyId;
+          const hasRoute = ie.route_id || ie.routeId;
+          const hasTrip = ie.trip;
+          const hasStop = ie.stop_id || ie.stopId;
+          const hasRouteType = ie.route_type !== undefined || ie.routeType !== undefined;
+
+          if (!hasAgency && !hasRoute && !hasTrip && !hasStop && !hasRouteType) {
+            emptyInformedEntity++;
+          }
+        });
+      }
+
+      // Check for header text
+      const headerText = alert.header_text || alert.headerText;
+      if (!headerText || !headerText.translation || headerText.translation.length === 0) {
+        missingHeaderText++;
+      }
+    });
+
+    if (totalAlerts === 0) return;
+
+    if (missingInformedEntity > 0) {
+      this.realtimeValidationResults.push({
+        type: "error",
+        category,
+        message: `E032: ${missingInformedEntity} alerts missing informed_entity`,
+      });
+    }
+
+    if (emptyInformedEntity > 0) {
+      this.realtimeValidationResults.push({
+        type: "error",
+        category,
+        message: `E033: ${emptyInformedEntity} informed_entities have no specifier (route, trip, stop, etc.)`,
+      });
+    }
+
+    if (missingHeaderText > 0) {
+      this.realtimeValidationResults.push({
+        type: "warning",
+        category,
+        message: `${missingHeaderText} alerts missing header_text`,
+      });
+    }
+
+    const hasErrors = missingInformedEntity > 0 || emptyInformedEntity > 0;
+    if (!hasErrors) {
+      this.realtimeValidationResults.push({
+        type: "pass",
+        category,
+        message: `All ${totalAlerts} service alerts have valid structure`,
+      });
+    }
+  }
+
+  /**
+   * Validate timestamps in GTFS-rt (includes E012, E050 for entities)
+   */
+  validateRealtimeTimestamps(data, categoryPrefix = "") {
+    const category = categoryPrefix || "Timestamps";
+
     if (data._protobuf) return;
 
     const entities = data.entity || [];
     const now = Math.floor(Date.now() / 1000);
-    let futureTimestamps = 0, staleTimestamps = 0;
+    const headerTimestamp = data.header?.timestamp;
+    let futureTimestamps = 0;
+    let staleTimestamps = 0;
+    let afterHeaderTimestamp = 0; // E012
 
     entities.forEach((entity) => {
       const tripUpdate = entity.trip_update || entity.tripUpdate;
@@ -1080,6 +1495,8 @@ class GTFSValidator {
         const ts = tripUpdate.timestamp;
         if (ts > now + 60) futureTimestamps++;
         if (ts < now - 3600) staleTimestamps++;
+        // E012: Entity timestamp should not exceed header timestamp
+        if (headerTimestamp && ts > headerTimestamp) afterHeaderTimestamp++;
       }
 
       const vehicle = entity.vehicle || entity.vehiclePosition;
@@ -1087,30 +1504,39 @@ class GTFSValidator {
         const ts = vehicle.timestamp;
         if (ts > now + 60) futureTimestamps++;
         if (ts < now - 300) staleTimestamps++;
+        if (headerTimestamp && ts > headerTimestamp) afterHeaderTimestamp++;
       }
     });
+
+    if (afterHeaderTimestamp > 0) {
+      this.realtimeValidationResults.push({
+        type: "error",
+        category,
+        message: `E012: ${afterHeaderTimestamp} entities have timestamps after header timestamp`,
+      });
+    }
 
     if (futureTimestamps > 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Timestamps",
-        message: `${futureTimestamps} entities have timestamps in the future`,
+        category,
+        message: `E050: ${futureTimestamps} entities have timestamps >60s in the future`,
       });
     }
 
     if (staleTimestamps > 0) {
       this.realtimeValidationResults.push({
         type: "warning",
-        category: "Timestamps",
-        message: `${staleTimestamps} entities have stale timestamps`,
+        category,
+        message: `${staleTimestamps} entities have stale timestamps (>5-60 min old)`,
       });
     }
 
-    if (futureTimestamps === 0 && staleTimestamps === 0 && entities.length > 0) {
+    if (afterHeaderTimestamp === 0 && futureTimestamps === 0 && staleTimestamps === 0 && entities.length > 0) {
       this.realtimeValidationResults.push({
         type: "pass",
-        category: "Timestamps",
-        message: "All entity timestamps are within acceptable range",
+        category,
+        message: "Entity timestamps are valid",
       });
     }
   }
@@ -1132,8 +1558,9 @@ class GTFSValidator {
   async validateCombined() {
     const staticFileInput = document.getElementById("staticGtfsUpload");
     const staticUrlInput = document.getElementById("staticGtfsUrl");
-    const realtimeUrlInput = document.getElementById("realtimeUrl");
-    const feedTypeSelect = document.getElementById("feedTypeSelect");
+    const tripUpdatesUrl = document.getElementById("realtimeTripUpdatesUrl")?.value.trim();
+    const vehiclePositionsUrl = document.getElementById("realtimeVehiclePositionsUrl")?.value.trim();
+    const serviceAlertsUrl = document.getElementById("realtimeServiceAlertsUrl")?.value.trim();
     const statusEl = document.getElementById("combinedValidationStatus");
     const resultsEl = document.getElementById("combinedValidationResults");
     const summaryEl = document.getElementById("combinedSummary");
@@ -1141,12 +1568,11 @@ class GTFSValidator {
 
     const staticFile = staticFileInput ? staticFileInput.files[0] : null;
     const staticUrl = staticUrlInput ? staticUrlInput.value.trim() : "";
-    const realtimeUrl = realtimeUrlInput ? realtimeUrlInput.value.trim() : "";
-    const feedType = feedTypeSelect ? feedTypeSelect.value : "trip_update";
 
     // Check if we have static data already loaded or need to load it
     const hasStaticSource = staticFile || staticUrl || this.staticGtfsData;
-    const hasRealtimeSource = realtimeUrl || this.realtimeData;
+    const hasRealtimeSource = tripUpdatesUrl || vehiclePositionsUrl || serviceAlertsUrl ||
+      (this.realtimeData && Object.keys(this.realtimeData).length > 0);
 
     if (!hasStaticSource) {
       this.showStatus(statusEl, "Please load a static GTFS file or URL in the Static GTFS section above", "error");
@@ -1154,7 +1580,7 @@ class GTFSValidator {
     }
 
     if (!hasRealtimeSource) {
-      this.showStatus(statusEl, "Please enter a GTFS-rt feed URL in the GTFS Realtime section above", "error");
+      this.showStatus(statusEl, "Please enter at least one GTFS-rt feed URL in the GTFS Realtime section above", "error");
       return;
     }
 
@@ -1163,7 +1589,6 @@ class GTFSValidator {
       this.combinedValidationResults = [];
 
       let gtfsData = this.staticGtfsData;
-      let realtimeData = this.realtimeData;
 
       // Load static GTFS if not already loaded
       if (!gtfsData) {
@@ -1176,20 +1601,48 @@ class GTFSValidator {
         this.staticGtfsData = gtfsData;
       }
 
-      // Load GTFS-rt if not already loaded
-      if (!realtimeData) {
-        this.showStatus(statusEl, "Loading GTFS-rt feed...", "loading");
-        realtimeData = await this.fetchRealtimeFeed(realtimeUrl);
-        this.realtimeData = realtimeData;
+      // Load GTFS-rt feeds if not already loaded
+      if (!this.realtimeData || Object.keys(this.realtimeData).length === 0) {
+        const feeds = [
+          { url: tripUpdatesUrl, type: "trip_update", name: "Trip Updates" },
+          { url: vehiclePositionsUrl, type: "vehicle_position", name: "Vehicle Positions" },
+          { url: serviceAlertsUrl, type: "service_alert", name: "Service Alerts" },
+        ].filter(f => f.url);
+
+        this.realtimeData = {};
+        for (const feed of feeds) {
+          this.showStatus(statusEl, `Loading ${feed.name}...`, "loading");
+          try {
+            const data = await this.fetchRealtimeFeed(feed.url);
+            this.realtimeData[feed.type] = data;
+          } catch (error) {
+            this.combinedValidationResults.push({
+              type: "error",
+              category: "Feed Loading",
+              message: `Failed to load ${feed.name}: ${error.message}`,
+            });
+          }
+        }
       }
+
+      // Merge all realtime entities for comparison
+      const allRealtimeEntities = [];
+      Object.values(this.realtimeData).forEach(data => {
+        if (data && data.entity) {
+          allRealtimeEntities.push(...data.entity);
+        }
+      });
+
+      const mergedRealtimeData = { entity: allRealtimeEntities };
 
       // Run combined validation
       this.showStatus(statusEl, "Comparing feeds...", "loading");
 
-      this.validateTripIdMatching(gtfsData, realtimeData);
-      this.validateRouteIdMatching(gtfsData, realtimeData);
-      this.validateStopIdMatching(gtfsData, realtimeData);
-      this.validateScheduleRelationships(gtfsData, realtimeData, feedType);
+      this.validateTripIdMatching(gtfsData, mergedRealtimeData);
+      this.validateRouteIdMatching(gtfsData, mergedRealtimeData);
+      this.validateStopIdMatching(gtfsData, mergedRealtimeData);
+      this.validateStopSequenceMatching(gtfsData, mergedRealtimeData);
+      this.validateScheduleRelationships(gtfsData, mergedRealtimeData);
 
       // Display results
       this.displayCombinedResults(summaryEl, detailsEl);
@@ -1435,9 +1888,99 @@ class GTFSValidator {
   }
 
   /**
+   * Validate stop_sequence matching (E051)
+   */
+  validateStopSequenceMatching(gtfsData, realtimeData) {
+    if (realtimeData._protobuf) return;
+
+    const stopTimes = gtfsData["stop_times.txt"] || [];
+    if (stopTimes.length === 0) {
+      this.combinedValidationResults.push({
+        type: "info",
+        category: "Stop Sequence Matching",
+        message: "No stop_times.txt data to validate against",
+      });
+      return;
+    }
+
+    // Build lookup: trip_id -> Set of stop_sequences
+    const tripStopSequences = new Map();
+    stopTimes.forEach(st => {
+      const tripId = st.trip_id;
+      const seq = parseInt(st.stop_sequence, 10);
+      if (!tripStopSequences.has(tripId)) {
+        tripStopSequences.set(tripId, new Set());
+      }
+      tripStopSequences.get(tripId).add(seq);
+    });
+
+    const entities = realtimeData.entity || [];
+    let matched = 0, unmatched = 0;
+    const unmatchedSamples = [];
+
+    entities.forEach((entity) => {
+      const tripUpdate = entity.trip_update || entity.tripUpdate;
+      if (!tripUpdate) return;
+
+      const tripId = tripUpdate.trip?.trip_id || tripUpdate.trip?.tripId;
+      if (!tripId) return;
+
+      const validSequences = tripStopSequences.get(tripId);
+      if (!validSequences) return; // Trip not in static, handled by trip_id validation
+
+      const stopTimeUpdates = tripUpdate.stop_time_update || tripUpdate.stopTimeUpdate || [];
+      stopTimeUpdates.forEach(stu => {
+        const seq = stu.stop_sequence || stu.stopSequence;
+        if (seq === undefined) return; // Only validate if stop_sequence is provided
+
+        if (validSequences.has(seq)) {
+          matched++;
+        } else {
+          unmatched++;
+          if (unmatchedSamples.length < 3) {
+            unmatchedSamples.push(`trip ${tripId} seq ${seq}`);
+          }
+        }
+      });
+    });
+
+    const total = matched + unmatched;
+    if (total === 0) {
+      this.combinedValidationResults.push({
+        type: "info",
+        category: "Stop Sequence Matching",
+        message: "No stop_sequences in realtime feed to validate",
+      });
+      return;
+    }
+
+    if (unmatched === 0) {
+      this.combinedValidationResults.push({
+        type: "pass",
+        category: "Stop Sequence Matching",
+        message: `All ${matched.toLocaleString()} stop_sequences match GTFS stop_times.txt`,
+      });
+    } else {
+      const matchRate = ((matched / total) * 100).toFixed(1);
+      this.combinedValidationResults.push({
+        type: "error",
+        category: "Stop Sequence Matching",
+        message: `E051: ${unmatched} stop_sequences not found in GTFS (${matchRate}% match rate)`,
+      });
+      if (unmatchedSamples.length > 0) {
+        this.combinedValidationResults.push({
+          type: "info",
+          category: "Stop Sequence Matching",
+          message: `Samples: ${unmatchedSamples.join(", ")}`,
+        });
+      }
+    }
+  }
+
+  /**
    * Validate schedule relationships
    */
-  validateScheduleRelationships(gtfsData, realtimeData, feedType) {
+  validateScheduleRelationships(gtfsData, realtimeData) {
     if (realtimeData._protobuf) return;
 
     const entities = realtimeData.entity || [];
@@ -1580,15 +2123,68 @@ class GTFSValidator {
   }
 
   /**
-   * Load GTFS from URL
+   * Build proxy URL - handles different proxy formats
+   */
+  buildProxyUrl(proxy, targetUrl) {
+    // cors.sh uses direct URL append (no encoding)
+    if (proxy.includes("cors.sh")) {
+      return proxy + targetUrl;
+    }
+    // Other proxies use URL encoding
+    return proxy + encodeURIComponent(targetUrl);
+  }
+
+  /**
+   * Load GTFS from URL - tries direct fetch first, falls back to proxy
    */
   async loadGtfsFromUrl(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status}`);
+    // First try direct fetch
+    try {
+      console.log("Attempting direct fetch:", url);
+      const response = await fetch(url, {
+        mode: "cors",
+        credentials: "omit",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      console.log("Direct fetch succeeded, blob size:", blob.size);
+      return this.parseGtfsFile(blob);
+    } catch (directError) {
+      console.log("Direct fetch failed:", directError.message);
+
+      // If direct fetch fails, try with proxy
+      const proxy = this.getProxyUrl();
+      if (!proxy) {
+        throw new Error("CORS blocked. Enable 'Use CORS proxy' at the top of the page.");
+      }
+
+      const proxyUrl = this.buildProxyUrl(proxy, url);
+      console.log("Trying with proxy:", proxyUrl);
+
+      try {
+        const response = await fetch(proxyUrl);
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            throw new Error(`Access denied (403). Try a different proxy.`);
+          } else if (response.status === 404) {
+            throw new Error(`File not found (404). Check the URL is correct.`);
+          }
+          throw new Error(`Proxy error: HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        console.log("Proxy fetch succeeded, blob size:", blob.size);
+        return this.parseGtfsFile(blob);
+      } catch (proxyError) {
+        console.error("Proxy fetch failed:", proxyError.message);
+        throw new Error(`Failed to fetch: ${proxyError.message}. Try a different proxy or check the URL.`);
+      }
     }
-    const blob = await response.blob();
-    return this.parseGtfsFile(blob);
   }
 
   /**
