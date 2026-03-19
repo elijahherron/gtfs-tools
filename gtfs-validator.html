@@ -53,6 +53,7 @@
       }
       .main-content {
         display: flex;
+        flex-direction: column;
         gap: 24px;
       }
       .validators-column {
@@ -60,8 +61,7 @@
         min-width: 0;
       }
       .info-column {
-        width: 320px;
-        flex-shrink: 0;
+        width: 100%;
       }
     </style>
   </head>
@@ -264,76 +264,71 @@
               Validation Information
             </h3>
 
-            <div class="info-section">
-              <h4>Static GTFS Checks</h4>
-              <ul class="check-list">
-                <li><span class="check-icon required"></span>Required files present (agency, stops, routes, trips, stop_times)</li>
-                <li><span class="check-icon required"></span>Required fields in each file</li>
-                <li><span class="check-icon required"></span>Field format validation (lat/lon, times, dates, URLs)</li>
-                <li><span class="check-icon required"></span>Feed expiry dates (feed_info, calendar)</li>
-                <li><span class="check-icon required"></span>Referential integrity between files</li>
-                <li><span class="check-icon required"></span>Duplicate ID detection</li>
-                <li><span class="check-icon optional"></span>Optional file presence</li>
-              </ul>
-            </div>
+            <div class="info-panel-content">
+              <div class="info-section">
+                <h4>Static GTFS Checks</h4>
+                <ul class="check-list">
+                  <li><span class="check-icon required"></span>Required files & fields</li>
+                  <li><span class="check-icon required"></span>Format validation (lat/lon, times, dates)</li>
+                  <li><span class="check-icon required"></span>Feed expiry dates</li>
+                  <li><span class="check-icon required"></span>Referential integrity</li>
+                  <li><span class="check-icon optional"></span>Optional file presence</li>
+                </ul>
+              </div>
 
-            <div class="info-section">
-              <h4>GTFS-rt Checks</h4>
-              <ul class="check-list">
-                <li><span class="check-icon required"></span>E038: Valid gtfs_realtime_version (1.0/2.0)</li>
-                <li><span class="check-icon required"></span>E048/E049: Header timestamp & incrementality</li>
-                <li><span class="check-icon required"></span>E001: POSIX timestamp format</li>
-                <li><span class="check-icon required"></span>E040: stop_time_update has stop_id/sequence</li>
-                <li><span class="check-icon required"></span>E002: Stop sequences sorted</li>
-                <li><span class="check-icon required"></span>E025: Departure not before arrival</li>
-                <li><span class="check-icon required"></span>E026/E027: Valid coordinates & bearing</li>
-                <li><span class="check-icon required"></span>E032/E033: Alert informed_entity</li>
-                <li><span class="check-icon optional"></span>W002: Vehicle ID presence</li>
-                <li><span class="check-icon optional"></span>W008: Feed freshness (&lt;65s)</li>
-              </ul>
-            </div>
+              <div class="info-section">
+                <h4>GTFS-rt Checks</h4>
+                <ul class="check-list">
+                  <li><span class="check-icon required"></span>E038: Valid version (1.0/2.0)</li>
+                  <li><span class="check-icon required"></span>E048/E049: Header timestamp</li>
+                  <li><span class="check-icon required"></span>E001: POSIX timestamp format</li>
+                  <li><span class="check-icon required"></span>E002/E025: Stop sequence order</li>
+                  <li><span class="check-icon required"></span>E026/E027: Valid coordinates</li>
+                  <li><span class="check-icon optional"></span>W002/W008: Vehicle ID & freshness</li>
+                </ul>
+              </div>
 
-            <div class="info-section">
-              <h4>Combined Checks</h4>
-              <ul class="check-list">
-                <li><span class="check-icon required"></span>E003: trip_id matching</li>
-                <li><span class="check-icon required"></span>E004: route_id matching</li>
-                <li><span class="check-icon required"></span>E011: stop_id matching</li>
-                <li><span class="check-icon required"></span>E051: stop_sequence matching</li>
-                <li><span class="check-icon optional"></span>Schedule relationship analysis</li>
-              </ul>
-            </div>
+              <div class="info-section">
+                <h4>Combined Checks</h4>
+                <ul class="check-list">
+                  <li><span class="check-icon required"></span>E003: trip_id matching</li>
+                  <li><span class="check-icon required"></span>E004: route_id matching</li>
+                  <li><span class="check-icon required"></span>E011: stop_id matching</li>
+                  <li><span class="check-icon required"></span>E051: stop_sequence matching</li>
+                </ul>
+              </div>
 
-            <div class="info-section">
-              <h4>Result Key</h4>
-              <div class="legend-compact">
-                <div class="legend-row">
-                  <span class="result-icon pass"></span>
-                  <span>Pass</span>
-                </div>
-                <div class="legend-row">
-                  <span class="result-icon warning"></span>
-                  <span>Warning</span>
-                </div>
-                <div class="legend-row">
-                  <span class="result-icon error"></span>
-                  <span>Error</span>
-                </div>
-                <div class="legend-row">
-                  <span class="result-icon info"></span>
-                  <span>Info</span>
+              <div class="info-section">
+                <h4>Result Key</h4>
+                <div class="legend-compact">
+                  <div class="legend-row">
+                    <span class="result-icon pass"></span>
+                    <span>Pass</span>
+                  </div>
+                  <div class="legend-row">
+                    <span class="result-icon warning"></span>
+                    <span>Warning</span>
+                  </div>
+                  <div class="legend-row">
+                    <span class="result-icon error"></span>
+                    <span>Error</span>
+                  </div>
+                  <div class="legend-row">
+                    <span class="result-icon info"></span>
+                    <span>Info</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="info-section">
-              <h4>References</h4>
-              <ul class="reference-list">
-                <li><a href="https://gtfs.org/schedule/reference/" target="_blank">GTFS Schedule Spec</a></li>
-                <li><a href="https://gtfs.org/realtime/reference/" target="_blank">GTFS Realtime Spec</a></li>
-                <li><a href="https://gtfs.org/schedule/best-practices/" target="_blank">Best Practices</a></li>
-                <li><a href="https://github.com/MobilityData/gtfs-realtime-validator" target="_blank">MobilityData Validator Rules</a></li>
-              </ul>
+              <div class="info-section">
+                <h4>References</h4>
+                <ul class="reference-list">
+                  <li><a href="https://gtfs.org/schedule/reference/" target="_blank">GTFS Schedule Spec</a></li>
+                  <li><a href="https://gtfs.org/realtime/reference/" target="_blank">GTFS Realtime Spec</a></li>
+                  <li><a href="https://gtfs.org/schedule/best-practices/" target="_blank">Best Practices</a></li>
+                  <li><a href="https://github.com/MobilityData/gtfs-realtime-validator" target="_blank">MobilityData Validator</a></li>
+                </ul>
+              </div>
             </div>
           </div>
         </aside>
