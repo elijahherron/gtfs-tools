@@ -1,50 +1,37 @@
 /* GTFS Validator Styles */
 
-/* Global Proxy Setting */
-.proxy-setting-global {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: white;
+/* CORS Notice */
+.cors-notice {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
   border-radius: 8px;
   padding: 12px 16px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-  border: 1px solid #e8e8e8;
-  flex-wrap: wrap;
-}
-
-.proxy-setting-global > label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-size: 13px;
-  color: #555;
-  cursor: pointer;
-  white-space: nowrap;
+  color: #856404;
+  line-height: 1.5;
 }
 
-.proxy-setting-global > label input[type="checkbox"] {
-  margin: 0;
+.cors-notice strong {
+  color: #664d03;
 }
 
-.proxy-setting-global > select {
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 13px;
-  background: white;
-  min-width: 150px;
+.cors-notice .cors-tip {
+  opacity: 0.8;
+  font-style: italic;
 }
 
-.proxy-setting-global > input[type="text"] {
-  flex: 1;
-  min-width: 200px;
-  padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: monospace;
+/* Upload option primary highlight */
+.upload-option.primary {
+  background: #e8f4fd;
+  border-radius: 8px;
+  padding: 12px;
+  border: 2px solid #2c5aa0;
+}
+
+.upload-option.primary label {
+  color: #2c5aa0;
+  font-weight: 600;
 }
 
 /* Validator Sections */

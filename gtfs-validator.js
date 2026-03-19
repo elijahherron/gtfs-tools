@@ -23,25 +23,10 @@ class GTFSValidator {
   }
 
   /**
-   * Bind proxy checkbox toggle
+   * Bind proxy toggle (no-op now - proxies are always enabled)
    */
   bindProxyToggle() {
-    const checkbox = document.getElementById("useProxyCheckbox");
-    const proxySelect = document.getElementById("proxySelect");
-    const proxyCustom = document.getElementById("proxyUrlCustom");
-
-    if (checkbox && proxySelect) {
-      checkbox.addEventListener("change", () => {
-        proxySelect.disabled = !checkbox.checked;
-        if (proxyCustom) proxyCustom.disabled = !checkbox.checked;
-      });
-    }
-
-    if (proxySelect && proxyCustom) {
-      proxySelect.addEventListener("change", () => {
-        proxyCustom.style.display = proxySelect.value === "custom" ? "block" : "none";
-      });
-    }
+    // Proxy is now always enabled automatically
   }
 
   /**
@@ -162,7 +147,7 @@ class GTFSValidator {
   }
 
   /**
-   * Get the proxy URL if enabled
+   * Get the proxy URL if enabled (returns "auto" or specific proxy URL)
    */
   getProxyUrl() {
     const useProxy = document.getElementById("useProxyCheckbox");
@@ -174,13 +159,23 @@ class GTFSValidator {
     const proxyCustom = document.getElementById("proxyUrlCustom");
 
     if (proxySelect) {
+      if (proxySelect.value === "auto") {
+        return "auto";
+      }
       if (proxySelect.value === "custom" && proxyCustom) {
-        return proxyCustom.value.trim() || null;
+        return proxyCustom.value.trim() || "auto";
       }
       return proxySelect.value;
     }
 
-    return null;
+    return "auto";
+  }
+
+  /**
+   * Check if proxy is enabled (always true now - proxies are automatic)
+   */
+  isProxyEnabled() {
+    return true;
   }
 
   /**
@@ -250,25 +245,115 @@ class GTFSValidator {
       console.log("   allorigins.win FAILED:", e.message);
     }
 
-    // Test 4: cors.sh
-    console.log("\n4. Trying cors.sh...");
+    // Test 4: corsproxy.org
+    console.log("\n4. Trying corsproxy.org...");
     try {
-      const proxyUrl = "https://cors.sh/" + url;
+      const proxyUrl = "https://corsproxy.org/?" + encodeURIComponent(url);
       console.log("   Proxy URL:", proxyUrl);
       const resp = await fetch(proxyUrl);
-      console.log("   cors.sh Status:", resp.status);
+      console.log("   corsproxy.org Status:", resp.status);
       if (resp.ok) {
         const blob = await resp.blob();
         console.log("   Blob size:", blob.size);
-        return { method: "cors.sh", success: true, size: blob.size };
+        return { method: "corsproxy.org", success: true, size: blob.size };
       } else {
         console.log("   Response not OK");
       }
     } catch (e) {
-      console.log("   cors.sh FAILED:", e.message);
+      console.log("   corsproxy.org FAILED:", e.message);
+    }
+
+    // Test 5: codetabs
+    console.log("\n5. Trying codetabs...");
+    try {
+      const proxyUrl = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url);
+      console.log("   Proxy URL:", proxyUrl);
+      const resp = await fetch(proxyUrl);
+      console.log("   codetabs Status:", resp.status);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        console.log("   Blob size:", blob.size);
+        return { method: "codetabs", success: true, size: blob.size };
+      } else {
+        console.log("   Response not OK");
+      }
+    } catch (e) {
+      console.log("   codetabs FAILED:", e.message);
+    }
+
+    // Test 6: allorigins JSON endpoint
+    console.log("\n6. Trying allorigins.win JSON endpoint...");
+    try {
+      const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
+      console.log("   Proxy URL:", proxyUrl);
+      const resp = await fetch(proxyUrl);
+      console.log("   allorigins JSON Status:", resp.status);
+      if (resp.ok) {
+        const json = await resp.json();
+        console.log("   Got JSON response, contents length:", json.contents?.length);
+        return { method: "allorigins-json", success: true, size: json.contents?.length };
+      }
+    } catch (e) {
+      console.log("   allorigins JSON FAILED:", e.message);
     }
 
     console.log("\n=== ALL METHODS FAILED ===");
+    console.log("\nTroubleshooting suggestions:");
+    console.log("1. Check if you have any browser extensions blocking requests");
+    console.log("2. Try in an incognito/private window");
+    console.log("3. Check browser console Network tab for more details");
+    console.log("4. Try opening this URL directly to verify access:");
+    console.log("   https://corsproxy.io/?" + encodeURIComponent(url));
+    return { success: false };
+  }
+
+  /**
+   * Verify GTFS Editor's exact fetch approach works
+   * Call from console: gtfsValidator.testEditorApproach('your-url')
+   */
+  async testEditorApproach(url) {
+    console.log("=== Testing GTFS Editor's exact approach ===");
+    console.log("URL:", url);
+
+    // Step 1: Try direct (should fail for most GTFS URLs)
+    console.log("\n1. Direct fetch (expect CORS fail)...");
+    try {
+      const response = await fetch(url, {
+        mode: "cors",
+        credentials: "omit",
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        console.log("   DIRECT WORKED! Blob size:", blob.size);
+        return { method: "direct", success: true };
+      }
+    } catch (e) {
+      console.log("   Direct failed (expected):", e.message);
+    }
+
+    // Step 2: Use corsproxy.io exactly like GTFS Editor
+    console.log("\n2. Using corsproxy.io (GTFS Editor method)...");
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    console.log("   Proxy URL:", proxyUrl);
+
+    try {
+      const response = await fetch(proxyUrl);
+      console.log("   Response status:", response.status);
+      console.log("   Response ok:", response.ok);
+      console.log("   Response headers:");
+      response.headers.forEach((v, k) => console.log(`     ${k}: ${v}`));
+
+      if (response.ok) {
+        const blob = await response.blob();
+        console.log("   SUCCESS! Blob size:", blob.size);
+        return { method: "corsproxy.io", success: true, size: blob.size };
+      }
+    } catch (e) {
+      console.log("   FAILED:", e.message);
+      console.log("   Error type:", e.name);
+    }
+
+    console.log("\n=== GTFS Editor approach also failed ===");
     return { success: false };
   }
 
@@ -851,7 +936,7 @@ class GTFSValidator {
   }
 
   /**
-   * Fetch and parse GTFS-rt feed - tries direct fetch first, falls back to proxy
+   * Fetch and parse GTFS-rt feed - tries direct fetch first, falls back to proxies
    */
   async fetchRealtimeFeed(url) {
     // First try direct fetch
@@ -870,33 +955,41 @@ class GTFSValidator {
     } catch (directError) {
       console.log("Direct GTFS-rt fetch failed:", directError.message);
 
-      // If direct fetch fails, try with proxy
-      const proxy = this.getProxyUrl();
-      if (!proxy) {
+      // If direct fetch fails, try proxies
+      if (!this.isProxyEnabled()) {
         throw new Error("CORS blocked. Enable 'Use CORS proxy' at the top of the page.");
       }
 
-      const proxyUrl = this.buildProxyUrl(proxy, url);
-      console.log("Trying GTFS-rt with proxy:", proxyUrl);
+      const selectedProxy = this.getProxyUrl();
 
-      try {
-        const response = await fetch(proxyUrl);
-
-        if (!response.ok) {
-          if (response.status === 403) {
-            throw new Error(`Access denied (403). Try a different proxy.`);
-          } else if (response.status === 404) {
-            throw new Error(`Feed not found (404). Check the URL is correct.`);
-          } else if (response.status >= 500) {
-            throw new Error(`Server error (${response.status}). The feed server may be down.`);
+      // If a specific proxy is selected (not auto), try it first
+      if (selectedProxy && selectedProxy !== "auto") {
+        try {
+          const proxyUrl = this.buildProxyUrl(selectedProxy, url);
+          console.log("Trying selected proxy for GTFS-rt:", proxyUrl);
+          const response = await fetch(proxyUrl);
+          if (response.ok) {
+            console.log("Selected proxy succeeded for GTFS-rt");
+            return await this.parseRealtimeResponse(response);
           }
-          throw new Error(`Proxy error: HTTP ${response.status}`);
+        } catch (e) {
+          console.log("Selected proxy failed for GTFS-rt, trying others...");
         }
+      }
 
-        return await this.parseRealtimeResponse(response);
+      // Try all proxies
+      try {
+        const result = await this.fetchWithProxies(url, false);
+        if (result.response) {
+          return await this.parseRealtimeResponse(result.response);
+        } else if (result.text) {
+          // Handle JSON-wrapped text response
+          return this.parseProtobuf(new TextEncoder().encode(result.text).buffer);
+        }
+        throw new Error("Unexpected proxy response format");
       } catch (proxyError) {
-        console.error("Proxy GTFS-rt fetch failed:", proxyError.message);
-        throw new Error(`Failed to fetch: ${proxyError.message}. Try a different proxy or check the URL.`);
+        console.error("All proxies failed:", proxyError.message);
+        throw new Error(`Failed to fetch: ${proxyError.message}`);
       }
     }
   }
@@ -918,7 +1011,8 @@ class GTFSValidator {
   }
 
   /**
-   * Parse Protocol Buffer data (simplified parser)
+   * Parse Protocol Buffer data for GTFS-realtime
+   * This is a simplified decoder for the GTFS-rt protobuf format
    */
   parseProtobuf(buffer) {
     const bytes = new Uint8Array(buffer);
@@ -932,17 +1026,472 @@ class GTFSValidator {
       return JSON.parse(text);
     }
 
-    // Return a structure indicating protobuf data was received
-    // In production, you'd use protobuf.js to decode this
-    return {
-      _protobuf: true,
-      _size: bytes.length,
-      header: {
-        gtfs_realtime_version: "2.0 (protobuf - limited parsing)",
-        timestamp: Math.floor(Date.now() / 1000),
-      },
-      entity: [],
-    };
+    // Decode GTFS-realtime protobuf format
+    try {
+      return this.decodeGtfsRealtime(bytes);
+    } catch (e) {
+      console.error("Protobuf decode error:", e);
+      // Fallback: return limited info
+      return {
+        _protobuf: true,
+        _parseError: e.message,
+        _size: bytes.length,
+        header: {
+          gtfs_realtime_version: "unknown",
+          timestamp: Math.floor(Date.now() / 1000),
+        },
+        entity: [],
+      };
+    }
+  }
+
+  /**
+   * Simple GTFS-realtime protobuf decoder
+   * Based on gtfs-realtime.proto field numbers
+   */
+  decodeGtfsRealtime(bytes) {
+    const reader = { bytes, pos: 0 };
+    const result = { header: {}, entity: [] };
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        // header (embedded message)
+        const len = this.readVarint(reader);
+        const headerBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        result.header = this.decodeHeader(headerBytes);
+        reader.pos += len;
+      } else if (fieldNum === 2 && wireType === 2) {
+        // entity (repeated embedded message)
+        const len = this.readVarint(reader);
+        const entityBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        const entity = this.decodeEntity(entityBytes);
+        if (entity) result.entity.push(entity);
+        reader.pos += len;
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return result;
+  }
+
+  decodeHeader(bytes) {
+    const reader = { bytes, pos: 0 };
+    const header = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        header.gtfs_realtime_version = this.readString(reader);
+      } else if (fieldNum === 2 && wireType === 0) {
+        header.incrementality = this.readVarint(reader);
+      } else if (fieldNum === 3 && wireType === 0) {
+        header.timestamp = this.readVarint(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return header;
+  }
+
+  decodeEntity(bytes) {
+    const reader = { bytes, pos: 0 };
+    const entity = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        entity.id = this.readString(reader);
+      } else if (fieldNum === 2 && wireType === 0) {
+        entity.is_deleted = this.readVarint(reader) !== 0;
+      } else if (fieldNum === 3 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const tripUpdateBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        entity.trip_update = this.decodeTripUpdate(tripUpdateBytes);
+        reader.pos += len;
+      } else if (fieldNum === 4 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const vehicleBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        entity.vehicle = this.decodeVehiclePosition(vehicleBytes);
+        reader.pos += len;
+      } else if (fieldNum === 5 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const alertBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        entity.alert = this.decodeAlert(alertBytes);
+        reader.pos += len;
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return entity;
+  }
+
+  decodeTripUpdate(bytes) {
+    const reader = { bytes, pos: 0 };
+    const tripUpdate = { stop_time_update: [] };
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const tripBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        tripUpdate.trip = this.decodeTripDescriptor(tripBytes);
+        reader.pos += len;
+      } else if (fieldNum === 2 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const stuBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        const stu = this.decodeStopTimeUpdate(stuBytes);
+        if (stu) tripUpdate.stop_time_update.push(stu);
+        reader.pos += len;
+      } else if (fieldNum === 4 && wireType === 0) {
+        tripUpdate.timestamp = this.readVarint(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return tripUpdate;
+  }
+
+  decodeVehiclePosition(bytes) {
+    const reader = { bytes, pos: 0 };
+    const vehicle = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const tripBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        vehicle.trip = this.decodeTripDescriptor(tripBytes);
+        reader.pos += len;
+      } else if (fieldNum === 2 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const posBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        vehicle.position = this.decodePosition(posBytes);
+        reader.pos += len;
+      } else if (fieldNum === 5 && wireType === 0) {
+        vehicle.timestamp = this.readVarint(reader);
+      } else if (fieldNum === 8 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const vehBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        vehicle.vehicle = this.decodeVehicleDescriptor(vehBytes);
+        reader.pos += len;
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return vehicle;
+  }
+
+  decodeTripDescriptor(bytes) {
+    const reader = { bytes, pos: 0 };
+    const trip = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        trip.trip_id = this.readString(reader);
+      } else if (fieldNum === 2 && wireType === 2) {
+        trip.start_time = this.readString(reader);
+      } else if (fieldNum === 3 && wireType === 2) {
+        trip.start_date = this.readString(reader);
+      } else if (fieldNum === 4 && wireType === 0) {
+        trip.schedule_relationship = this.readVarint(reader);
+      } else if (fieldNum === 5 && wireType === 2) {
+        trip.route_id = this.readString(reader);
+      } else if (fieldNum === 6 && wireType === 0) {
+        trip.direction_id = this.readVarint(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return trip;
+  }
+
+  decodeStopTimeUpdate(bytes) {
+    const reader = { bytes, pos: 0 };
+    const stu = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 0) {
+        stu.stop_sequence = this.readVarint(reader);
+      } else if (fieldNum === 2 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const arrBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        stu.arrival = this.decodeStopTimeEvent(arrBytes);
+        reader.pos += len;
+      } else if (fieldNum === 3 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const depBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        stu.departure = this.decodeStopTimeEvent(depBytes);
+        reader.pos += len;
+      } else if (fieldNum === 4 && wireType === 2) {
+        stu.stop_id = this.readString(reader);
+      } else if (fieldNum === 5 && wireType === 0) {
+        stu.schedule_relationship = this.readVarint(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return stu;
+  }
+
+  decodeStopTimeEvent(bytes) {
+    const reader = { bytes, pos: 0 };
+    const event = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 0) {
+        event.delay = this.readSignedVarint(reader);
+      } else if (fieldNum === 2 && wireType === 0) {
+        event.time = this.readVarint(reader);
+      } else if (fieldNum === 3 && wireType === 0) {
+        event.uncertainty = this.readVarint(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return event;
+  }
+
+  decodePosition(bytes) {
+    const reader = { bytes, pos: 0 };
+    const pos = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 5) {
+        pos.latitude = this.readFloat(reader);
+      } else if (fieldNum === 2 && wireType === 5) {
+        pos.longitude = this.readFloat(reader);
+      } else if (fieldNum === 3 && wireType === 5) {
+        pos.bearing = this.readFloat(reader);
+      } else if (fieldNum === 4 && wireType === 1) {
+        pos.odometer = this.readDouble(reader);
+      } else if (fieldNum === 5 && wireType === 5) {
+        pos.speed = this.readFloat(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return pos;
+  }
+
+  decodeVehicleDescriptor(bytes) {
+    const reader = { bytes, pos: 0 };
+    const veh = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        veh.id = this.readString(reader);
+      } else if (fieldNum === 2 && wireType === 2) {
+        veh.label = this.readString(reader);
+      } else if (fieldNum === 3 && wireType === 2) {
+        veh.license_plate = this.readString(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return veh;
+  }
+
+  decodeAlert(bytes) {
+    const reader = { bytes, pos: 0 };
+    const alert = { informed_entity: [] };
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 5 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const ieBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        const ie = this.decodeEntitySelector(ieBytes);
+        if (ie) alert.informed_entity.push(ie);
+        reader.pos += len;
+      } else if (fieldNum === 10 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const txtBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        alert.header_text = this.decodeTranslatedString(txtBytes);
+        reader.pos += len;
+      } else if (fieldNum === 11 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const txtBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        alert.description_text = this.decodeTranslatedString(txtBytes);
+        reader.pos += len;
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return alert;
+  }
+
+  decodeEntitySelector(bytes) {
+    const reader = { bytes, pos: 0 };
+    const es = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        es.agency_id = this.readString(reader);
+      } else if (fieldNum === 2 && wireType === 2) {
+        es.route_id = this.readString(reader);
+      } else if (fieldNum === 3 && wireType === 0) {
+        es.route_type = this.readVarint(reader);
+      } else if (fieldNum === 4 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const tripBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        es.trip = this.decodeTripDescriptor(tripBytes);
+        reader.pos += len;
+      } else if (fieldNum === 5 && wireType === 2) {
+        es.stop_id = this.readString(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return es;
+  }
+
+  decodeTranslatedString(bytes) {
+    const reader = { bytes, pos: 0 };
+    const ts = { translation: [] };
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        const len = this.readVarint(reader);
+        const transBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+        const trans = this.decodeTranslation(transBytes);
+        if (trans) ts.translation.push(trans);
+        reader.pos += len;
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return ts;
+  }
+
+  decodeTranslation(bytes) {
+    const reader = { bytes, pos: 0 };
+    const trans = {};
+
+    while (reader.pos < reader.bytes.length) {
+      const tag = this.readVarint(reader);
+      const fieldNum = tag >> 3;
+      const wireType = tag & 0x7;
+
+      if (fieldNum === 1 && wireType === 2) {
+        trans.text = this.readString(reader);
+      } else if (fieldNum === 2 && wireType === 2) {
+        trans.language = this.readString(reader);
+      } else {
+        this.skipField(reader, wireType);
+      }
+    }
+
+    return trans;
+  }
+
+  // Protobuf reading helpers
+  readVarint(reader) {
+    let result = 0;
+    let shift = 0;
+    while (reader.pos < reader.bytes.length) {
+      const b = reader.bytes[reader.pos++];
+      result |= (b & 0x7f) << shift;
+      if ((b & 0x80) === 0) break;
+      shift += 7;
+    }
+    return result >>> 0;
+  }
+
+  readSignedVarint(reader) {
+    const n = this.readVarint(reader);
+    return (n >>> 1) ^ -(n & 1);
+  }
+
+  readString(reader) {
+    const len = this.readVarint(reader);
+    const strBytes = reader.bytes.slice(reader.pos, reader.pos + len);
+    reader.pos += len;
+    return new TextDecoder().decode(strBytes);
+  }
+
+  readFloat(reader) {
+    const bytes = reader.bytes.slice(reader.pos, reader.pos + 4);
+    reader.pos += 4;
+    return new DataView(bytes.buffer, bytes.byteOffset, 4).getFloat32(0, true);
+  }
+
+  readDouble(reader) {
+    const bytes = reader.bytes.slice(reader.pos, reader.pos + 8);
+    reader.pos += 8;
+    return new DataView(bytes.buffer, bytes.byteOffset, 8).getFloat64(0, true);
+  }
+
+  skipField(reader, wireType) {
+    if (wireType === 0) {
+      this.readVarint(reader);
+    } else if (wireType === 1) {
+      reader.pos += 8;
+    } else if (wireType === 2) {
+      const len = this.readVarint(reader);
+      reader.pos += len;
+    } else if (wireType === 5) {
+      reader.pos += 4;
+    }
   }
 
   /**
@@ -1962,8 +2511,10 @@ class GTFSValidator {
       });
     } else {
       const matchRate = ((matched / total) * 100).toFixed(1);
+      // Downgrade to warning if match rate is high (>= 95%)
+      const severityType = parseFloat(matchRate) >= 95 ? "warning" : "error";
       this.combinedValidationResults.push({
-        type: "error",
+        type: severityType,
         category: "Stop Sequence Matching",
         message: `E051: ${unmatched} stop_sequences not found in GTFS (${matchRate}% match rate)`,
       });
@@ -2123,19 +2674,76 @@ class GTFSValidator {
   }
 
   /**
+   * List of CORS proxies to try in order
+   * Note: corsproxy.io now blocks zip/binary files on free plan
+   */
+  getProxyList() {
+    return [
+      // These may work for binary files
+      { name: "corsproxy.org", url: "https://corsproxy.org/?", encode: true, type: "raw" },
+      { name: "codetabs", url: "https://api.codetabs.com/v1/proxy?quest=", encode: true, type: "raw" },
+      { name: "allorigins-raw", url: "https://api.allorigins.win/raw?url=", encode: true, type: "raw" },
+      // corsproxy.io blocks binary on free plan - try last
+      { name: "corsproxy.io", url: "https://corsproxy.io/?", encode: true, type: "raw" },
+    ];
+  }
+
+  /**
    * Build proxy URL - handles different proxy formats
    */
-  buildProxyUrl(proxy, targetUrl) {
-    // cors.sh uses direct URL append (no encoding)
-    if (proxy.includes("cors.sh")) {
+  buildProxyUrl(proxy, targetUrl, encode = true) {
+    if (!encode || proxy.includes("cors.sh")) {
       return proxy + targetUrl;
     }
-    // Other proxies use URL encoding
     return proxy + encodeURIComponent(targetUrl);
   }
 
   /**
-   * Load GTFS from URL - tries direct fetch first, falls back to proxy
+   * Try fetching with multiple proxies until one works
+   */
+  async fetchWithProxies(url, returnBlob = false) {
+    const proxies = this.getProxyList();
+    const errors = [];
+
+    for (const proxy of proxies) {
+      const proxyUrl = this.buildProxyUrl(proxy.url, url, proxy.encode);
+      console.log(`Trying ${proxy.name}:`, proxyUrl);
+
+      try {
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+          console.log(`${proxy.name} SUCCESS! Status:`, response.status);
+
+          // Handle JSON-wrapped responses (like allorigins /get endpoint)
+          if (proxy.type === "json") {
+            const json = await response.json();
+            if (json.contents) {
+              console.log(`${proxy.name} returned JSON-wrapped content`);
+              // Convert base64 or string content to blob
+              if (returnBlob) {
+                // For binary data, contents might be base64
+                const blob = new Blob([json.contents]);
+                return { blob, proxy: proxy.name };
+              }
+              return { text: json.contents, proxy: proxy.name };
+            }
+          }
+
+          return { response, proxy: proxy.name };
+        }
+        console.log(`${proxy.name} returned status:`, response.status);
+        errors.push(`${proxy.name}: HTTP ${response.status}`);
+      } catch (e) {
+        console.log(`${proxy.name} FAILED:`, e.message);
+        errors.push(`${proxy.name}: ${e.message}`);
+      }
+    }
+
+    throw new Error(`All proxies failed: ${errors.join("; ")}`);
+  }
+
+  /**
+   * Load GTFS from URL - tries direct fetch first, falls back to proxies
    */
   async loadGtfsFromUrl(url) {
     // First try direct fetch
@@ -2156,33 +2764,43 @@ class GTFSValidator {
     } catch (directError) {
       console.log("Direct fetch failed:", directError.message);
 
-      // If direct fetch fails, try with proxy
-      const proxy = this.getProxyUrl();
-      if (!proxy) {
+      // If direct fetch fails, try proxies
+      if (!this.isProxyEnabled()) {
         throw new Error("CORS blocked. Enable 'Use CORS proxy' at the top of the page.");
       }
 
-      const proxyUrl = this.buildProxyUrl(proxy, url);
-      console.log("Trying with proxy:", proxyUrl);
+      const selectedProxy = this.getProxyUrl();
 
-      try {
-        const response = await fetch(proxyUrl);
-
-        if (!response.ok) {
-          if (response.status === 403) {
-            throw new Error(`Access denied (403). Try a different proxy.`);
-          } else if (response.status === 404) {
-            throw new Error(`File not found (404). Check the URL is correct.`);
+      // If a specific proxy is selected (not auto), try it first
+      if (selectedProxy && selectedProxy !== "auto") {
+        try {
+          const proxyUrl = this.buildProxyUrl(selectedProxy, url);
+          console.log("Trying selected proxy:", proxyUrl);
+          const response = await fetch(proxyUrl);
+          if (response.ok) {
+            const blob = await response.blob();
+            console.log("Selected proxy succeeded, blob size:", blob.size);
+            return this.parseGtfsFile(blob);
           }
-          throw new Error(`Proxy error: HTTP ${response.status}`);
+        } catch (e) {
+          console.log("Selected proxy failed, trying others...");
         }
+      }
 
-        const blob = await response.blob();
-        console.log("Proxy fetch succeeded, blob size:", blob.size);
+      // Try all proxies
+      try {
+        const result = await this.fetchWithProxies(url, true);
+        let blob;
+        if (result.blob) {
+          blob = result.blob;
+        } else if (result.response) {
+          blob = await result.response.blob();
+        }
+        console.log(`Proxy fetch succeeded via ${result.proxy}, blob size:`, blob.size);
         return this.parseGtfsFile(blob);
       } catch (proxyError) {
-        console.error("Proxy fetch failed:", proxyError.message);
-        throw new Error(`Failed to fetch: ${proxyError.message}. Try a different proxy or check the URL.`);
+        console.error("All proxies failed:", proxyError.message);
+        throw new Error(`Failed to fetch: ${proxyError.message}`);
       }
     }
   }

@@ -83,19 +83,12 @@
       <div class="main-content">
         <!-- Validators Column -->
         <div class="validators-column">
-          <!-- Global Proxy Setting -->
-          <div class="proxy-setting-global">
-            <label>
-              <input type="checkbox" id="useProxyCheckbox" checked />
-              Use CORS proxy for URL fetching
-            </label>
-            <select id="proxySelect">
-              <option value="https://corsproxy.io/?">corsproxy.io</option>
-              <option value="https://api.allorigins.win/raw?url=">allorigins.win</option>
-              <option value="https://cors.sh/">cors.sh (no encoding)</option>
-              <option value="custom">Custom...</option>
-            </select>
-            <input type="text" id="proxyUrlCustom" placeholder="https://your-proxy.com/?url=" style="display: none;" />
+          <!-- CORS Notice -->
+          <div class="cors-notice">
+            <strong>Note:</strong> Most public CORS proxies now block binary files (zip).
+            <strong>For Static GTFS, use file upload.</strong>
+            For realtime feeds (.pb), URL fetch may still work.
+            <span class="cors-tip">Or install a browser CORS extension.</span>
           </div>
           <!-- Static GTFS Validation Section -->
           <section class="validator-section" id="static-section">
@@ -113,14 +106,14 @@
             </div>
 
             <div class="upload-row">
-              <div class="upload-option">
-                <label for="staticGtfsUrl">Load from URL:</label>
-                <input type="text" id="staticGtfsUrl" placeholder="https://example.com/gtfs.zip" />
+              <div class="upload-option primary">
+                <label for="staticGtfsUpload">Upload GTFS .zip file (recommended):</label>
+                <input type="file" id="staticGtfsUpload" accept=".zip" />
               </div>
               <div class="upload-divider">OR</div>
               <div class="upload-option">
-                <label for="staticGtfsUpload">Upload GTFS .zip file:</label>
-                <input type="file" id="staticGtfsUpload" accept=".zip" />
+                <label for="staticGtfsUrl">Load from URL (may require CORS extension):</label>
+                <input type="text" id="staticGtfsUrl" placeholder="https://example.com/gtfs.zip" />
               </div>
               <button id="validateStaticBtn" class="validate-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
