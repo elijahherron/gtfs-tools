@@ -3,17 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Transit Data Sources — GTFS Tools</title>
+  <title>Transit Sources — GTFS Tools</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #333; }
 
-    /* ── Layout ─────────────────────────────────────────── */
+    /* ── App shell ─────────────────────────────────────── */
     .app-container { display: flex; height: 100vh; }
-
-    /* Sidebar – matches main app */
     .sidebar {
       width: 250px; flex-shrink: 0;
       background: linear-gradient(180deg, #2c5aa0 0%, #1c4580 100%);
@@ -22,285 +20,536 @@
     }
     .sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
     .sidebar-header h2 { font-size: 20px; font-weight: 700; }
-    .sidebar-header p { font-size: 11px; opacity: .55; margin-top: 4px; }
-    .nav-menu { list-style: none; padding: 16px 0; margin: 0; flex: 1; overflow-y: auto; }
+    .sidebar-header p  { font-size: 11px; opacity: .55; margin-top: 4px; }
+    .nav-menu { list-style: none; padding: 16px 0; margin: 0; }
     .nav-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 13px 20px; cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; gap: 12px; padding: 13px 20px;
       color: rgba(255,255,255,.8); font-size: 14px; font-weight: 500;
-      border-left: 3px solid transparent; text-decoration: none;
+      border-left: 3px solid transparent; text-decoration: none; transition: all .2s;
     }
     .nav-item:hover { background: rgba(255,255,255,.1); color: white; }
     .nav-item.active { background: rgba(255,255,255,.15); color: white; border-left-color: #4caf50; }
     .nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
 
-    /* Main panel */
     .main-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
-    /* ── Page header ─────────────────────────────────────── */
+    /* ── Page header ───────────────────────────────────── */
     .page-header {
       background: white; border-bottom: 1px solid #e0e0e0;
-      padding: 18px 28px; display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+      padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; flex-wrap: wrap;
     }
-    .page-header-text h1 { font-size: 22px; font-weight: 700; color: #1c4580; }
-    .page-header-text p { font-size: 13px; color: #777; margin-top: 3px; }
-    .search-wrap { margin-left: auto; position: relative; }
-    .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #aaa; pointer-events: none; }
-    #search-input {
-      width: 300px; padding: 9px 16px 9px 38px;
-      border: 1px solid #ddd; border-radius: 20px; font-size: 14px;
-      outline: none; transition: border-color .2s;
-    }
-    #search-input:focus { border-color: #2c5aa0; }
+    .page-header-text h1 { font-size: 20px; font-weight: 700; color: #1c4580; }
+    .page-header-text p  { font-size: 12px; color: #888; margin-top: 2px; }
 
-    /* ── Stats chips ─────────────────────────────────────── */
-    .stats-bar {
-      display: flex; gap: 10px; padding: 12px 28px; background: white;
-      border-bottom: 1px solid #e0e0e0; flex-shrink: 0; flex-wrap: wrap; align-items: center;
+    /* ── Tabs ──────────────────────────────────────────── */
+    .tab-bar { display: flex; gap: 4px; background: #f0f2f5; border-radius: 8px; padding: 3px; }
+    .tab-btn {
+      padding: 6px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; color: #666; background: transparent; transition: all .15s;
     }
-    .stat-chip {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: all .15s; border: 2px solid transparent; user-select: none;
+    .tab-btn.active { background: white; color: #1c4580; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .tab-btn:hover:not(.active) { background: rgba(255,255,255,.6); }
+
+    /* ── Header action buttons ─────────────────────────── */
+    .header-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; border: 1px solid transparent; white-space: nowrap; }
+    .btn-primary   { background: #2c5aa0; color: white; }
+    .btn-primary:hover { background: #1c4580; }
+    .btn-secondary { background: white; color: #2c5aa0; border-color: #c5d5f0; }
+    .btn-secondary:hover { background: #f0f4fb; }
+    .btn-ghost     { background: transparent; color: #888; border-color: #ddd; }
+    .btn-ghost:hover { background: #f5f5f5; color: #555; }
+    .btn svg { width: 14px; height: 14px; }
+
+    /* ── Filter bar ────────────────────────────────────── */
+    .filters-bar {
+      display: flex; align-items: center; gap: 12px; padding: 10px 24px;
+      background: #f8f9fa; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; flex-wrap: wrap;
     }
+    .filter-label { font-size: 13px; color: #777; font-weight: 500; }
+    .filter-select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: white; outline: none; cursor: pointer; font-family: inherit; }
+    .filter-select:focus { border-color: #2c5aa0; }
+    .result-count { font-size: 13px; color: #aaa; }
+    .clear-btn { background: none; border: none; font-size: 13px; color: #2c5aa0; cursor: pointer; text-decoration: underline; font-family: inherit; }
+
+    .search-wrap { position: relative; }
+    .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: #aaa; pointer-events: none; }
+    .search-wrap input { padding: 7px 12px 7px 30px; border: 1px solid #ddd; border-radius: 20px; font-size: 13px; outline: none; font-family: inherit; width: 220px; }
+    .search-wrap input:focus { border-color: #2c5aa0; }
+
+    /* ── Tab panels ────────────────────────────────────── */
+    .tab-panel { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .results-area { flex: 1; overflow-y: auto; padding: 16px 24px 20px; }
+
+    /* ── Center states ─────────────────────────────────── */
+    .center-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 40px; gap: 12px; color: #aaa; text-align: center; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #2c5aa0; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .center-state p { font-size: 14px; }
+    .center-state .sub { font-size: 12px; color: #bbb; }
+
+    /* ── My Database table ─────────────────────────────── */
+    .sources-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sources-table th {
+      background: #f5f7fa; padding: 9px 12px; text-align: left;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #888;
+      border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; z-index: 2;
+    }
+    .sources-table td { padding: 9px 12px; border-bottom: 1px solid #f2f2f2; vertical-align: middle; }
+    .sources-table tbody tr.agency-row:hover td { background: #fafbff; }
+    .sources-table tbody tr.agency-row:last-of-type td { border-bottom: none; }
+
+    /* Country group header row */
+    .country-group-row td {
+      background: #1c3a72; color: white; padding: 0; border-bottom: none;
+    }
+    .country-group-inner {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    }
+    .cg-chevron {
+      width: 20px; height: 20px; background: none; border: none; cursor: pointer;
+      color: rgba(255,255,255,.7); flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; transition: background .15s;
+    }
+    .cg-chevron:hover { background: rgba(255,255,255,.15); color: white; }
+    .cg-chevron svg { width: 14px; height: 14px; transition: transform .2s; }
+    .cg-chevron.open svg { transform: rotate(90deg); }
+    .cg-flag  { font-size: 20px; line-height: 1; }
+    .cg-name  { font-size: 14px; font-weight: 700; }
+    .cg-count { font-size: 12px; opacity: .6; }
+    .cg-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+    .cg-btn {
+      padding: 4px 10px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+      border-radius: 5px; color: white; font-size: 12px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: background .15s;
+    }
+    .cg-btn:hover { background: rgba(255,255,255,.22); }
+    .cg-btn-danger:hover { background: rgba(220,50,50,.4); border-color: rgba(255,100,100,.4); }
+
+    /* Country status — inline select on the group header */
+    .status-select {
+      appearance: none; -webkit-appearance: none; background: transparent;
+      border: none; font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: inherit; padding: 3px 22px 3px 8px; border-radius: 5px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,.6)'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 6px center;
+    }
+
+    /* Agency name + city */
+    .agency-name { font-weight: 600; color: #222; }
+    .agency-loc  { font-size: 11px; color: #999; margin-top: 2px; }
+
+    /* ── Badges ────────────────────────────────────────── */
+    .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
+    .badge a { color: inherit; text-decoration: none; }
+    .badge a:hover { text-decoration: underline; }
+    .badge-yes    { background: #dbeafe; color: #1d4ed8; }
+    .badge-no     { background: #f3f4f6; color: #9ca3af; }
+    .badge-vp     { background: #d1fae5; color: #065f46; }
+    .badge-tu     { background: #dcfce7; color: #166534; }
+    .badge-sa     { background: #fef3c7; color: #92400e; }
+    .badge-mode   { background: #ede9fe; color: #5b21b6; margin-right: 3px; margin-bottom: 2px; }
+    .badge-quality-high   { background: #d1fae5; color: #065f46; }
+    .badge-quality-medium { background: #fef3c7; color: #92400e; }
+    .badge-quality-low    { background: #fee2e2; color: #991b1b; }
+    .dash { color: #ddd; font-size: 14px; }
+
+    /* Status badges */
+    .status-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; letter-spacing: .2px; }
+    .s-not-started  { background: #eceff1; color: #546e7a; }
+    .s-sourcing     { background: #f3e5f5; color: #6a1b9a; }
+    .s-working      { background: #e3f2fd; color: #1565c0; }
+    .s-finished     { background: #e8f5e9; color: #2e7d32; }
+    .s-blocked      { background: #ffebee; color: #c62828; }
+
+    /* Country header status uses lighter text on dark bg */
+    .status-select.s-not-started  { color: #b0bec5; }
+    .status-select.s-sourcing     { color: #ce93d8; }
+    .status-select.s-working      { color: #90caf9; }
+    .status-select.s-finished     { color: #a5d6a7; }
+    .status-select.s-blocked      { color: #ef9a9a; }
+
+    /* ── Action buttons in table rows ──────────────────── */
+    .row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+    .agency-row:hover .row-actions { opacity: 1; }
+    .icon-btn {
+      width: 28px; height: 28px; background: none; border: 1px solid #e0e0e0; border-radius: 5px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: #888; transition: all .15s;
+    }
+    .icon-btn:hover { background: #f0f4ff; border-color: #c5d5f0; color: #2c5aa0; }
+    .icon-btn.danger:hover { background: #fff0f0; border-color: #fcc; color: #c62828; }
+    .icon-btn svg { width: 13px; height: 13px; }
+
+    /* ── Browse tab stats chips ────────────────────────── */
+    .stats-bar { display: flex; gap: 10px; padding: 12px 24px; background: white; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; flex-wrap: wrap; }
+    .stat-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; border: 2px solid transparent; user-select: none; }
     .stat-chip:hover { opacity: .85; }
     .stat-chip.active-filter { border-color: currentColor; }
-    .stat-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .stat-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
     .chip-all     { background: #f0f2f5; color: #555; }
     .chip-full    { background: #e8f5e9; color: #2e7d32; }
     .chip-partial { background: #fff3e0; color: #e65100; }
     .chip-static  { background: #e3f2fd; color: #1565c0; }
     .chip-rtonly  { background: #f3e5f5; color: #6a1b9a; }
-
-    /* ── Filter bar ──────────────────────────────────────── */
-    .filters-bar {
-      display: flex; gap: 14px; align-items: center; padding: 10px 28px;
-      background: #f8f9fa; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; flex-wrap: wrap;
-    }
-    .filter-label { font-size: 13px; color: #666; font-weight: 500; }
-    .filter-select {
-      padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px;
-      font-size: 13px; background: white; outline: none; cursor: pointer;
-    }
-    .filter-select:focus { border-color: #2c5aa0; }
-    .filter-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; cursor: pointer; }
-    .filter-check input { cursor: pointer; }
-    .clear-btn {
-      margin-left: auto; font-size: 13px; color: #2c5aa0; cursor: pointer;
-      background: none; border: none; font-family: inherit; padding: 0; text-decoration: underline;
-    }
-    .result-count { font-size: 13px; color: #888; margin-left: 4px; }
-
-    /* ── Results area ────────────────────────────────────── */
-    .results-area { flex: 1; overflow-y: auto; padding: 16px 28px 20px; }
-
-    /* Loading / empty / error */
-    .center-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 40px; gap: 14px; color: #888; text-align: center; }
-    .spinner { width: 36px; height: 36px; border: 3px solid #e0e0e0; border-top-color: #2c5aa0; border-radius: 50%; animation: spin .7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .center-state p { font-size: 15px; }
-    .center-state .sub { font-size: 13px; color: #aaa; }
-
-    /* ── Country sections ────────────────────────────────── */
-    .country-section {
-      background: white; border: 1px solid #e0e0e0; border-radius: 10px;
-      margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05);
-    }
-    .country-header {
-      display: flex; align-items: center; gap: 12px; padding: 13px 18px;
-      cursor: pointer; user-select: none; transition: background .15s;
-    }
+    .country-section { background: white; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .country-header { display: flex; align-items: center; gap: 12px; padding: 13px 18px; cursor: pointer; user-select: none; transition: background .15s; }
     .country-header:hover { background: #fafafa; }
     .c-flag { font-size: 22px; line-height: 1; flex-shrink: 0; }
     .c-name { font-size: 15px; font-weight: 700; color: #1c4580; }
-    .c-count { font-size: 13px; color: #999; font-weight: 400; }
+    .c-count { font-size: 13px; color: #999; }
     .c-badges { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
-    .c-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; white-space: nowrap; }
-    .cb-full    { background: #e8f5e9; color: #2e7d32; }
+    .c-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
+    .cb-full { background: #e8f5e9; color: #2e7d32; }
     .cb-partial { background: #fff3e0; color: #e65100; }
-    .cb-static  { background: #e3f2fd; color: #1565c0; }
-    .cb-rtonly  { background: #f3e5f5; color: #6a1b9a; }
+    .cb-static { background: #e3f2fd; color: #1565c0; }
+    .cb-rtonly { background: #f3e5f5; color: #6a1b9a; }
     .chevron { width: 16px; height: 16px; color: #bbb; transition: transform .2s; flex-shrink: 0; margin-left: 6px; }
     .chevron.open { transform: rotate(90deg); }
-
-    /* ── Agency table ────────────────────────────────────── */
     .table-wrap { overflow-x: auto; }
     .agency-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .agency-table th {
-      background: #f5f7fa; padding: 9px 14px; text-align: left;
-      font-weight: 600; font-size: 11px; text-transform: uppercase;
-      letter-spacing: .5px; color: #777; border-bottom: 1px solid #e8e8e8;
-    }
+    .agency-table th { background: #f5f7fa; padding: 9px 14px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #777; border-bottom: 1px solid #e8e8e8; }
     .agency-table td { padding: 9px 14px; border-bottom: 1px solid #f2f2f2; vertical-align: middle; }
     .agency-table tbody tr:last-child td { border-bottom: none; }
     .agency-table tbody tr:hover td { background: #fafbff; }
-
-    /* Left-border coverage indicator */
     .row-full     td:first-child { border-left: 3px solid #43a047; padding-left: 11px; }
     .row-partial  td:first-child { border-left: 3px solid #fb8c00; padding-left: 11px; }
     .row-static   td:first-child { border-left: 3px solid #1e88e5; padding-left: 11px; }
     .row-rtonly   td:first-child { border-left: 3px solid #8e24aa; padding-left: 11px; }
-
-    .agency-name { font-weight: 600; color: #222; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .agency-loc  { font-size: 11px; color: #999; margin-top: 2px; white-space: nowrap; }
-
-    /* Feed badges */
     .badges { display: flex; gap: 4px; flex-wrap: wrap; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 3px;
-      padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700;
-      letter-spacing: .3px; white-space: nowrap; line-height: 1.5;
-    }
-    .badge a { color: inherit; text-decoration: none; }
-    .badge a:hover { text-decoration: underline; }
-    .badge-gtfs   { background: #dbeafe; color: #1d4ed8; }
-    .badge-vp     { background: #d1fae5; color: #065f46; }
-    .badge-tu     { background: #dcfce7; color: #166534; }
-    .badge-sa     { background: #fef3c7; color: #92400e; }
-    .badge-dim    { background: #f3f4f6; color: #9ca3af; }
-    .dash { font-size: 13px; color: #ddd; }
-
-    /* Auth badge */
-    .auth { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; white-space: nowrap; }
+    .badge.badge-gtfs { background: #dbeafe; color: #1d4ed8; }
+    .badge.badge-dim  { background: #f3f4f6; color: #9ca3af; }
+    .auth { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; }
     .auth-open  { background: #d1fae5; color: #065f46; }
     .auth-key   { background: #fef3c7; color: #92400e; }
     .auth-oauth { background: #fee2e2; color: #991b1b; }
 
-    /* ── Footer note ─────────────────────────────────────── */
-    .footer-note {
-      padding: 10px 28px; font-size: 12px; color: #aaa;
-      background: white; border-top: 1px solid #e8e8e8; flex-shrink: 0;
+    /* ── Empty country state ───────────────────────────── */
+    .empty-country { padding: 20px 24px; color: #bbb; font-size: 13px; font-style: italic; }
+    .add-first-agency { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; background: #f0f4ff; color: #2c5aa0; border: 1px dashed #c5d5f0; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit; margin-top: 4px; }
+    .add-first-agency:hover { background: #e3f0ff; }
+
+    /* ── Modal ─────────────────────────────────────────── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: white; border-radius: 12px; width: min(700px, 100%); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+    .modal-header { display: flex; align-items: center; gap: 12px; padding: 18px 24px 14px; border-bottom: 1px solid #eee; flex-shrink: 0; }
+    .modal-header h2 { font-size: 17px; font-weight: 700; color: #1c4580; flex: 1; }
+    .modal-close-btn { background: none; border: none; font-size: 22px; color: #bbb; cursor: pointer; line-height: 1; padding: 4px 6px; border-radius: 4px; }
+    .modal-close-btn:hover { background: #f5f5f5; color: #666; }
+    .modal-body { padding: 18px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+    .modal-footer { padding: 14px 24px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
+    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .modal-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .modal-field { display: flex; flex-direction: column; gap: 5px; }
+    .modal-field label { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .4px; }
+    .modal-field input, .modal-field select, .modal-field textarea {
+      padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;
+      font-family: inherit; outline: none; transition: border-color .2s;
     }
+    .modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { border-color: #2c5aa0; }
+    .modal-field input.error, .modal-field select.error { border-color: #ef5350; }
+    .modal-section { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .5px; padding-bottom: 4px; border-bottom: 1px solid #f0f0f0; margin-top: 4px; }
+    .modes-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .mode-check { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; padding: 5px 10px; border: 1px solid #e0e0e0; border-radius: 6px; transition: all .15s; user-select: none; }
+    .mode-check input { display: none; }
+    .mode-check.checked { background: #ede9fe; border-color: #a78bfa; color: #5b21b6; font-weight: 600; }
+    .mode-check:hover { border-color: #c4b5fd; }
+    .toggle-row { display: flex; align-items: center; gap: 10px; }
+    .toggle-row label { font-size: 13px; color: #555; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .collapsible-fields { display: none; flex-direction: column; gap: 10px; }
+    .collapsible-fields.visible { display: flex; }
+
+    /* ── Import modal ──────────────────────────────────── */
+    .import-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+    .import-item:last-child { border-bottom: none; }
+    .import-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .dot-new     { background: #43a047; }
+    .dot-update  { background: #1e88e5; }
+    .dot-skip    { background: #bbb; }
+
+    /* ── Toast ─────────────────────────────────────────── */
+    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast { padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; color: white; box-shadow: 0 4px 12px rgba(0,0,0,.15); animation: slideIn .2s ease; pointer-events: auto; }
+    .toast-success { background: #2e7d32; }
+    .toast-error   { background: #c62828; }
+    .toast-info    { background: #1565c0; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Footer ────────────────────────────────────────── */
+    .footer-note { padding: 10px 24px; font-size: 12px; color: #aaa; background: white; border-top: 1px solid #e8e8e8; flex-shrink: 0; }
     .footer-note a { color: #2c5aa0; text-decoration: none; }
     .footer-note a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .modal-row, .modal-row-3 { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
 <div class="app-container">
 
-  <!-- ── Sidebar ───────────────────────────────────────────── -->
+  <!-- ── Sidebar ────────────────────────────────────────── -->
   <nav class="sidebar">
     <div class="sidebar-header">
       <h2>GTFS Tools</h2>
       <p>Transit Data Tools</p>
     </div>
     <ul class="nav-menu">
-      <li>
-        <a href="index.html" class="nav-item">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-            <polyline points="13 2 13 9 20 9"/>
-          </svg>
-          GTFS Editor
-        </a>
-      </li>
-      <li>
-        <a href="gtfs-validator.html" class="nav-item">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          Validator
-        </a>
-      </li>
-      <li>
-        <a href="transit-sources.html" class="nav-item active">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-          Transit Sources
-        </a>
-      </li>
-      <li>
-        <a href="upload.html" class="nav-item">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="16 16 12 12 8 16"/>
-            <line x1="12" y1="12" x2="12" y2="21"/>
-            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-          </svg>
-          Upload
-        </a>
-      </li>
+      <li><a href="index.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="13 2 13 9 20 9"/>
+        </svg>GTFS Editor
+      </a></li>
+      <li><a href="gtfs-validator.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>Validator
+      </a></li>
+      <li><a href="transit-sources.html" class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>Transit Sources
+      </a></li>
+      <li><a href="upload.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="16 16 12 12 8 16"/>
+          <line x1="12" y1="12" x2="12" y2="21"/>
+          <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+        </svg>Upload
+      </a></li>
     </ul>
   </nav>
 
-  <!-- ── Main content ──────────────────────────────────────── -->
+  <!-- ── Main content ───────────────────────────────────── -->
   <div class="main-content">
 
-    <!-- Header -->
+    <!-- Page header -->
     <div class="page-header">
       <div class="page-header-text">
-        <h1>Transit Data Sources</h1>
-        <p>Global GTFS + GTFS-RT feed directory · Mobility Database</p>
+        <h1>Transit Sources</h1>
+        <p id="header-subtitle">Track and manage GTFS data sources</p>
       </div>
-      <div class="search-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input id="search-input" type="text" placeholder="Search agency, city, country…">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="mydb">My Database</button>
+        <button class="tab-btn" data-tab="browse">Browse All (MDB)</button>
+      </div>
+      <div class="header-actions" id="header-actions"></div>
+    </div>
+
+    <!-- ── My Database tab ───────────────────────────────── -->
+    <div id="tab-mydb" class="tab-panel">
+      <div class="filters-bar" id="mydb-filters">
+        <span class="filter-label">Status:</span>
+        <select id="f-mydb-status" class="filter-select">
+          <option value="">All statuses</option>
+          <option>NOT STARTED</option><option>SOURCING</option>
+          <option>WORKING</option><option>FINISHED FOR NOW</option><option>BLOCKED</option>
+        </select>
+        <span class="filter-label">Country:</span>
+        <select id="f-mydb-country" class="filter-select">
+          <option value="">All countries</option>
+        </select>
+        <span class="result-count" id="mydb-count"></span>
+        <button class="clear-btn" id="mydb-clear">Clear</button>
+        <div class="search-wrap" style="margin-left:auto">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input id="mydb-search" type="text" placeholder="Search agencies, cities…">
+        </div>
+      </div>
+      <div class="results-area" id="mydb-results">
+        <div class="center-state">
+          <div class="spinner"></div>
+          <p>Loading database…</p>
+        </div>
       </div>
     </div>
 
-    <!-- Stats / filter chips -->
-    <div class="stats-bar">
-      <div class="stat-chip chip-all active-filter" data-filter="all">
-        <span class="stat-dot"></span>
-        <span id="s-total">—</span> agencies
+    <!-- ── Browse All tab ────────────────────────────────── -->
+    <div id="tab-browse" class="tab-panel" style="display:none">
+      <div class="stats-bar" id="browse-stats" style="display:none">
+        <div class="stat-chip chip-all active-filter" data-filter="all"><span class="stat-dot"></span><span id="s-total">—</span> agencies</div>
+        <div class="stat-chip chip-full"    data-filter="full">   <span class="stat-dot"></span><span id="s-full">—</span>    Full RT <span style="font-weight:400;font-size:11px;opacity:.7">(GTFS+VP+TU)</span></div>
+        <div class="stat-chip chip-partial" data-filter="partial_rt"><span class="stat-dot"></span><span id="s-partial">—</span> Partial RT</div>
+        <div class="stat-chip chip-static"  data-filter="static_only"><span class="stat-dot"></span><span id="s-static">—</span>  Static only</div>
+        <div class="stat-chip chip-rtonly"  data-filter="rt_only"><span class="stat-dot"></span><span id="s-rtonly">—</span>  RT only</div>
       </div>
-      <div class="stat-chip chip-full" data-filter="full">
-        <span class="stat-dot"></span>
-        <span id="s-full">—</span> Full RT
-        <span style="font-weight:400;font-size:11px;opacity:.7">(GTFS + VP + TU)</span>
+      <div class="filters-bar" id="browse-filters" style="display:none">
+        <span class="filter-label">Country:</span>
+        <select id="f-br-country" class="filter-select"><option value="">All countries</option></select>
+        <span class="filter-label">Status:</span>
+        <select id="f-br-status" class="filter-select">
+          <option value="active">Active only</option><option value="">All statuses</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#555;cursor:pointer">
+          <input type="checkbox" id="f-br-hasrt"> Has real-time
+        </label>
+        <span class="result-count" id="br-count"></span>
+        <button class="clear-btn" id="br-clear">Clear</button>
+        <div class="search-wrap" style="margin-left:auto">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input id="br-search" type="text" placeholder="Search agency, city, country…">
+        </div>
       </div>
-      <div class="stat-chip chip-partial" data-filter="partial_rt">
-        <span class="stat-dot"></span>
-        <span id="s-partial">—</span> Partial RT
-      </div>
-      <div class="stat-chip chip-static" data-filter="static_only">
-        <span class="stat-dot"></span>
-        <span id="s-static">—</span> Static only
-      </div>
-      <div class="stat-chip chip-rtonly" data-filter="rt_only">
-        <span class="stat-dot"></span>
-        <span id="s-rtonly">—</span> RT only
-      </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filters-bar">
-      <span class="filter-label">Country:</span>
-      <select id="f-country" class="filter-select">
-        <option value="">All countries</option>
-      </select>
-
-      <label class="filter-check">
-        <input type="checkbox" id="f-hasrt">
-        Has real-time
-      </label>
-
-      <span class="result-count" id="result-count"></span>
-      <button class="clear-btn" id="clear-btn">Clear filters</button>
-    </div>
-
-    <!-- Results -->
-    <div class="results-area" id="results-area">
-      <div class="center-state" id="loading-state">
-        <div class="spinner"></div>
-        <p>Loading transit feeds…</p>
-        <p class="sub">Fetching from Transitland</p>
+      <div class="results-area" id="browse-results">
+        <div class="center-state" id="browse-init-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <p>Loading global GTFS feed directory…</p>
+          <p class="sub">From the Mobility Database</p>
+        </div>
       </div>
     </div>
 
-    <!-- Footer -->
-    <div class="footer-note">
-      Data from <a href="https://www.transit.land" target="_blank">Transitland</a> by Interline ·
-      <a href="https://www.transit.land/documentation" target="_blank">API docs</a> ·
-      Get a free API key at <a href="https://www.transit.land/sign-up" target="_blank">transit.land/sign-up</a>
-      for faster loading · Coverage: GTFS Schedule + GTFS-RT (VP, TU, SA)
+    <div class="footer-note" id="footer-note">
+      My Database is stored in your browser (localStorage) ·
+      Browse All loads from <a href="https://database.mobilitydata.org" target="_blank">Mobility Database</a>
     </div>
   </div>
 </div>
 
+<!-- ── Agency add/edit modal ──────────────────────────────── -->
+<div id="agency-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="modal-title">Add Agency</h2>
+      <button class="modal-close-btn" id="modal-close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Country *</label>
+          <select id="m-country" required></select>
+        </div>
+        <div class="modal-field">
+          <label>City / Region</label>
+          <input id="m-city" type="text" placeholder="e.g. Zagreb">
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Agency Name *</label>
+        <input id="m-name" type="text" placeholder="e.g. ZET">
+      </div>
+      <div class="modal-field">
+        <label>Modes</label>
+        <div class="modes-grid" id="modes-grid"></div>
+      </div>
+
+      <div class="modal-section">Static Feed</div>
+      <div class="toggle-row">
+        <label><input type="checkbox" id="m-has-static"> Has Static GTFS Feed</label>
+      </div>
+      <div class="collapsible-fields" id="static-fields">
+        <div class="modal-field">
+          <label>Static Feed URL (.zip)</label>
+          <input id="m-static-url" type="url" placeholder="https://…/gtfs.zip">
+        </div>
+      </div>
+
+      <div class="modal-section">Real-Time Feed</div>
+      <div class="toggle-row">
+        <label><input type="checkbox" id="m-has-rt"> Has GTFS-RT Feed</label>
+      </div>
+      <div class="collapsible-fields" id="rt-fields">
+        <div class="modal-row-3">
+          <div class="modal-field">
+            <label>Vehicle Positions (VP)</label>
+            <input id="m-vp" type="url" placeholder="https://…">
+          </div>
+          <div class="modal-field">
+            <label>Trip Updates (TU)</label>
+            <input id="m-tu" type="url" placeholder="https://…">
+          </div>
+          <div class="modal-field">
+            <label>Service Alerts (SA)</label>
+            <input id="m-sa" type="url" placeholder="https://…">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Quality</label>
+          <select id="m-quality">
+            <option value="">—</option>
+            <option>High</option><option>Medium</option><option>Low</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Status</label>
+          <select id="m-status"></select>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Notes</label>
+        <textarea id="m-notes" rows="3" placeholder="Additional notes, caveats, source links…"></textarea>
+      </div>
+      <div class="modal-field" id="m-source-row" style="display:none">
+        <label>Data Source</label>
+        <input id="m-source" type="text" readonly style="background:#f5f5f5;color:#888">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="modal-save">Save Agency</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Import modal ─────────────────────────────────────────── -->
+<div id="import-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <h2>Import from Mobility Database</h2>
+      <button class="modal-close-btn" id="import-close">×</button>
+    </div>
+    <div class="modal-body" id="import-body">
+      <div class="center-state" style="padding:30px">
+        <div class="spinner"></div>
+        <p>Fetching Mobility Database…</p>
+      </div>
+    </div>
+    <div class="modal-footer" id="import-footer" style="display:none">
+      <button class="btn btn-ghost" id="import-cancel">Cancel</button>
+      <button class="btn btn-primary" id="import-confirm">Import Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Country modal ──────────────────────────────────── -->
+<div id="country-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-header">
+      <h2>Add Country</h2>
+      <button class="modal-close-btn" id="cmodal-close">×</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <div class="modal-field">
+        <label>Country Name *</label>
+        <input id="cmodal-name" type="text" placeholder="e.g. France" list="country-datalist">
+        <datalist id="country-datalist"></datalist>
+      </div>
+      <div class="modal-field">
+        <label>Initial Status</label>
+        <select id="cmodal-status"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cmodal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="cmodal-save">Add Country</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
 <script src="transit-sources.js"></script>
 </body>
 </html>
