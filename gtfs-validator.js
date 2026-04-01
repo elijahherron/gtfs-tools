@@ -20,6 +20,29 @@ class GTFSValidator {
     this.bindCombinedValidation();
     this.bindProxyToggle();
     this.updateCombinedSources();
+    this.prefillFromParams();
+  }
+
+  /**
+   * Pre-fill inputs from URL query parameters
+   * Supports: ?static=URL&tu=URL&vp=URL&sa=URL
+   */
+  prefillFromParams() {
+    const params = new URLSearchParams(window.location.search);
+    const map = {
+      'static': 'staticGtfsUrl',
+      'tu': 'realtimeTripUpdatesUrl',
+      'vp': 'realtimeVehiclePositionsUrl',
+      'sa': 'realtimeServiceAlertsUrl'
+    };
+    for (const [key, id] of Object.entries(map)) {
+      const val = params.get(key);
+      if (val) {
+        const el = document.getElementById(id);
+        if (el) { el.value = val; el.dispatchEvent(new Event('input')); }
+      }
+    }
+    this.refreshCombinedIndicators();
   }
 
   /**

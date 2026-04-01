@@ -193,6 +193,14 @@ function staticBadge(ag) {
     ? `<span class="badge badge-yes"><a href="${esc(ag.staticUrl)}" target="_blank" rel="noopener">Yes</a></span>`
     : '<span class="badge badge-yes">Yes</span>';
 }
+function validatorLink(ag) {
+  const p = new URLSearchParams();
+  if (ag.staticUrl) p.set('static', ag.staticUrl);
+  if (ag.rtTuUrl) p.set('tu', ag.rtTuUrl);
+  if (ag.rtVpUrl) p.set('vp', ag.rtVpUrl);
+  if (ag.rtSaUrl) p.set('sa', ag.rtSaUrl);
+  return `gtfs-validator.html?${p.toString()}`;
+}
 function qualityBadge(q) {
   if (!q) return '<span style="color:#ccc">—</span>';
   const cls = q==='High'?'badge-quality-high':q==='Medium'?'badge-quality-medium':'badge-quality-low';
@@ -456,6 +464,9 @@ function buildAgencyRow(ag) {
     <td><div style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#888" title="${esc(ag.notes||'')}">${esc(ag.notes||'—')}</div></td>
     <td>
       <div class="row-actions">
+        ${ag.staticUrl||ag.rtVpUrl||ag.rtTuUrl||ag.rtSaUrl?`<a class="icon-btn" href="${validatorLink(ag)}" target="_blank" rel="noopener" title="Validate GTFS" style="color:#43a047">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        </a>`:''}
         <button class="icon-btn" data-action="edit" title="Edit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
