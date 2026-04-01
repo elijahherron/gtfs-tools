@@ -405,7 +405,7 @@ function renderCountryTable(cc, ags, db) {
   hdr.querySelector('[data-action="remove-country"]').addEventListener('click', e=>{
     e.stopPropagation();
     const n=Object.values(loadDB().agencies).filter(a=>a.countryCode===cc).length;
-    if (!confirm(`Remove ${countryName(cc)}?${n?` This will also delete ${n} agency record${n===1?'':'s'}.':''}`)) return;
+    if (!confirm(`Remove ${countryName(cc)}?${n ? ` This will also delete ${n} agency record${n===1 ? '' : 's'}.` : ''}`)) return;
     dbRemoveCountry(cc); toast(`Removed ${countryName(cc)}`, 'info'); renderMyDatabase();
   });
   hdr.querySelector('.cg-chevron').addEventListener('click', e=>{ e.stopPropagation(); toggleCountryBody(body, hdr.querySelector('.cg-chevron')); });
