@@ -12,25 +12,6 @@
 
     /* ── App shell ─────────────────────────────────────── */
     .app-container { display: flex; height: 100vh; }
-    .sidebar {
-      width: 250px; flex-shrink: 0;
-      background: linear-gradient(180deg, #2c5aa0 0%, #1c4580 100%);
-      color: white; display: flex; flex-direction: column;
-      box-shadow: 2px 0 10px rgba(0,0,0,.1); z-index: 10;
-    }
-    .sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.1); }
-    .sidebar-header h2 { font-size: 20px; font-weight: 700; }
-    .sidebar-header p  { font-size: 11px; opacity: .55; margin-top: 4px; }
-    .nav-menu { list-style: none; padding: 16px 0; margin: 0; }
-    .nav-item {
-      display: flex; align-items: center; gap: 12px; padding: 13px 20px;
-      color: rgba(255,255,255,.8); font-size: 14px; font-weight: 500;
-      border-left: 3px solid transparent; text-decoration: none; transition: all .2s;
-    }
-    .nav-item:hover { background: rgba(255,255,255,.1); color: white; }
-    .nav-item.active { background: rgba(255,255,255,.15); color: white; border-left-color: #4caf50; }
-    .nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
-
     .main-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 
     /* ── Page header ───────────────────────────────────── */
@@ -289,40 +270,6 @@
 <body>
 <div class="app-container">
 
-  <!-- ── Sidebar ────────────────────────────────────────── -->
-  <nav class="sidebar">
-    <div class="sidebar-header">
-      <h2>GTFS Tools</h2>
-      <p>Transit Data Tools</p>
-    </div>
-    <ul class="nav-menu">
-      <li><a href="index.html" class="nav-item">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-          <polyline points="13 2 13 9 20 9"/>
-        </svg>GTFS Editor
-      </a></li>
-      <li><a href="gtfs-validator.html" class="nav-item">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>Validator
-      </a></li>
-      <li><a href="transit-sources.html" class="nav-item active">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-        </svg>Transit Sources
-      </a></li>
-      <li><a href="upload.html" class="nav-item">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="16 16 12 12 8 16"/>
-          <line x1="12" y1="12" x2="12" y2="21"/>
-          <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-        </svg>Upload
-      </a></li>
-    </ul>
-  </nav>
-
   <!-- ── Main content ───────────────────────────────────── -->
   <div class="main-content">
 
@@ -334,7 +281,7 @@
       </div>
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="mydb">My Database</button>
-        <button class="tab-btn" data-tab="browse">Browse All (MDB)</button>
+        <button class="tab-btn" data-tab="browse">Browse Sources</button>
       </div>
       <div class="header-actions" id="header-actions"></div>
     </div>
@@ -371,12 +318,18 @@
 
     <!-- ── Browse All tab ────────────────────────────────── -->
     <div id="tab-browse" class="tab-panel" style="display:none">
-      <div class="stats-bar" id="browse-stats" style="display:none">
-        <div class="stat-chip chip-all active-filter" data-filter="all"><span class="stat-dot"></span><span id="s-total">—</span> agencies</div>
-        <div class="stat-chip chip-full"    data-filter="full">   <span class="stat-dot"></span><span id="s-full">—</span>    Full RT <span style="font-weight:400;font-size:11px;opacity:.7">(GTFS+VP+TU)</span></div>
-        <div class="stat-chip chip-partial" data-filter="partial_rt"><span class="stat-dot"></span><span id="s-partial">—</span> Partial RT</div>
-        <div class="stat-chip chip-static"  data-filter="static_only"><span class="stat-dot"></span><span id="s-static">—</span>  Static only</div>
-        <div class="stat-chip chip-rtonly"  data-filter="rt_only"><span class="stat-dot"></span><span id="s-rtonly">—</span>  RT only</div>
+      <div class="stats-bar" id="browse-stats">
+        <select id="browse-source" class="filter-select" style="font-weight:600;border-color:#c5d5f0;color:#2c5aa0;margin-right:8px">
+          <option value="feeds_v2">Feeds v2 (Local)</option>
+          <option value="mdb">Mobility Database (Remote)</option>
+        </select>
+        <div id="browse-stat-chips" style="display:none;gap:10px;flex-wrap:wrap">
+          <div class="stat-chip chip-all active-filter" data-filter="all"><span class="stat-dot"></span><span id="s-total">—</span> agencies</div>
+          <div class="stat-chip chip-full"    data-filter="full">   <span class="stat-dot"></span><span id="s-full">—</span>    Full RT <span style="font-weight:400;font-size:11px;opacity:.7">(GTFS+VP+TU)</span></div>
+          <div class="stat-chip chip-partial" data-filter="partial_rt"><span class="stat-dot"></span><span id="s-partial">—</span> Partial RT</div>
+          <div class="stat-chip chip-static"  data-filter="static_only"><span class="stat-dot"></span><span id="s-static">—</span>  Static only</div>
+          <div class="stat-chip chip-rtonly"  data-filter="rt_only"><span class="stat-dot"></span><span id="s-rtonly">—</span>  RT only</div>
+        </div>
       </div>
       <div class="filters-bar" id="browse-filters" style="display:none">
         <span class="filter-label">Country:</span>
@@ -403,15 +356,15 @@
             <circle cx="12" cy="12" r="10"/>
             <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
           </svg>
-          <p>Loading global GTFS feed directory…</p>
-          <p class="sub">From the Mobility Database</p>
+          <p>Loading GTFS feed directory…</p>
+          <p class="sub">Select a source above to browse feeds</p>
         </div>
       </div>
     </div>
 
     <div class="footer-note" id="footer-note">
       My Database is stored in your browser (localStorage) ·
-      Browse All loads from <a href="https://database.mobilitydata.org" target="_blank">Mobility Database</a>
+      Browse All loads from <a href="https://database.mobilitydata.org" target="_blank">Mobility Database</a> or local feeds_v2.csv
     </div>
   </div>
 </div>
@@ -508,7 +461,7 @@
 <div id="import-modal" class="modal-overlay">
   <div class="modal-box" style="max-width:560px">
     <div class="modal-header">
-      <h2>Import from Mobility Database</h2>
+      <h2 id="import-title">Import from Source</h2>
       <button class="modal-close-btn" id="import-close">×</button>
     </div>
     <div class="modal-body" id="import-body">

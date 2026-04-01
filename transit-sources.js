@@ -11,6 +11,7 @@
 
 const DB_KEY          = 'gtfs_transit_db_v2';
 const MDB_CSV_URL     = 'https://storage.googleapis.com/mdb-latest/sources.csv';
+const FEEDS_V2_URL    = 'feeds_v2.csv';
 const TRANSITLAND_API = 'https://transit.land/api/v2/rest';
 const NOMINATIM_URL   = 'https://nominatim.openstreetmap.org/search';
 
@@ -214,9 +215,20 @@ function parseCSVLine(line) {
   r.push(cur); return r;
 }
 function parseCSV(text) {
-  const lines=text.split('\n'), headers=parseCSVLine(lines[0]), rows=[];
-  for (let i=1;i<lines.length;i++) {
-    const line=lines[i].trim(); if (!line) continue;
+  // Split into logical lines, handling quoted fields that contain newlines
+  const logicalLines=[];
+  let cur='', inQ=false;
+  for (let i=0;i<text.length;i++) {
+    const c=text[i];
+    if (c==='"') { inQ=!inQ; cur+=c; }
+    else if (c==='\n'&&!inQ) { logicalLines.push(cur); cur=''; }
+    else if (c==='\r'&&!inQ) { /* skip \r */ }
+    else cur+=c;
+  }
+  if (cur.trim()) logicalLines.push(cur);
+  const headers=parseCSVLine(logicalLines[0]), rows=[];
+  for (let i=1;i<logicalLines.length;i++) {
+    const line=logicalLines[i].trim(); if (!line) continue;
     const vals=parseCSVLine(line), row={};
     headers.forEach((h,idx)=>{ row[h]=vals[idx]??''; });
     rows.push(row);
@@ -231,10 +243,12 @@ function parseCSV(text) {
 let allMdbAgencies = []; // loaded once for Browse All
 let mdbLoaded = false;
 
+function feedId(row) { return row['mdb_source_id'] || row['id'] || ''; }
+
 function processFeeds(rows) {
   const staticById={}, rtFeeds=[];
   for (const row of rows) {
-    if (row['data_type']==='gtfs') staticById[row['mdb_source_id']]=row;
+    if (row['data_type']==='gtfs') staticById[feedId(row)]=row;
     else if (row['data_type']==='gtfs_rt') rtFeeds.push(row);
   }
   const agencies=new Map(), agByStaticId={};
@@ -287,6 +301,14 @@ function getMyDBFiltered() {
 }
 
 function renderMyDatabase() {
+  try { _renderMyDatabase(); }
+  catch(e) {
+    const area=document.getElementById('mydb-results');
+    if (area) area.innerHTML=`<div class="center-state" style="color:#c62828"><p style="font-weight:700">Render error</p><p class="sub">${esc(e.message)}</p><p class="sub" style="font-size:11px">${esc(e.stack||'')}</p></div>`;
+    console.error('renderMyDatabase error:', e);
+  }
+}
+function _renderMyDatabase() {
   const area=document.getElementById('mydb-results');
   const db=loadDB();
   const ags=getMyDBFiltered();
@@ -703,19 +725,22 @@ async function openImportModal() {
   const footer=document.getElementById('import-footer');
   footer.style.display='none';
   importCandidates=[];
-  body.innerHTML=`<div class="center-state" style="padding:30px"><div class="spinner"></div><p>Loading Mobility Database…</p></div>`;
+  const label = browseSource==='mdb' ? 'Mobility Database' : 'Feeds v2';
+  const url = browseSource==='mdb' ? MDB_CSV_URL : FEEDS_V2_URL;
+  document.getElementById('import-title').textContent=`Import from ${label}`;
+  body.innerHTML=`<div class="center-state" style="padding:30px"><div class="spinner"></div><p>Loading ${esc(label)}…</p></div>`;
   modal.classList.add('open');
 
   try {
     if (!mdbLoaded) {
-      const res=await fetch(MDB_CSV_URL);
+      const res=await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       allMdbAgencies=processFeeds(parseCSV(await res.text()));
       mdbLoaded=true;
     }
     buildImportCandidates();
   } catch(err) {
-    body.innerHTML=`<div class="center-state" style="color:#c62828"><p>Failed to load MDB: ${esc(err.message)}</p></div>`;
+    body.innerHTML=`<div class="center-state" style="color:#c62828"><p>Failed to load ${esc(label)}: ${esc(err.message)}</p></div>`;
   }
 }
 
@@ -743,7 +768,7 @@ function buildImportCandidates() {
       hasRT:ag.rtVP.length>0||ag.rtTU.length>0||ag.rtSA.length>0,
       rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
       coverageLevel:ag.coverageLevel,
-      mdbSourceId:ag.staticFeeds[0]?.['mdb_source_id']||'',
+      mdbSourceId:feedId(ag.staticFeeds[0]||{}),
       selected:true,
     };
     if (existId) updates.push(candidate);
@@ -826,6 +851,7 @@ function wireImportModal() {
 
 let brFilter='all', brSearch='', brCountry='', brStatus='active', brHasRT=false;
 let browseLoaded=false;
+let browseSource='feeds_v2'; // 'feeds_v2' or 'mdb'
 
 function getFiltered() {
   return allMdbAgencies.filter(ag=>{
@@ -942,7 +968,7 @@ function renderBrowseResults() {
         agencyName:ag.provider, staticUrl,
         rtVpUrl:ag.rtVP[0]?.['urls.latest']||'', rtTuUrl:ag.rtTU[0]?.['urls.latest']||'',
         rtSaUrl:ag.rtSA[0]?.['urls.latest']||'',
-        mdbSourceId:ag.staticFeeds[0]?.['mdb_source_id']||'',
+        mdbSourceId:feedId(ag.staticFeeds[0]||{}),
       });
       // Switch to My Database tab to show the modal in context
       showTab('mydb');
@@ -966,6 +992,17 @@ function populateBrowseCountryFilter() {
 }
 
 function wireBrowseControls() {
+  document.getElementById('browse-source').addEventListener('change',e=>{
+    browseSource=e.target.value;
+    browseLoaded=false;
+    mdbLoaded=false;
+    allMdbAgencies=[];
+    document.getElementById('browse-stat-chips').style.display='none';
+    document.getElementById('browse-filters').style.display='none';
+    loadBrowseTab(true);
+    // Update subtitle if on browse tab
+    if (activeTab==='browse') setHeaderActions('browse');
+  });
   document.getElementById('br-search').addEventListener('input',e=>{ brSearch=e.target.value.trim(); renderBrowseResults(); });
   document.getElementById('f-br-country').addEventListener('change',e=>{ brCountry=e.target.value; renderBrowseResults(); });
   document.getElementById('f-br-status').addEventListener('change',e=>{ brStatus=e.target.value; renderBrowseResults(); });
@@ -990,15 +1027,18 @@ function wireBrowseControls() {
   });
 }
 
-async function loadBrowseTab() {
-  if (browseLoaded) return;
+async function loadBrowseTab(forceReload=false) {
+  if (browseLoaded && !forceReload) return;
   const area=document.getElementById('browse-results');
+  const url = browseSource==='mdb' ? MDB_CSV_URL : FEEDS_V2_URL;
+  const label = browseSource==='mdb' ? 'Mobility Database' : 'Feeds v2';
+  area.innerHTML=`<div class="center-state" id="browse-init-state"><div class="spinner"></div><p>Loading ${esc(label)}…</p></div>`;
   try {
-    const res=await fetch(MDB_CSV_URL);
+    const res=await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     allMdbAgencies=processFeeds(parseCSV(await res.text()));
     mdbLoaded=true; browseLoaded=true;
-    document.getElementById('browse-stats').style.display='flex';
+    document.getElementById('browse-stat-chips').style.display='flex';
     document.getElementById('browse-filters').style.display='flex';
     updateBrowseStats();
     populateBrowseCountryFilter();
@@ -1007,11 +1047,15 @@ async function loadBrowseTab() {
   } catch(err) {
     const isFile=location.protocol==='file:';
     area.innerHTML=`<div class="center-state" style="color:#c62828">
-      <p style="font-weight:700">Could not load Mobility Database</p>
+      <p style="font-weight:700">Could not load ${esc(label)}</p>
       <p class="sub">${esc(err.message)}</p>
       ${isFile?`<p class="sub">Open via a local server: <code>python3 -m http.server 8080</code></p>`:''}
-      <button onclick="browseLoaded=false;loadBrowseTab()" style="margin-top:12px;padding:8px 20px;background:#2c5aa0;color:white;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Retry</button>
+      <button id="browse-retry-btn" style="margin-top:12px;padding:8px 20px;background:#2c5aa0;color:white;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Retry</button>
     </div>`;
+    document.getElementById('browse-retry-btn').addEventListener('click', ()=>{
+      browseLoaded=false;
+      loadBrowseTab();
+    });
   }
 }
 
@@ -1155,7 +1199,7 @@ async function searchLocalMDB(query) {
     country:ag.country, coverageLevel:ag.coverageLevel,
     staticUrl:ag.staticFeeds[0]?.['urls.latest']||ag.staticFeeds[0]?.['urls.direct_download']||'',
     vpUrl:ag.rtVP[0]?.['urls.latest']||'', tuUrl:ag.rtTU[0]?.['urls.latest']||'', saUrl:ag.rtSA[0]?.['urls.latest']||'',
-    mdbSourceId:ag.staticFeeds[0]?.['mdb_source_id']||'', source:'mdb',
+    mdbSourceId:feedId(ag.staticFeeds[0]||{}), source:'mdb',
   })), query);
 }
 
@@ -1245,7 +1289,7 @@ function setHeaderActions(tab) {
         Add Manually
       </button>
       <button class="btn btn-secondary" id="ha-country">+ Country</button>
-      <button class="btn btn-secondary" id="ha-import">Import MDB</button>
+      <button class="btn btn-secondary" id="ha-import">Import Source</button>
       <button class="btn btn-secondary" id="ha-export">Export CSV</button>`;
     document.getElementById('ha-find').addEventListener('click',()=>{ populateCountrySelect(); document.getElementById('discovery-modal').classList.add('open'); document.getElementById('disc-query').focus(); });
     document.getElementById('ha-add').addEventListener('click',()=>openAgencyModal());
@@ -1253,7 +1297,8 @@ function setHeaderActions(tab) {
     document.getElementById('ha-import').addEventListener('click',openImportModal);
     document.getElementById('ha-export').addEventListener('click',exportCSV);
   } else {
-    sub.textContent='Global GTFS feed directory · Mobility Database · Read-only';
+    const srcLabel = browseSource==='mdb' ? 'Mobility Database' : 'Feeds v2 (Local)';
+    sub.textContent=`Global GTFS feed directory · ${srcLabel} · Read-only`;
     el.innerHTML='';
   }
 }
@@ -1306,4 +1351,4 @@ function init() {
   renderMyDatabase();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+init();
