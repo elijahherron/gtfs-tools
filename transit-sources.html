@@ -249,6 +249,27 @@
     .dot-update  { background: #1e88e5; }
     .dot-skip    { background: #bbb; }
 
+    /* ── URL tooltip on badges ────────────────────────── */
+    .has-url-tip { position: relative; cursor: pointer; }
+    .url-tooltip {
+      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: #1c2333; color: #e0e0e0; font-size: 11px; font-weight: 400; padding: 6px 10px;
+      border-radius: 6px; white-space: nowrap; z-index: 100; pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25); display: flex; align-items: center; gap: 8px;
+      max-width: 420px; overflow: hidden;
+    }
+    .url-tooltip::after {
+      content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: #1c2333;
+    }
+    .url-tooltip-text { overflow: hidden; text-overflow: ellipsis; }
+    .url-tooltip-copy {
+      background: rgba(255,255,255,.15); border: none; color: white; font-size: 10px;
+      padding: 2px 7px; border-radius: 4px; cursor: pointer; font-weight: 600; flex-shrink: 0;
+      font-family: inherit;
+    }
+    .url-tooltip-copy:hover { background: rgba(255,255,255,.25); }
+
     /* ── Toast ─────────────────────────────────────────── */
     #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
     .toast { padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; color: white; box-shadow: 0 4px 12px rgba(0,0,0,.15); animation: slideIn .2s ease; pointer-events: auto; }
@@ -334,6 +355,8 @@
       <div class="filters-bar" id="browse-filters" style="display:none">
         <span class="filter-label">Country:</span>
         <select id="f-br-country" class="filter-select"><option value="">All countries</option></select>
+        <span class="filter-label">Subdivision:</span>
+        <select id="f-br-subdivision" class="filter-select"><option value="">All subdivisions</option></select>
         <span class="filter-label">Status:</span>
         <select id="f-br-status" class="filter-select">
           <option value="active">Active only</option><option value="">All statuses</option>

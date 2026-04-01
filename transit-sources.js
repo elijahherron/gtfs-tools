@@ -157,9 +157,9 @@ function countryName(code) {
   try { return regionNames.of(code.toUpperCase()); } catch { return code; }
 }
 function flagEmoji(code) {
-  if (!code || code.length!==2) return '🌐';
+  if (!code || code.length!==2 || !/^[A-Za-z]{2}$/.test(code)) return '';
   try { return String.fromCodePoint(...[...code.toUpperCase()].map(c=>0x1F1E0+c.charCodeAt(0)-65)); }
-  catch { return '🌐'; }
+  catch { return ''; }
 }
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -322,7 +322,7 @@ function _renderMyDatabase() {
   const prevCC=cSel.value;
   while(cSel.options.length>1) cSel.remove(1);
   Object.keys(db.countries).sort((a,b)=>countryName(a).localeCompare(countryName(b))).forEach(cc=>{
-    const o=document.createElement('option'); o.value=cc; o.textContent=`${flagEmoji(cc)} ${countryName(cc)}`;
+    const o=document.createElement('option'); o.value=cc; o.textContent=`${flagEmoji(cc)} ${countryName(cc)}`.trim();
     if(cc===prevCC) o.selected=true; cSel.appendChild(o);
   });
 
@@ -849,7 +849,7 @@ function wireImportModal() {
 // 11. Browse All tab (MDB CSV, read-only)
 // ═══════════════════════════════════════════════════════════════════════
 
-let brFilter='all', brSearch='', brCountry='', brStatus='active', brHasRT=false;
+let brFilter='all', brSearch='', brCountry='', brSubdivision='', brStatus='active', brHasRT=false;
 let browseLoaded=false;
 let browseSource='feeds_v2'; // 'feeds_v2' or 'mdb'
 
@@ -857,6 +857,7 @@ function getFiltered() {
   return allMdbAgencies.filter(ag=>{
     if (brFilter!=='all'&&ag.coverageLevel!==brFilter) return false;
     if (brCountry&&ag.country!==brCountry) return false;
+    if (brSubdivision&&ag.subdivision!==brSubdivision) return false;
     if (brStatus==='active'){
       const all=[...ag.staticFeeds,...ag.rtVP,...ag.rtTU,...ag.rtSA];
       if (!all.some(f=>!f['status']||f['status']==='active')) return false;
@@ -876,16 +877,20 @@ function brFeedBadge(feeds,cls,label){
   const shown=(active.length?active:feeds).slice(0,2);
   return shown.map(f=>{
     const url=f['urls.direct_download']||f['urls.latest'];
-    return url?`<span class="badge ${cls}"><a href="${esc(url)}" target="_blank" rel="noopener">${label}</a></span>`:`<span class="badge ${cls}">${label}</span>`;
+    return url
+      ?`<span class="badge ${cls} has-url-tip" data-url="${esc(url)}"><a href="${esc(url)}" target="_blank" rel="noopener">${label}</a></span>`
+      :`<span class="badge ${cls}">${label}</span>`;
   }).join('') + (feeds.length>2?`<span class="badge badge-dim">+${feeds.length-2}</span>`:'');
 }
 
 function renderBrowseRow(ag) {
-  const loc=[ag.municipality,ag.subdivision].filter(Boolean).join(', ');
+  const loc=[ag.municipality].filter(Boolean).join(', ');
   const cls={full:'row-full',partial_rt:'row-partial',static_only:'row-static',rt_only:'row-rtonly'}[ag.coverageLevel]||'';
   const sb=ag.staticFeeds.length===0?'<span class="dash">—</span>':ag.staticFeeds.slice(0,2).map(f=>{
     const isA=!f['status']||f['status']==='active'; const url=f['urls.latest']||f['urls.direct_download'];
-    return url?`<span class="badge ${isA?'badge-gtfs':'badge-dim'}"><a href="${esc(url)}" target="_blank" rel="noopener">GTFS</a></span>`:`<span class="badge ${isA?'badge-gtfs':'badge-dim'}">GTFS</span>`;
+    return url
+      ?`<span class="badge ${isA?'badge-gtfs':'badge-dim'} has-url-tip" data-url="${esc(url)}"><a href="${esc(url)}" target="_blank" rel="noopener">GTFS</a></span>`
+      :`<span class="badge ${isA?'badge-gtfs':'badge-dim'}">GTFS</span>`;
   }).join('')+(ag.staticFeeds.length>2?`<span class="badge badge-dim">+${ag.staticFeeds.length-2}</span>`:'');
 
   // Check if in My DB
@@ -905,31 +910,70 @@ function renderBrowseRow(ag) {
   </tr>`;
 }
 
-function renderBrowseCountry(cc, agencies) {
-  const order={full:0,partial_rt:1,static_only:2,rt_only:3};
-  agencies.sort((a,b)=>(order[a.coverageLevel]??4)-(order[b.coverageLevel]??4));
+function coverageBadges(agencies) {
   const full=agencies.filter(a=>a.coverageLevel==='full').length;
   const partial=agencies.filter(a=>a.coverageLevel==='partial_rt').length;
   const stat=agencies.filter(a=>a.coverageLevel==='static_only').length;
   const rtOnly=agencies.filter(a=>a.coverageLevel==='rt_only').length;
-  const badges=[
+  return [
     full?`<span class="c-badge cb-full">${full} Full RT</span>`:'',
     partial?`<span class="c-badge cb-partial">${partial} Partial RT</span>`:'',
     stat?`<span class="c-badge cb-static">${stat} Static</span>`:'',
     rtOnly?`<span class="c-badge cb-rtonly">${rtOnly} RT only</span>`:'',
   ].filter(Boolean).join('');
+}
+
+function renderSubdivisionSection(subName, agencies) {
+  const order={full:0,partial_rt:1,static_only:2,rt_only:3};
+  agencies.sort((a,b)=>(order[a.coverageLevel]??4)-(order[b.coverageLevel]??4));
   const expand=agencies.length<=8;
-  return `<div class="country-section">
-    <div class="country-header">
-      <span class="c-flag">${flagEmoji(cc)}</span>
-      <div><span class="c-name">${esc(countryName(cc))}</span><span class="c-count"> · ${agencies.length} agenc${agencies.length===1?'y':'ies'}</span></div>
-      <div class="c-badges">${badges}</div>
-      <svg class="chevron ${expand?'open':''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+  return `<div class="subdivision-section" style="border-top:1px solid #eee">
+    <div class="subdivision-header" style="display:flex;align-items:center;gap:10px;padding:8px 18px 8px 36px;cursor:pointer;user-select:none;font-size:13px;background:#fafbfc">
+      <svg class="chevron ${expand?'open':''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;color:#aaa;flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>
+      <span style="font-weight:600;color:#444">${esc(subName||'Other')}</span>
+      <span style="color:#aaa;font-size:12px">${agencies.length}</span>
+      <div class="c-badges" style="margin-left:auto">${coverageBadges(agencies)}</div>
     </div>
     <div class="table-wrap" style="display:${expand?'block':'none'}">
       <table class="agency-table"><thead><tr>
         <th>Agency</th><th>GTFS Static</th><th>VP</th><th>TU</th><th>SA</th><th></th>
       </tr></thead><tbody>${agencies.map(renderBrowseRow).join('')}</tbody></table>
+    </div>
+  </div>`;
+}
+
+function renderBrowseCountry(cc, agencies) {
+  const order={full:0,partial_rt:1,static_only:2,rt_only:3};
+  agencies.sort((a,b)=>(order[a.coverageLevel]??4)-(order[b.coverageLevel]??4));
+  const flag=flagEmoji(cc);
+  const expand=agencies.length<=12;
+
+  // Group by subdivision
+  const bySub={};
+  for (const ag of agencies) (bySub[ag.subdivision||'']??=[]).push(ag);
+  const subEntries=Object.entries(bySub).sort((a,b)=>b[1].length-a[1].length);
+  const hasSubdivisions=subEntries.length>1 || (subEntries.length===1 && subEntries[0][0]!=='');
+
+  let bodyHTML;
+  if (hasSubdivisions) {
+    bodyHTML=subEntries.map(([sub,ags])=>renderSubdivisionSection(sub,ags)).join('');
+  } else {
+    bodyHTML=`<div class="table-wrap">
+      <table class="agency-table"><thead><tr>
+        <th>Agency</th><th>GTFS Static</th><th>VP</th><th>TU</th><th>SA</th><th></th>
+      </tr></thead><tbody>${agencies.map(renderBrowseRow).join('')}</tbody></table>
+    </div>`;
+  }
+
+  return `<div class="country-section">
+    <div class="country-header">
+      ${flag?`<span class="c-flag">${flag}</span>`:''}
+      <div><span class="c-name">${esc(countryName(cc))}</span><span class="c-count"> · ${agencies.length} agenc${agencies.length===1?'y':'ies'}</span></div>
+      <div class="c-badges">${coverageBadges(agencies)}</div>
+      <svg class="chevron ${expand?'open':''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+    <div class="country-body" style="display:${expand?'block':'none'}">
+      ${bodyHTML}
     </div>
   </div>`;
 }
@@ -945,7 +989,16 @@ function renderBrowseResults() {
   for (const ag of filtered) (byCC[ag.country||'XX']??=[]).push(ag);
   const sorted=Object.entries(byCC).sort((a,b)=>b[1].length-a[1].length);
   area.innerHTML=sorted.map(([cc,ags])=>renderBrowseCountry(cc,ags)).join('');
+  // Wire country header toggles
   area.querySelectorAll('.country-header').forEach(h=>{
+    h.addEventListener('click',()=>{
+      const body=h.nextElementSibling, chev=h.querySelector('.chevron');
+      const open=body.style.display!=='none';
+      body.style.display=open?'none':'block'; chev.classList.toggle('open',!open);
+    });
+  });
+  // Wire subdivision header toggles
+  area.querySelectorAll('.subdivision-header').forEach(h=>{
     h.addEventListener('click',()=>{
       const body=h.nextElementSibling, chev=h.querySelector('.chevron');
       const open=body.style.display!=='none';
@@ -963,11 +1016,13 @@ function renderBrowseResults() {
       const ag=allMdbAgencies.find(a=>a.provider===name);
       if (!ag) { openAgencyModalPrefilled({ agencyName:name, cityRegion:loc }); return; }
       const staticUrl=ag.staticFeeds[0]?.['urls.latest']||ag.staticFeeds[0]?.['urls.direct_download']||'';
+      const vpUrl=ag.rtVP[0]?.['urls.direct_download']||ag.rtVP[0]?.['urls.latest']||'';
+      const tuUrl=ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'';
+      const saUrl=ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'';
       openAgencyModalPrefilled({
         countryCode:ag.country, cityRegion:[ag.municipality,ag.subdivision].filter(Boolean).join(', '),
         agencyName:ag.provider, staticUrl,
-        rtVpUrl:ag.rtVP[0]?.['urls.latest']||'', rtTuUrl:ag.rtTU[0]?.['urls.latest']||'',
-        rtSaUrl:ag.rtSA[0]?.['urls.latest']||'',
+        rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
         mdbSourceId:feedId(ag.staticFeeds[0]||{}),
       });
       // Switch to My Database tab to show the modal in context
@@ -988,7 +1043,16 @@ function populateBrowseCountryFilter() {
   const sel=document.getElementById('f-br-country');
   while(sel.options.length>1) sel.remove(1);
   const ccs=[...new Set(allMdbAgencies.map(a=>a.country).filter(Boolean))].sort((a,b)=>countryName(a).localeCompare(countryName(b)));
-  ccs.forEach(cc=>{ const o=document.createElement('option'); o.value=cc; o.textContent=`${flagEmoji(cc)} ${countryName(cc)} (${cc})`; if(cc===brCountry)o.selected=true; sel.appendChild(o); });
+  ccs.forEach(cc=>{ const o=document.createElement('option'); o.value=cc; o.textContent=`${flagEmoji(cc)} ${countryName(cc)} (${cc})`.trim(); if(cc===brCountry)o.selected=true; sel.appendChild(o); });
+  populateBrowseSubdivisionFilter();
+}
+
+function populateBrowseSubdivisionFilter() {
+  const sel=document.getElementById('f-br-subdivision');
+  while(sel.options.length>1) sel.remove(1);
+  const src=brCountry ? allMdbAgencies.filter(a=>a.country===brCountry) : allMdbAgencies;
+  const subs=[...new Set(src.map(a=>a.subdivision).filter(Boolean))].sort();
+  subs.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===brSubdivision)o.selected=true; sel.appendChild(o); });
 }
 
 function wireBrowseControls() {
@@ -1004,7 +1068,8 @@ function wireBrowseControls() {
     if (activeTab==='browse') setHeaderActions('browse');
   });
   document.getElementById('br-search').addEventListener('input',e=>{ brSearch=e.target.value.trim(); renderBrowseResults(); });
-  document.getElementById('f-br-country').addEventListener('change',e=>{ brCountry=e.target.value; renderBrowseResults(); });
+  document.getElementById('f-br-country').addEventListener('change',e=>{ brCountry=e.target.value; brSubdivision=''; populateBrowseSubdivisionFilter(); renderBrowseResults(); });
+  document.getElementById('f-br-subdivision').addEventListener('change',e=>{ brSubdivision=e.target.value; renderBrowseResults(); });
   document.getElementById('f-br-status').addEventListener('change',e=>{ brStatus=e.target.value; renderBrowseResults(); });
   document.getElementById('f-br-hasrt').addEventListener('change',e=>{ brHasRT=e.target.checked; renderBrowseResults(); });
   document.querySelectorAll('.stat-chip').forEach(chip=>{
@@ -1016,9 +1081,10 @@ function wireBrowseControls() {
     });
   });
   document.getElementById('br-clear').addEventListener('click',()=>{
-    brFilter='all'; brSearch=''; brCountry=''; brStatus='active'; brHasRT=false;
+    brFilter='all'; brSearch=''; brCountry=''; brSubdivision=''; brStatus='active'; brHasRT=false;
     document.getElementById('br-search').value='';
     document.getElementById('f-br-country').value='';
+    document.getElementById('f-br-subdivision').value='';
     document.getElementById('f-br-status').value='active';
     document.getElementById('f-br-hasrt').checked=false;
     document.querySelectorAll('.stat-chip').forEach(c=>c.classList.remove('active-filter'));
@@ -1344,6 +1410,30 @@ function init() {
   // Tab buttons
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>showTab(btn.dataset.tab));
+  });
+
+  // URL tooltip on badges (delegated)
+  let activeTip=null;
+  function removeTip(){ if(activeTip){activeTip.remove();activeTip=null;} }
+  document.addEventListener('mouseover',e=>{
+    const badge=e.target.closest('.has-url-tip');
+    if(!badge){ removeTip(); return; }
+    if(activeTip&&activeTip.parentElement===badge) return;
+    removeTip();
+    const url=badge.dataset.url; if(!url) return;
+    const tip=document.createElement('div');
+    tip.className='url-tooltip';
+    tip.innerHTML=`<span class="url-tooltip-text">${esc(url)}</span><button class="url-tooltip-copy">Copy</button>`;
+    tip.querySelector('.url-tooltip-copy').addEventListener('click',ev=>{
+      ev.stopPropagation(); ev.preventDefault();
+      navigator.clipboard.writeText(url).then(()=>toast('URL copied','success')).catch(()=>{});
+    });
+    badge.appendChild(tip);
+    activeTip=tip;
+  });
+  document.addEventListener('mouseout',e=>{
+    const badge=e.target.closest('.has-url-tip');
+    if(badge&&!badge.contains(e.relatedTarget)) removeTip();
   });
 
   // Start on My Database tab
