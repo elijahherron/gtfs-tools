@@ -226,11 +226,11 @@ function parseCSV(text) {
     else cur+=c;
   }
   if (cur.trim()) logicalLines.push(cur);
-  const headers=parseCSVLine(logicalLines[0]), rows=[];
+  const headers=parseCSVLine(logicalLines[0]).map(h=>h.trim()), rows=[];
   for (let i=1;i<logicalLines.length;i++) {
     const line=logicalLines[i].trim(); if (!line) continue;
     const vals=parseCSVLine(line), row={};
-    headers.forEach((h,idx)=>{ row[h]=vals[idx]??''; });
+    headers.forEach((h,idx)=>{ row[h]=(vals[idx]??'').trim(); });
     rows.push(row);
   }
   return rows;
@@ -322,7 +322,7 @@ function _renderMyDatabase() {
   const prevCC=cSel.value;
   while(cSel.options.length>1) cSel.remove(1);
   Object.keys(db.countries).sort((a,b)=>countryName(a).localeCompare(countryName(b))).forEach(cc=>{
-    const o=document.createElement('option'); o.value=cc; o.textContent=`${flagEmoji(cc)} ${countryName(cc)}`.trim();
+    const o=document.createElement('option'); o.value=cc; o.textContent=`${countryName(cc)} (${cc})`;
     if(cc===prevCC) o.selected=true; cSel.appendChild(o);
   });
 
@@ -380,7 +380,6 @@ function renderCountryTable(cc, ags, db) {
     <button class="cg-chevron ${isOpen?'open':''}" title="Toggle">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
-    <span class="cg-flag">${flagEmoji(cc)}</span>
     <span class="cg-name">${esc(countryName(cc))}</span>
     <span class="cg-count">${ags.length} agenc${ags.length===1?'y':'ies'}</span>
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
@@ -553,7 +552,7 @@ function populateCountrySelect(selectedCode='') {
   const codes=Object.keys(db.countries).sort((a,b)=>countryName(a).localeCompare(countryName(b)));
   for (const cc of codes) {
     const o=document.createElement('option');
-    o.value=cc; o.textContent=`${flagEmoji(cc)} ${countryName(cc)} (${cc})`;
+    o.value=cc; o.textContent=`${countryName(cc)} (${cc})`;
     if (cc===selectedCode) o.selected=true;
     sel.appendChild(o);
   }
@@ -802,7 +801,7 @@ function buildImportCandidates() {
           <div class="import-dot ${c.existId?'dot-update':'dot-new'}"></div>
           <div style="flex:1">
             <div style="font-weight:600">${esc(c.agencyName)}</div>
-            <div style="font-size:11px;color:#999">${flagEmoji(c.countryCode)} ${countryName(c.countryCode)} · ${esc(c.cityRegion||'—')} · ${c.coverageLevel.replace('_',' ')}</div>
+            <div style="font-size:11px;color:#999">${esc(countryName(c.countryCode))} · ${esc(c.cityRegion||'—')} · ${c.coverageLevel.replace('_',' ')}</div>
           </div>
           <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#888;cursor:pointer">
             <input type="checkbox" data-idx="${i}" ${c.selected?'checked':''}>
@@ -945,7 +944,6 @@ function renderSubdivisionSection(subName, agencies) {
 function renderBrowseCountry(cc, agencies) {
   const order={full:0,partial_rt:1,static_only:2,rt_only:3};
   agencies.sort((a,b)=>(order[a.coverageLevel]??4)-(order[b.coverageLevel]??4));
-  const flag=flagEmoji(cc);
   const expand=agencies.length<=12;
 
   // Group by subdivision
@@ -967,8 +965,7 @@ function renderBrowseCountry(cc, agencies) {
 
   return `<div class="country-section">
     <div class="country-header">
-      ${flag?`<span class="c-flag">${flag}</span>`:''}
-      <div><span class="c-name">${esc(countryName(cc))}</span><span class="c-count"> · ${agencies.length} agenc${agencies.length===1?'y':'ies'}</span></div>
+      <div><span class="c-name">${esc(countryName(cc))} (${esc(cc)})</span><span class="c-count"> · ${agencies.length} agenc${agencies.length===1?'y':'ies'}</span></div>
       <div class="c-badges">${coverageBadges(agencies)}</div>
       <svg class="chevron ${expand?'open':''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </div>
@@ -1043,7 +1040,7 @@ function populateBrowseCountryFilter() {
   const sel=document.getElementById('f-br-country');
   while(sel.options.length>1) sel.remove(1);
   const ccs=[...new Set(allMdbAgencies.map(a=>a.country).filter(Boolean))].sort((a,b)=>countryName(a).localeCompare(countryName(b)));
-  ccs.forEach(cc=>{ const o=document.createElement('option'); o.value=cc; o.textContent=`${flagEmoji(cc)} ${countryName(cc)} (${cc})`.trim(); if(cc===brCountry)o.selected=true; sel.appendChild(o); });
+  ccs.forEach(cc=>{ const o=document.createElement('option'); o.value=cc; o.textContent=`${countryName(cc)} (${cc})`; if(cc===brCountry)o.selected=true; sel.appendChild(o); });
   populateBrowseSubdivisionFilter();
 }
 
@@ -1311,7 +1308,7 @@ function renderDiscoveryCards(items, query) {
       return `<div style="padding:10px 0;border-bottom:1px solid #f5f5f5;display:flex;align-items:flex-start;gap:10px">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-            ${flagEmoji(item.country)?`<span>${flagEmoji(item.country)}</span>`:''}
+            ${item.country?`<span style="font-size:11px;color:#999">${esc(item.country)}</span>`:''}
             <span style="font-weight:600;font-size:14px;color:#222">${esc(item.name)}</span>
             <span class="status-badge" style="background:#e3f2fd;color:#1565c0;font-size:10px">${esc(item.coverageLevel.replace('_',' '))}</span>
           </div>
