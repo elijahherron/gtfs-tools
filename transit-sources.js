@@ -1,7 +1,7 @@
 /**
  * transit-sources.js
  * Two-tab transit data management app:
- *   Tab 1 — My Database  (localStorage CRUD, Google Sheet style)
+ *   Tab 1 — My Database  (Supabase CRUD, Google Sheet style)
  *   Tab 2 — Browse All   (Mobility Database CSV, read-only)
  */
 
@@ -9,8 +9,6 @@
 // 1. Constants & config
 // ═══════════════════════════════════════════════════════════════════════
 
-const DB_KEY          = 'gtfs_transit_db_v2';
-const MDB_CSV_URL     = 'https://storage.googleapis.com/mdb-latest/sources.csv';
 const FEEDS_V2_URL    = 'feeds_v2.csv';
 const TRANSITLAND_API = 'https://transit.land/api/v2/rest';
 const NOMINATIM_URL   = 'https://nominatim.openstreetmap.org/search';
@@ -32,119 +30,111 @@ const STATUS_ORDER = {
   'FINISHED FOR NOW': 3, 'FINISHED': 3, 'BLOCKED': 4,
 };
 
-// ═══════════════════════════════════════════════════════════════════════
-// 2. Seed data (from PDF spreadsheet)
-// ═══════════════════════════════════════════════════════════════════════
-
-const SEED_COUNTRIES = {
-  DZ:{ code:'DZ', status:'SOURCING' },
-  BG:{ code:'BG', status:'WORKING' },
-  CN:{ code:'CN', status:'SOURCING' },
-  HR:{ code:'HR', status:'NOT STARTED' },
-  CZ:{ code:'CZ', status:'FINISHED FOR NOW' },
-  DK:{ code:'DK', status:'NOT STARTED' },
-  EG:{ code:'EG', status:'SOURCING' },
-  EE:{ code:'EE', status:'NOT STARTED' },
-  FI:{ code:'FI', status:'WORKING' },
-  GR:{ code:'GR', status:'SOURCING' },
-  HK:{ code:'HK', status:'WORKING' },
-  HU:{ code:'HU', status:'FINISHED FOR NOW' },
-  IN:{ code:'IN', status:'SOURCING' },
-  ID:{ code:'ID', status:'SOURCING' },
-  JP:{ code:'JP', status:'SOURCING' },
-  LV:{ code:'LV', status:'NOT STARTED' },
-  LT:{ code:'LT', status:'NOT STARTED' },
-  MY:{ code:'MY', status:'FINISHED FOR NOW' },
-  MA:{ code:'MA', status:'SOURCING' },
-  PL:{ code:'PL', status:'FINISHED FOR NOW' },
-  RO:{ code:'RO', status:'NOT STARTED' },
-  RS:{ code:'RS', status:'NOT STARTED' },
-  SG:{ code:'SG', status:'SOURCING' },
-  SK:{ code:'SK', status:'NOT STARTED' },
-  SI:{ code:'SI', status:'NOT STARTED' },
-  TN:{ code:'TN', status:'SOURCING' },
-  TR:{ code:'TR', status:'BLOCKED' },
-  UA:{ code:'UA', status:'FINISHED FOR NOW' },
-};
-
-const SEED_AGENCIES = [
-  { countryCode:'HR', cityRegion:'Zagreb',       agencyName:'Zagrebački električni tramvaj (ZET)', modes:['Bus','Tram'], hasStatic:true,  staticUrl:'https://zet.hr/gtfs/gtfs.zip',                         hasRT:true,  rtVpUrl:'', rtTuUrl:'https://zet.hr/gtfs-rt/protobuf', rtSaUrl:'', quality:'', notes:'Schedule alt: https://zet.hr/gtfsscheduled/latest', status:'NOT STARTED' },
-  { countryCode:'HR', cityRegion:'Zagreb',       agencyName:'HŽ Passenger Transport',              modes:['Rail'],       hasStatic:true,  staticUrl:'https://www.hzpp.hr/GTFS_files.zip',                   hasRT:false, rtVpUrl:'', rtTuUrl:'', rtSaUrl:'',                           quality:'', notes:'', status:'NOT STARTED' },
-  { countryCode:'HR', cityRegion:'Split',        agencyName:'Promet Split',                        modes:['Bus'],        hasStatic:true,  staticUrl:'https://promet-split.hr/gtfs/gtfs.zip',                hasRT:false, rtVpUrl:'', rtTuUrl:'', rtSaUrl:'',                           quality:'', notes:'', status:'NOT STARTED' },
-  { countryCode:'HR', cityRegion:'Rijeka',       agencyName:'Autotrolej',                          modes:['Bus'],        hasStatic:true,  staticUrl:'https://autotrolej.hr/gtfs/gtfs.zip',                  hasRT:false, rtVpUrl:'', rtTuUrl:'', rtSaUrl:'',                           quality:'', notes:'', status:'NOT STARTED' },
-  { countryCode:'HR', cityRegion:'National',     agencyName:'HŽ Putnički prijevoz',               modes:['Rail'],       hasStatic:true,  staticUrl:'https://hzpp.hr/gtfs/gtfs.zip',                        hasRT:false, rtVpUrl:'', rtTuUrl:'', rtSaUrl:'',                           quality:'', notes:'', status:'NOT STARTED' },
-  { countryCode:'HR', cityRegion:'Grad Šibenik', agencyName:'Gradski parking d.o.o.',             modes:[],             hasStatic:true,  staticUrl:'https://www.gradski-parking.hr/upload/stranice/2022/08/2022-08-30/89/gtfs.zip', hasRT:false, rtVpUrl:'', rtTuUrl:'', rtSaUrl:'', quality:'', notes:'', status:'NOT STARTED' },
-  { countryCode:'TR', cityRegion:'National',     agencyName:'(Turkish transit — blocked)',         modes:[],             hasStatic:false, staticUrl:'',                                                     hasRT:false, rtVpUrl:'', rtTuUrl:'', rtSaUrl:'',                           quality:'', notes:'Expired 2024-12 — files must be downloaded individually as .csv', status:'BLOCKED' },
-];
+// Seed data is now in Supabase — see supabase-schema.sql
 
 // ═══════════════════════════════════════════════════════════════════════
-// 3. DB — localStorage
+// 3. DB — Supabase + in-memory cache
 // ═══════════════════════════════════════════════════════════════════════
+
+const SUPABASE_URL = 'https://ybkvkpuujvqpodjlcumd.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlia3ZrcHV1anZxcG9kamxjdW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzE4MjAsImV4cCI6MjA5MDY0NzgyMH0.qZi4ap8s280lcdYHP__GSFFRimFbYVmkQJij0uL3yCY';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// In-memory cache — loadDB() returns this synchronously
+let dbCache = { countries:{}, agencies:{} };
 
 function mkUuid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
-function now() { return new Date().toISOString(); }
 
-function seedDatabase(db) {
-  db.countries = JSON.parse(JSON.stringify(SEED_COUNTRIES));
-  for (const ag of SEED_AGENCIES) {
-    const id = mkUuid();
-    db.agencies[id] = { id, source:'manual', mdbSourceId:'', ...ag, addedAt:now(), updatedAt:now() };
+// Map Supabase snake_case row → camelCase agency object
+function agencyFromRow(r) {
+  return {
+    id: r.id, countryCode: r.country_code, subdivision: r.subdivision||'',
+    cityRegion: r.city_region||'', agencyName: r.agency_name,
+    modes: r.modes||[], hasStatic: r.has_static||false, staticUrl: r.static_url||'',
+    hasRT: r.has_rt||false, rtVpUrl: r.rt_vp_url||'', rtTuUrl: r.rt_tu_url||'', rtSaUrl: r.rt_sa_url||'',
+    quality: r.quality||'', status: r.status||'NOT STARTED', notes: r.notes||'',
+    source: r.source||'manual', mdbSourceId: r.mdb_source_id||'',
+    addedAt: r.created_at, updatedAt: r.updated_at,
+  };
+}
+
+// Map camelCase agency fields → snake_case for Supabase
+function agencyToRow(fields) {
+  const map = {
+    countryCode:'country_code', subdivision:'subdivision', cityRegion:'city_region',
+    agencyName:'agency_name', modes:'modes', hasStatic:'has_static', staticUrl:'static_url',
+    hasRT:'has_rt', rtVpUrl:'rt_vp_url', rtTuUrl:'rt_tu_url', rtSaUrl:'rt_sa_url',
+    quality:'quality', status:'status', notes:'notes', source:'source', mdbSourceId:'mdb_source_id',
+  };
+  const row = {};
+  for (const [k, v] of Object.entries(fields)) {
+    if (map[k] !== undefined) row[map[k]] = v;
   }
-  db.seeded = true;
+  return row;
 }
 
-function loadDB() {
-  try {
-    const raw = localStorage.getItem(DB_KEY);
-    if (!raw) {
-      const db = { version:2, seeded:false, countries:{}, agencies:{} };
-      seedDatabase(db);
-      saveDB(db);
-      return db;
-    }
-    const db = JSON.parse(raw);
-    if (!db.seeded) { seedDatabase(db); saveDB(db); }
-    return db;
-  } catch { return { version:2, seeded:true, countries:{...SEED_COUNTRIES}, agencies:{} }; }
+// Load all data from Supabase into cache
+async function initDB() {
+  const [cRes, aRes] = await Promise.all([
+    sb.from('countries').select('*'),
+    sb.from('agencies').select('*'),
+  ]);
+  if (cRes.error) { console.error('Failed to load countries:', cRes.error); toast('DB connection error — check console', 'error'); return; }
+  if (aRes.error) { console.error('Failed to load agencies:', aRes.error); toast('DB connection error — check console', 'error'); return; }
+  dbCache.countries = {};
+  for (const c of cRes.data) dbCache.countries[c.code] = { code: c.code, status: c.status };
+  dbCache.agencies = {};
+  for (const r of aRes.data) { const ag = agencyFromRow(r); dbCache.agencies[ag.id] = ag; }
 }
 
-function saveDB(db) {
-  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
-  catch(e) {
-    if (e.name === 'QuotaExceededError') toast('Storage full — export your data first', 'error');
-  }
+// Synchronous read from cache
+function loadDB() { return dbCache; }
+
+async function dbAdd(fields) {
+  const id = mkUuid();
+  const row = { id, ...agencyToRow({ source:'manual', mdbSourceId:'', ...fields }) };
+  const { error } = await sb.from('agencies').insert(row);
+  if (error) { console.error('dbAdd error:', error); toast('Save failed — ' + error.message, 'error'); return null; }
+  dbCache.agencies[id] = { id, source:'manual', mdbSourceId:'', ...fields, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  return id;
 }
 
-function dbAdd(fields) {
-  const db = loadDB(), id = mkUuid();
-  db.agencies[id] = { id, source:'manual', mdbSourceId:'', addedAt:now(), updatedAt:now(), ...fields };
-  saveDB(db); return id;
+async function dbUpdate(id, fields) {
+  if (!dbCache.agencies[id]) return;
+  const row = agencyToRow(fields);
+  const { error } = await sb.from('agencies').update(row).eq('id', id);
+  if (error) { console.error('dbUpdate error:', error); toast('Update failed — ' + error.message, 'error'); return; }
+  dbCache.agencies[id] = { ...dbCache.agencies[id], ...fields, updatedAt: new Date().toISOString() };
 }
-function dbUpdate(id, fields) {
-  const db = loadDB();
-  if (!db.agencies[id]) return;
-  db.agencies[id] = { ...db.agencies[id], ...fields, updatedAt:now() };
-  saveDB(db);
+
+async function dbDelete(id) {
+  const { error } = await sb.from('agencies').delete().eq('id', id);
+  if (error) { console.error('dbDelete error:', error); toast('Delete failed — ' + error.message, 'error'); return; }
+  delete dbCache.agencies[id];
 }
-function dbDelete(id) { const db=loadDB(); delete db.agencies[id]; saveDB(db); }
-function dbSetCountryStatus(code, status) {
-  const db=loadDB();
-  if (db.countries[code]) db.countries[code].status = status;
-  saveDB(db);
+
+async function dbSetCountryStatus(code, status) {
+  const { error } = await sb.from('countries').update({ status }).eq('code', code);
+  if (error) { console.error('dbSetCountryStatus error:', error); toast('Update failed — ' + error.message, 'error'); return; }
+  if (dbCache.countries[code]) dbCache.countries[code].status = status;
 }
-function dbAddCountry(code, status='NOT STARTED') {
-  const db=loadDB();
-  if (!db.countries[code]) db.countries[code] = { code, status };
-  saveDB(db);
+
+async function dbAddCountry(code, status='NOT STARTED') {
+  if (dbCache.countries[code]) return;
+  const { error } = await sb.from('countries').insert({ code, status });
+  if (error) { console.error('dbAddCountry error:', error); toast('Add failed — ' + error.message, 'error'); return; }
+  dbCache.countries[code] = { code, status };
 }
-function dbRemoveCountry(code) {
-  const db=loadDB();
-  delete db.countries[code];
-  Object.keys(db.agencies).forEach(id => { if (db.agencies[id].countryCode===code) delete db.agencies[id]; });
-  saveDB(db);
+
+async function dbRemoveCountry(code) {
+  // Agencies are CASCADE deleted in DB, but also clean cache
+  const { error } = await sb.from('countries').delete().eq('code', code);
+  if (error) { console.error('dbRemoveCountry error:', error); toast('Remove failed — ' + error.message, 'error'); return; }
+  delete dbCache.countries[code];
+  Object.keys(dbCache.agencies).forEach(id => { if (dbCache.agencies[id].countryCode===code) delete dbCache.agencies[id]; });
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -388,7 +378,7 @@ function renderCountryTable(cc, ags, db) {
     <button class="cg-chevron ${isOpen?'open':''}" title="Toggle">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
-    <span class="cg-name">${esc(countryName(cc))}</span>
+    <span class="cg-name">${esc(countryName(cc))} (${esc(cc)})</span>
     <span class="cg-count">${ags.length} agenc${ags.length===1?'y':'ies'}</span>
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
       <select class="status-select ${STATUS_CSS[countryStatus]||'s-not-started'}" data-cc="${esc(cc)}" title="Country status">
@@ -399,21 +389,21 @@ function renderCountryTable(cc, ags, db) {
     </div>`;
 
   // Prevent row click from toggling when interacting with controls
-  hdr.querySelector('.status-select').addEventListener('change', e=>{
+  hdr.querySelector('.status-select').addEventListener('change', async e=>{
     e.stopPropagation();
     const sel=e.target;
-    dbSetCountryStatus(cc, sel.value);
+    await dbSetCountryStatus(cc, sel.value);
     sel.className=`status-select ${STATUS_CSS[sel.value]||'s-not-started'}`;
     toast(`${countryName(cc)} → ${sel.value}`, 'success');
   });
   hdr.querySelector('[data-action="add-agency"]').addEventListener('click', e=>{
     e.stopPropagation(); openAgencyModal(null, cc);
   });
-  hdr.querySelector('[data-action="remove-country"]').addEventListener('click', e=>{
+  hdr.querySelector('[data-action="remove-country"]').addEventListener('click', async e=>{
     e.stopPropagation();
     const n=Object.values(loadDB().agencies).filter(a=>a.countryCode===cc).length;
     if (!confirm(`Remove ${countryName(cc)}?${n ? ` This will also delete ${n} agency record${n===1 ? '' : 's'}.` : ''}`)) return;
-    dbRemoveCountry(cc); toast(`Removed ${countryName(cc)}`, 'info'); renderMyDatabase();
+    await dbRemoveCountry(cc); toast(`Removed ${countryName(cc)}`, 'info'); renderMyDatabase();
   });
   hdr.querySelector('.cg-chevron').addEventListener('click', e=>{ e.stopPropagation(); toggleCountryBody(body, hdr.querySelector('.cg-chevron')); });
   hdr.addEventListener('click', ()=>toggleCountryBody(body, hdr.querySelector('.cg-chevron')));
@@ -430,22 +420,55 @@ function renderCountryTable(cc, ags, db) {
     </div>`;
     body.querySelector('.add-first-agency').addEventListener('click', ()=>openAgencyModal(null, cc));
   } else {
-    const tableWrap=document.createElement('div');
-    tableWrap.style.overflowX='auto';
-    const table=document.createElement('table');
-    table.className='sources-table';
-    table.innerHTML=`<thead><tr>
-      <th>Agency Name</th><th>City / Region</th><th>Modes</th>
-      <th>Static</th><th>RT</th><th>Quality</th><th>Status</th><th>Notes</th><th></th>
-    </tr></thead>`;
-    const tbody=document.createElement('tbody');
-    for (const ag of sortedAgs) tbody.appendChild(buildAgencyRow(ag));
-    table.appendChild(tbody);
-    tableWrap.appendChild(table);
-    body.appendChild(tableWrap);
+    // Group by subdivision
+    const bySub={};
+    for (const ag of sortedAgs) (bySub[ag.subdivision||'']??=[]).push(ag);
+    const subEntries=Object.entries(bySub).sort((a,b)=>{
+      if (a[0]===''&&b[0]!=='') return 1; if (b[0]===''&&a[0]!=='') return -1;
+      return a[0].localeCompare(b[0]);
+    });
+    const hasSubdivisions=subEntries.length>1||(subEntries.length===1&&subEntries[0][0]!=='');
+
+    for (const [sub, subAgs] of subEntries) {
+      if (hasSubdivisions) {
+        const subHdr=document.createElement('div');
+        subHdr.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 18px 6px 36px;background:#f0f4fa;border-top:1px solid #e0e0e0;cursor:pointer;user-select:none';
+        subHdr.innerHTML=`
+          <svg class="chevron open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;color:#7a8fb5;flex-shrink:0;transition:transform .2s"><polyline points="9 18 15 12 9 6"/></svg>
+          <span style="font-weight:600;font-size:13px;color:#3a5a8c">${esc(sub||'Other')}</span>
+          <span style="font-size:12px;color:#aaa">${subAgs.length}</span>`;
+        const subBody=document.createElement('div');
+        subHdr.addEventListener('click',()=>{
+          const open=subBody.style.display!=='none';
+          subBody.style.display=open?'none':'block';
+          subHdr.querySelector('.chevron').classList.toggle('open',!open);
+        });
+        body.appendChild(subHdr);
+        body.appendChild(subBody);
+        buildAgencyTable(subAgs, subBody);
+      } else {
+        buildAgencyTable(subAgs, body);
+      }
+    }
   }
   wrap.appendChild(body);
   return wrap;
+}
+
+function buildAgencyTable(ags, container) {
+  const tableWrap=document.createElement('div');
+  tableWrap.style.overflowX='auto';
+  const table=document.createElement('table');
+  table.className='sources-table';
+  table.innerHTML=`<thead><tr>
+    <th>Agency Name</th><th>City / Region</th><th>Modes</th>
+    <th>Static</th><th>RT</th><th>Quality</th><th>Status</th><th>Notes</th><th></th>
+  </tr></thead>`;
+  const tbody=document.createElement('tbody');
+  for (const ag of ags) tbody.appendChild(buildAgencyRow(ag));
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  container.appendChild(tableWrap);
 }
 
 function buildAgencyRow(ag) {
@@ -476,10 +499,10 @@ function buildAgencyRow(ag) {
       </div>
     </td>`;
   tr.querySelector('[data-action="edit"]').addEventListener('click', e=>{ e.stopPropagation(); openAgencyModal(ag.id); });
-  tr.querySelector('[data-action="delete"]').addEventListener('click', e=>{
+  tr.querySelector('[data-action="delete"]').addEventListener('click', async e=>{
     e.stopPropagation();
     if (!confirm(`Delete "${ag.agencyName}"?`)) return;
-    dbDelete(ag.id); toast(`Deleted ${ag.agencyName}`, 'info'); renderMyDatabase();
+    await dbDelete(ag.id); toast(`Deleted ${ag.agencyName}`, 'info'); renderMyDatabase();
   });
   return tr;
 }
@@ -508,11 +531,11 @@ function wireMyDBControls() {
 function exportCSV() {
   const db=loadDB();
   const ags=Object.values(db.agencies).sort((a,b)=>countryName(a.countryCode).localeCompare(countryName(b.countryCode))||(a.cityRegion||'').localeCompare(b.cityRegion||''));
-  const headers=['Country','Country Code','City/Region','Agency Name','Modes','Static','Static URL','RT','VP URL','TU URL','SA URL','Quality','Notes','Agency Status','Country Status'];
+  const headers=['Country','Country Code','Subdivision','City/Region','Agency Name','Modes','Static','Static URL','RT','VP URL','TU URL','SA URL','Quality','Notes','Agency Status','Country Status'];
   const lines=[headers.map(csvCell).join(',')];
   for (const ag of ags) {
     lines.push([
-      countryName(ag.countryCode), ag.countryCode, ag.cityRegion||'', ag.agencyName||'',
+      countryName(ag.countryCode), ag.countryCode, ag.subdivision||'', ag.cityRegion||'', ag.agencyName||'',
       (ag.modes||[]).join('|'), ag.hasStatic?'Yes':'No', ag.staticUrl||'',
       ag.hasRT?'Yes':'No', ag.rtVpUrl||'', ag.rtTuUrl||'', ag.rtSaUrl||'',
       ag.quality||'', ag.notes||'', ag.status||'',
@@ -579,7 +602,7 @@ function openAgencyModal(id=null, preCC='') {
   const sourceRow=document.getElementById('m-source-row');
 
   // Reset
-  ['m-city','m-name','m-static-url','m-vp','m-tu','m-sa','m-notes'].forEach(k=>{ const el=document.getElementById(k); if(el) el.value=''; });
+  ['m-subdivision','m-city','m-name','m-static-url','m-vp','m-tu','m-sa','m-notes'].forEach(k=>{ const el=document.getElementById(k); if(el) el.value=''; });
   document.getElementById('m-quality').value='';
   document.getElementById('m-status').value='NOT STARTED';
   document.getElementById('m-has-static').checked=false;
@@ -596,6 +619,7 @@ function openAgencyModal(id=null, preCC='') {
     const ag=db.agencies[id];
     if (!ag) return;
     populateCountrySelect(ag.countryCode);
+    document.getElementById('m-subdivision').value=ag.subdivision||'';
     document.getElementById('m-city').value=ag.cityRegion||'';
     document.getElementById('m-name').value=ag.agencyName||'';
     document.getElementById('m-quality').value=ag.quality||'';
@@ -626,7 +650,7 @@ function closeAgencyModal() {
   currentEditId=null;
 }
 
-function saveAgencyModal() {
+async function saveAgencyModal() {
   const cc=document.getElementById('m-country').value;
   const name=document.getElementById('m-name').value.trim();
   if (!cc) { document.getElementById('m-country').classList.add('error'); toast('Select a country', 'error'); return; }
@@ -637,6 +661,7 @@ function saveAgencyModal() {
   const modes=[...document.querySelectorAll('#modes-grid .mode-check input:checked')].map(i=>i.value);
   const fields={
     countryCode: cc,
+    subdivision: document.getElementById('m-subdivision').value.trim(),
     cityRegion:  document.getElementById('m-city').value.trim(),
     agencyName:  name,
     modes,
@@ -652,10 +677,10 @@ function saveAgencyModal() {
   };
 
   if (currentEditId) {
-    dbUpdate(currentEditId, fields);
+    await dbUpdate(currentEditId, fields);
     toast(`Updated ${name}`, 'success');
   } else {
-    dbAdd(fields);
+    await dbAdd(fields);
     toast(`Added ${name}`, 'success');
   }
   closeAgencyModal();
@@ -674,6 +699,7 @@ function wireAgencyModal() {
 // Pre-fill modal from a discovery result (MDB or Transitland)
 function openAgencyModalPrefilled(fields) {
   openAgencyModal(null, fields.countryCode||'');
+  if (fields.subdivision) document.getElementById('m-subdivision').value=fields.subdivision;
   if (fields.cityRegion) document.getElementById('m-city').value=fields.cityRegion;
   if (fields.agencyName) document.getElementById('m-name').value=fields.agencyName;
   if (fields.staticUrl) { document.getElementById('m-has-static').checked=true; document.getElementById('static-fields').classList.add('visible'); document.getElementById('m-static-url').value=fields.staticUrl; }
@@ -707,7 +733,7 @@ function wireCountryModal() {
   document.getElementById('cmodal-close').addEventListener('click',()=>document.getElementById('country-modal').classList.remove('open'));
   document.getElementById('cmodal-cancel').addEventListener('click',()=>document.getElementById('country-modal').classList.remove('open'));
   document.getElementById('country-modal').addEventListener('click',e=>{ if(e.target===document.getElementById('country-modal')) document.getElementById('country-modal').classList.remove('open'); });
-  document.getElementById('cmodal-save').addEventListener('click',()=>{
+  document.getElementById('cmodal-save').addEventListener('click', async ()=>{
     const raw=document.getElementById('cmodal-name').value.trim();
     // Accept "Name (CC)" format or just "CC"
     const match=raw.match(/\(([A-Z]{2})\)$/) || (raw.length===2?[null,raw.toUpperCase()]:null);
@@ -716,7 +742,7 @@ function wireCountryModal() {
     const db=loadDB();
     if (db.countries[cc]) { toast(`${countryName(cc)} is already tracked`, 'error'); return; }
     const status=document.getElementById('cmodal-status').value;
-    dbAddCountry(cc, status);
+    await dbAddCountry(cc, status);
     document.getElementById('country-modal').classList.remove('open');
     toast(`Added ${countryName(cc)}`, 'success');
     renderMyDatabase();
@@ -735,22 +761,20 @@ async function openImportModal() {
   const footer=document.getElementById('import-footer');
   footer.style.display='none';
   importCandidates=[];
-  const label = browseSource==='mdb' ? 'Mobility Database' : 'Feeds v2';
-  const url = browseSource==='mdb' ? MDB_CSV_URL : FEEDS_V2_URL;
-  document.getElementById('import-title').textContent=`Import from ${label}`;
-  body.innerHTML=`<div class="center-state" style="padding:30px"><div class="spinner"></div><p>Loading ${esc(label)}…</p></div>`;
+  document.getElementById('import-title').textContent='Import from Feeds v2';
+  body.innerHTML=`<div class="center-state" style="padding:30px"><div class="spinner"></div><p>Loading Feeds v2…</p></div>`;
   modal.classList.add('open');
 
   try {
     if (!mdbLoaded) {
-      const res=await fetch(url);
+      const res=await fetch(FEEDS_V2_URL);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       allMdbAgencies=processFeeds(parseCSV(await res.text()));
       mdbLoaded=true;
     }
     buildImportCandidates();
   } catch(err) {
-    body.innerHTML=`<div class="center-state" style="color:#c62828"><p>Failed to load ${esc(label)}: ${esc(err.message)}</p></div>`;
+    body.innerHTML=`<div class="center-state" style="color:#c62828"><p>Failed to load Feeds v2: ${esc(err.message)}</p></div>`;
   }
 }
 
@@ -773,7 +797,8 @@ function buildImportCandidates() {
     const saUrl=(ag.rtSA[0]?.['urls.latest']||ag.rtSA[0]?.['urls.direct_download']||'');
     const candidate={
       existId, agencyName:ag.provider, countryCode:ag.country,
-      cityRegion:[ag.municipality,ag.subdivision].filter(Boolean).join(', '),
+      subdivision:ag.subdivision||'',
+      cityRegion:ag.municipality||'',
       hasStatic:ag.staticFeeds.length>0, staticUrl,
       hasRT:ag.rtVP.length>0||ag.rtTU.length>0||ag.rtSA.length>0,
       rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
@@ -828,19 +853,19 @@ function buildImportCandidates() {
   });
 }
 
-function commitImport() {
+async function commitImport() {
   const selected=importCandidates.filter(c=>c.selected);
   let added=0, updated=0;
   for (const c of selected) {
-    const fields={ countryCode:c.countryCode, cityRegion:c.cityRegion, agencyName:c.agencyName,
+    const fields={ countryCode:c.countryCode, subdivision:c.subdivision||'', cityRegion:c.cityRegion, agencyName:c.agencyName,
       modes:[], hasStatic:c.hasStatic, staticUrl:c.staticUrl, hasRT:c.hasRT,
       rtVpUrl:c.rtVpUrl, rtTuUrl:c.rtTuUrl, rtSaUrl:c.rtSaUrl,
       source:'mdb', mdbSourceId:c.mdbSourceId, quality:'', notes:'', status:'NOT STARTED' };
     if (c.existId) {
-      dbUpdate(c.existId, { staticUrl:c.staticUrl, rtVpUrl:c.rtVpUrl, rtTuUrl:c.rtTuUrl, rtSaUrl:c.rtSaUrl, hasStatic:c.hasStatic, hasRT:c.hasRT, mdbSourceId:c.mdbSourceId, source:'mdb' });
+      await dbUpdate(c.existId, { staticUrl:c.staticUrl, rtVpUrl:c.rtVpUrl, rtTuUrl:c.rtTuUrl, rtSaUrl:c.rtSaUrl, hasStatic:c.hasStatic, hasRT:c.hasRT, mdbSourceId:c.mdbSourceId, source:'mdb' });
       updated++;
     } else {
-      dbAdd(fields); added++;
+      await dbAdd(fields); added++;
     }
   }
   document.getElementById('import-modal').classList.remove('open');
@@ -861,7 +886,6 @@ function wireImportModal() {
 
 let brFilter='all', brSearch='', brCountry='', brSubdivision='', brStatus='active', brHasRT=false;
 let browseLoaded=false;
-let browseSource='feeds_v2'; // 'feeds_v2' or 'mdb'
 
 function getFiltered() {
   return allMdbAgencies.filter(ag=>{
@@ -1028,7 +1052,7 @@ function renderBrowseResults() {
       const tuUrl=ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'';
       const saUrl=ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'';
       openAgencyModalPrefilled({
-        countryCode:ag.country, cityRegion:[ag.municipality,ag.subdivision].filter(Boolean).join(', '),
+        countryCode:ag.country, subdivision:ag.subdivision||'', cityRegion:ag.municipality||'',
         agencyName:ag.provider, staticUrl,
         rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
         mdbSourceId:feedId(ag.staticFeeds[0]||{}),
@@ -1064,17 +1088,6 @@ function populateBrowseSubdivisionFilter() {
 }
 
 function wireBrowseControls() {
-  document.getElementById('browse-source').addEventListener('change',e=>{
-    browseSource=e.target.value;
-    browseLoaded=false;
-    mdbLoaded=false;
-    allMdbAgencies=[];
-    document.getElementById('browse-stat-chips').style.display='none';
-    document.getElementById('browse-filters').style.display='none';
-    loadBrowseTab(true);
-    // Update subtitle if on browse tab
-    if (activeTab==='browse') setHeaderActions('browse');
-  });
   document.getElementById('br-search').addEventListener('input',e=>{ brSearch=e.target.value.trim(); renderBrowseResults(); });
   document.getElementById('f-br-country').addEventListener('change',e=>{ brCountry=e.target.value; brSubdivision=''; populateBrowseSubdivisionFilter(); renderBrowseResults(); });
   document.getElementById('f-br-subdivision').addEventListener('change',e=>{ brSubdivision=e.target.value; renderBrowseResults(); });
@@ -1104,11 +1117,9 @@ function wireBrowseControls() {
 async function loadBrowseTab(forceReload=false) {
   if (browseLoaded && !forceReload) return;
   const area=document.getElementById('browse-results');
-  const url = browseSource==='mdb' ? MDB_CSV_URL : FEEDS_V2_URL;
-  const label = browseSource==='mdb' ? 'Mobility Database' : 'Feeds v2';
-  area.innerHTML=`<div class="center-state" id="browse-init-state"><div class="spinner"></div><p>Loading ${esc(label)}…</p></div>`;
+  area.innerHTML='<div class="center-state" id="browse-init-state"><div class="spinner"></div><p>Loading Feeds v2…</p></div>';
   try {
-    const res=await fetch(url);
+    const res=await fetch(FEEDS_V2_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     allMdbAgencies=processFeeds(parseCSV(await res.text()));
     mdbLoaded=true; browseLoaded=true;
@@ -1121,7 +1132,7 @@ async function loadBrowseTab(forceReload=false) {
   } catch(err) {
     const isFile=location.protocol==='file:';
     area.innerHTML=`<div class="center-state" style="color:#c62828">
-      <p style="font-weight:700">Could not load ${esc(label)}</p>
+      <p style="font-weight:700">Could not load Feeds v2</p>
       <p class="sub">${esc(err.message)}</p>
       ${isFile?`<p class="sub">Open via a local server: <code>python3 -m http.server 8080</code></p>`:''}
       <button id="browse-retry-btn" style="margin-top:12px;padding:8px 20px;background:#2c5aa0;color:white;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Retry</button>
@@ -1269,7 +1280,7 @@ async function searchLocalMDB(query) {
   const hits=allMdbAgencies.filter(a=>[a.provider,a.municipality,a.subdivision,a.country,countryName(a.country)].join(' ').toLowerCase().includes(q)).slice(0,40);
   if (!hits.length) { results.innerHTML=`<p style="text-align:center;padding:24px;font-size:13px;color:#999">No results for "${esc(query)}"</p>`; return; }
   renderDiscoveryCards(hits.map(ag=>({
-    name:ag.provider, loc:[ag.municipality,ag.subdivision].filter(Boolean).join(', '),
+    name:ag.provider, subdivision:ag.subdivision||'', loc:ag.municipality||'',
     country:ag.country, coverageLevel:ag.coverageLevel,
     staticUrl:ag.staticFeeds[0]?.['urls.latest']||ag.staticFeeds[0]?.['urls.direct_download']||'',
     vpUrl:ag.rtVP[0]?.['urls.latest']||'', tuUrl:ag.rtTU[0]?.['urls.latest']||'', saUrl:ag.rtSA[0]?.['urls.latest']||'',
@@ -1335,7 +1346,7 @@ function renderDiscoveryCards(items, query) {
     btn.addEventListener('click',()=>{
       const item=items[+btn.dataset.discIdx];
       openAgencyModalPrefilled({
-        countryCode:item.country, cityRegion:item.loc, agencyName:item.name,
+        countryCode:item.country, subdivision:item.subdivision||'', cityRegion:item.loc, agencyName:item.name,
         staticUrl:item.staticUrl, rtVpUrl:item.vpUrl, rtTuUrl:item.tuUrl, rtSaUrl:item.saUrl,
         mdbSourceId:item.mdbSourceId,
       });
@@ -1371,8 +1382,7 @@ function setHeaderActions(tab) {
     document.getElementById('ha-import').addEventListener('click',openImportModal);
     document.getElementById('ha-export').addEventListener('click',exportCSV);
   } else {
-    const srcLabel = browseSource==='mdb' ? 'Mobility Database' : 'Feeds v2 (Local)';
-    sub.textContent=`Global GTFS feed directory · ${srcLabel} · Read-only`;
+    sub.textContent='Global GTFS feed directory · Feeds v2 · Read-only';
     el.innerHTML='';
   }
 }
@@ -1396,7 +1406,10 @@ function showTab(name) {
 // 15. Init
 // ═══════════════════════════════════════════════════════════════════════
 
-function init() {
+async function init() {
+  // Load data from Supabase
+  await initDB();
+
   // Build dynamic modal content
   buildModesGrid();
   buildStatusSelects();

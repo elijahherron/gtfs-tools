@@ -340,10 +340,7 @@
     <!-- ── Browse All tab ────────────────────────────────── -->
     <div id="tab-browse" class="tab-panel" style="display:none">
       <div class="stats-bar" id="browse-stats">
-        <select id="browse-source" class="filter-select" style="font-weight:600;border-color:#c5d5f0;color:#2c5aa0;margin-right:8px">
-          <option value="feeds_v2">Feeds v2 (Local)</option>
-          <option value="mdb">Mobility Database (Remote)</option>
-        </select>
+        <span style="font-weight:600;color:#2c5aa0;margin-right:8px">Feeds v2</span>
         <div id="browse-stat-chips" style="display:none;gap:10px;flex-wrap:wrap">
           <div class="stat-chip chip-all active-filter" data-filter="all"><span class="stat-dot"></span><span id="s-total">—</span> agencies</div>
           <div class="stat-chip chip-full"    data-filter="full">   <span class="stat-dot"></span><span id="s-full">—</span>    Full RT <span style="font-weight:400;font-size:11px;opacity:.7">(GTFS+VP+TU)</span></div>
@@ -386,8 +383,8 @@
     </div>
 
     <div class="footer-note" id="footer-note">
-      My Database is stored in your browser (localStorage) ·
-      Browse All loads from <a href="https://database.mobilitydata.org" target="_blank">Mobility Database</a> or local feeds_v2.csv
+      My Database is stored in Supabase (shared) ·
+      Browse All loads from local feeds_v2.csv
     </div>
   </div>
 </div>
@@ -404,6 +401,10 @@
         <div class="modal-field">
           <label>Country *</label>
           <select id="m-country" required></select>
+        </div>
+        <div class="modal-field">
+          <label>Subdivision</label>
+          <input id="m-subdivision" type="text" placeholder="e.g. California, Ontario">
         </div>
         <div class="modal-field">
           <label>City / Region</label>
@@ -490,7 +491,7 @@
     <div class="modal-body" id="import-body">
       <div class="center-state" style="padding:30px">
         <div class="spinner"></div>
-        <p>Fetching Mobility Database…</p>
+        <p>Loading feeds…</p>
       </div>
     </div>
     <div class="modal-footer" id="import-footer" style="display:none">
@@ -526,6 +527,7 @@
 </div>
 
 <div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="transit-sources.js"></script>
 </body>
 </html>
