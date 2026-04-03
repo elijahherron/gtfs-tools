@@ -435,7 +435,7 @@ function renderCountryTable(cc, ags, db) {
   wrap.style.cssText='background:white;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)';
 
   const countryStatus=db.countries[cc]?.status||'NOT STARTED';
-  const isOpen=ags.length>0 && ags.length<=12;
+  const isOpen=false;
 
   // Sort agencies within country: city, then name
   const sortedAgs=[...ags].sort((a,b)=>(a.cityRegion||'').localeCompare(b.cityRegion||'')||(a.agencyName||'').localeCompare(b.agencyName||''));
@@ -722,7 +722,7 @@ function renderPotentialCountry(cc, ags) {
   const wrap=document.createElement('div');
   wrap.className='country-db-section';
   wrap.style.cssText='background:white;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)';
-  const isOpen=ags.length<=12;
+  const isOpen=false;
   const sortedAgs=[...ags].sort((a,b)=>(a.subdivision||'').localeCompare(b.subdivision||'')||(a.agencyName||'').localeCompare(b.agencyName||''));
 
   const hdr=document.createElement('div');
@@ -1343,7 +1343,7 @@ function coverageBadges(agencies) {
 function renderSubdivisionSection(subName, agencies) {
   const order={full:0,partial_rt:1,static_only:2,rt_only:3};
   agencies.sort((a,b)=>(order[a.coverageLevel]??4)-(order[b.coverageLevel]??4));
-  const expand=agencies.length<=8;
+  const expand=false;
   return `<div class="subdivision-section" style="border-top:1px solid #eee">
     <div class="subdivision-header" style="display:flex;align-items:center;gap:10px;padding:8px 18px 8px 36px;cursor:pointer;user-select:none;font-size:13px;background:#fafbfc">
       <svg class="chevron ${expand?'open':''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;color:#aaa;flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1362,7 +1362,7 @@ function renderSubdivisionSection(subName, agencies) {
 function renderBrowseCountry(cc, agencies) {
   const order={full:0,partial_rt:1,static_only:2,rt_only:3};
   agencies.sort((a,b)=>(order[a.coverageLevel]??4)-(order[b.coverageLevel]??4));
-  const expand=agencies.length<=12;
+  const expand=false;
 
   // Group by subdivision
   const bySub={};
