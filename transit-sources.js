@@ -14,7 +14,7 @@ const TRANSITLAND_API = 'https://transit.land/api/v2/rest';
 const NOMINATIM_URL   = 'https://nominatim.openstreetmap.org/search';
 
 const MODES    = ['Bus', 'Tram', 'Metro', 'Rail', 'Ferry', 'BRT', 'Cable', 'Other'];
-const STATUSES = ['NOT STARTED', 'SOURCING', 'WORKING', 'FINISHED FOR NOW', 'BLOCKED'];
+const STATUSES = ['NOT STARTED', 'SOURCING', 'WORKING', 'FINISHED', 'FINISHED FOR NOW', 'BLOCKED'];
 
 const STATUS_CSS = {
   'NOT STARTED':    's-not-started',
@@ -41,7 +41,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // In-memory cache — loadDB() returns this synchronously
-let dbCache = { countries:{}, agencies:{} };
+let dbCache = { countries:{}, agencies:{}, potential:{} };
 
 function mkUuid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -78,16 +78,20 @@ function agencyToRow(fields) {
 
 // Load all data from Supabase into cache
 async function initDB() {
-  const [cRes, aRes] = await Promise.all([
+  const [cRes, aRes, pRes] = await Promise.all([
     sb.from('countries').select('*'),
     sb.from('agencies').select('*'),
+    sb.from('potential_feeds').select('*'),
   ]);
   if (cRes.error) { console.error('Failed to load countries:', cRes.error); toast('DB connection error — check console', 'error'); return; }
   if (aRes.error) { console.error('Failed to load agencies:', aRes.error); toast('DB connection error — check console', 'error'); return; }
+  if (pRes.error) { console.error('Failed to load potential feeds:', pRes.error); toast('DB connection error — check console', 'error'); return; }
   dbCache.countries = {};
   for (const c of cRes.data) dbCache.countries[c.code] = { code: c.code, status: c.status };
   dbCache.agencies = {};
   for (const r of aRes.data) { const ag = agencyFromRow(r); dbCache.agencies[ag.id] = ag; }
+  dbCache.potential = {};
+  for (const r of pRes.data) { const ag = agencyFromRow(r); dbCache.potential[ag.id] = ag; }
 }
 
 // Synchronous read from cache
@@ -135,6 +139,45 @@ async function dbRemoveCountry(code) {
   if (error) { console.error('dbRemoveCountry error:', error); toast('Remove failed — ' + error.message, 'error'); return; }
   delete dbCache.countries[code];
   Object.keys(dbCache.agencies).forEach(id => { if (dbCache.agencies[id].countryCode===code) delete dbCache.agencies[id]; });
+}
+
+// ── Potential feeds CRUD
+async function pfAdd(fields) {
+  const id = mkUuid();
+  const row = { id, ...agencyToRow({ source:'manual', mdbSourceId:'', ...fields }) };
+  const { error } = await sb.from('potential_feeds').insert(row);
+  if (error) { console.error('pfAdd error:', error); toast('Save failed — ' + error.message, 'error'); return null; }
+  dbCache.potential[id] = { id, source:'manual', mdbSourceId:'', ...fields, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  return id;
+}
+async function pfUpdate(id, fields) {
+  if (!dbCache.potential[id]) return;
+  const row = agencyToRow(fields);
+  const { error } = await sb.from('potential_feeds').update(row).eq('id', id);
+  if (error) { console.error('pfUpdate error:', error); toast('Update failed — ' + error.message, 'error'); return; }
+  dbCache.potential[id] = { ...dbCache.potential[id], ...fields, updatedAt: new Date().toISOString() };
+}
+async function pfDelete(id) {
+  const { error } = await sb.from('potential_feeds').delete().eq('id', id);
+  if (error) { console.error('pfDelete error:', error); toast('Delete failed — ' + error.message, 'error'); return; }
+  delete dbCache.potential[id];
+}
+
+// Move agency between Working and Potential
+async function moveToWorking(id) {
+  const ag = dbCache.potential[id];
+  if (!ag) return;
+  await dbAddCountry(ag.countryCode);
+  const { id: _oldId, addedAt, updatedAt, ...fields } = ag;
+  await dbAdd(fields);
+  await pfDelete(id);
+}
+async function moveToPotential(id) {
+  const ag = dbCache.agencies[id];
+  if (!ag) return;
+  const { id: _oldId, addedAt, updatedAt, ...fields } = ag;
+  await pfAdd(fields);
+  await dbDelete(id);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -280,7 +323,20 @@ function processFeeds(rows) {
 // 7. My Database tab — render
 // ═══════════════════════════════════════════════════════════════════════
 
-let mydbSearch='', mydbStatusFilter='', mydbCountryFilter='';
+let mydbSearch='', mydbStatusFilter='', mydbCountryFilter='', mydbCoverageFilter='all';
+
+function agencyCoverage(ag) {
+  const hasStatic = ag.hasStatic || !!ag.staticUrl;
+  const hasVP = !!ag.rtVpUrl;
+  const hasTU = !!ag.rtTuUrl;
+  const hasSA = !!ag.rtSaUrl;
+  const hasAnyRT = hasVP || hasTU || hasSA;
+  if (hasStatic && hasVP && hasTU) return 'full';
+  if (hasStatic && hasAnyRT) return 'partial_rt';
+  if (hasStatic) return 'static_only';
+  if (hasAnyRT) return 'rt_only';
+  return 'none';
+}
 
 function getMyDBFiltered() {
   const db=loadDB();
@@ -291,6 +347,7 @@ function getMyDBFiltered() {
     else ags=ags.filter(a=>a.status===f);
   }
   if (mydbCountryFilter) ags=ags.filter(a=>a.countryCode===mydbCountryFilter);
+  if (mydbCoverageFilter && mydbCoverageFilter!=='all') ags=ags.filter(a=>agencyCoverage(a)===mydbCoverageFilter);
   if (mydbSearch) {
     const q=mydbSearch.toLowerCase();
     ags=ags.filter(a=>[a.agencyName,a.cityRegion,a.countryCode,countryName(a.countryCode)].join(' ').toLowerCase().includes(q));
@@ -306,10 +363,24 @@ function renderMyDatabase() {
     console.error('renderMyDatabase error:', e);
   }
 }
+function updateMyDBStats() {
+  const all=Object.values(loadDB().agencies);
+  const counts={all:all.length, full:0, partial_rt:0, static_only:0, rt_only:0, none:0};
+  for (const ag of all) counts[agencyCoverage(ag)]++;
+  document.getElementById('ms-total').textContent=counts.all;
+  document.getElementById('ms-full').textContent=counts.full;
+  document.getElementById('ms-partial').textContent=counts.partial_rt;
+  document.getElementById('ms-static').textContent=counts.static_only;
+  document.getElementById('ms-rtonly').textContent=counts.rt_only;
+  document.getElementById('ms-none').textContent=counts.none;
+}
+
 function _renderMyDatabase() {
   const area=document.getElementById('mydb-results');
   const db=loadDB();
   const ags=getMyDBFiltered();
+
+  updateMyDBStats();
 
   // Update count
   const countEl=document.getElementById('mydb-count');
@@ -345,7 +416,7 @@ function _renderMyDatabase() {
   });
 
   // If filtered, hide countries with no matches (unless country filter is active)
-  const display = mydbSearch||mydbStatusFilter
+  const display = mydbSearch||mydbStatusFilter||(mydbCoverageFilter&&mydbCoverageFilter!=='all')
     ? sorted.filter(([cc,ags])=>ags.length>0)
     : sorted;
 
@@ -490,6 +561,9 @@ function buildAgencyRow(ag) {
         ${ag.staticUrl||ag.rtVpUrl||ag.rtTuUrl||ag.rtSaUrl?`<a class="icon-btn" href="${validatorLink(ag)}" target="_blank" rel="noopener" title="Validate GTFS" style="color:#43a047">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
         </a>`:''}
+        <button class="icon-btn" data-action="demote" title="Move to Potential Feeds" style="color:#5c4d8a">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 13 12 18 17 13"/><line x1="12" y1="6" x2="12" y2="18"/></svg>
+        </button>
         <button class="icon-btn" data-action="edit" title="Edit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
@@ -498,6 +572,12 @@ function buildAgencyRow(ag) {
         </button>
       </div>
     </td>`;
+  tr.querySelector('[data-action="demote"]').addEventListener('click', async e=>{
+    e.stopPropagation();
+    await moveToPotential(ag.id);
+    toast(`Moved ${ag.agencyName} to Potential Feeds`, 'info');
+    renderMyDatabase();
+  });
   tr.querySelector('[data-action="edit"]').addEventListener('click', e=>{ e.stopPropagation(); openAgencyModal(ag.id); });
   tr.querySelector('[data-action="delete"]').addEventListener('click', async e=>{
     e.stopPropagation();
@@ -518,11 +598,21 @@ function wireMyDBControls() {
   document.getElementById('mydb-search').addEventListener('input', e=>{ mydbSearch=e.target.value.trim(); renderMyDatabase(); });
   document.getElementById('f-mydb-status').addEventListener('change', e=>{ mydbStatusFilter=e.target.value; renderMyDatabase(); });
   document.getElementById('f-mydb-country').addEventListener('change', e=>{ mydbCountryFilter=e.target.value; renderMyDatabase(); });
+  document.querySelectorAll('[data-mydb-filter]').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      mydbCoverageFilter=chip.dataset.mydbFilter;
+      document.querySelectorAll('[data-mydb-filter]').forEach(c=>c.classList.remove('active-filter'));
+      chip.classList.add('active-filter');
+      renderMyDatabase();
+    });
+  });
   document.getElementById('mydb-clear').addEventListener('click', ()=>{
-    mydbSearch=''; mydbStatusFilter=''; mydbCountryFilter='';
+    mydbSearch=''; mydbStatusFilter=''; mydbCountryFilter=''; mydbCoverageFilter='all';
     document.getElementById('mydb-search').value='';
     document.getElementById('f-mydb-status').value='';
     document.getElementById('f-mydb-country').value='';
+    document.querySelectorAll('[data-mydb-filter]').forEach(c=>c.classList.remove('active-filter'));
+    document.querySelector('[data-mydb-filter="all"]')?.classList.add('active-filter');
     renderMyDatabase();
   });
 }
@@ -546,6 +636,300 @@ function exportCSV() {
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=`transit-sources-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Exported CSV', 'success');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 7b. Potential Feeds tab — render (mirrors My Database)
+// ═══════════════════════════════════════════════════════════════════════
+
+let pfSearch='', pfStatusFilter='', pfCountryFilter='', pfCoverageFilter='all';
+
+function getPotentialFiltered() {
+  const db=loadDB();
+  let ags=Object.values(db.potential);
+  if (pfStatusFilter) {
+    const f=pfStatusFilter;
+    if (f==='FINISHED FOR NOW') ags=ags.filter(a=>a.status==='FINISHED FOR NOW'||a.status==='FINISHED');
+    else ags=ags.filter(a=>a.status===f);
+  }
+  if (pfCountryFilter) ags=ags.filter(a=>a.countryCode===pfCountryFilter);
+  if (pfCoverageFilter && pfCoverageFilter!=='all') ags=ags.filter(a=>agencyCoverage(a)===pfCoverageFilter);
+  if (pfSearch) {
+    const q=pfSearch.toLowerCase();
+    ags=ags.filter(a=>[a.agencyName,a.cityRegion,a.countryCode,countryName(a.countryCode)].join(' ').toLowerCase().includes(q));
+  }
+  return ags;
+}
+
+function renderPotentialFeeds() {
+  try { _renderPotentialFeeds(); }
+  catch(e) {
+    const area=document.getElementById('potential-results');
+    if (area) area.innerHTML=`<div class="center-state" style="color:#c62828"><p style="font-weight:700">Render error</p><p class="sub">${esc(e.message)}</p></div>`;
+    console.error('renderPotentialFeeds error:', e);
+  }
+}
+
+function updatePotentialStats() {
+  const all=Object.values(loadDB().potential);
+  const counts={all:all.length, full:0, partial_rt:0, static_only:0, rt_only:0, none:0};
+  for (const ag of all) counts[agencyCoverage(ag)]++;
+  document.getElementById('ps-total').textContent=counts.all;
+  document.getElementById('ps-full').textContent=counts.full;
+  document.getElementById('ps-partial').textContent=counts.partial_rt;
+  document.getElementById('ps-static').textContent=counts.static_only;
+  document.getElementById('ps-rtonly').textContent=counts.rt_only;
+  document.getElementById('ps-none').textContent=counts.none;
+}
+
+function _renderPotentialFeeds() {
+  const area=document.getElementById('potential-results');
+  const db=loadDB();
+  const ags=getPotentialFiltered();
+
+  updatePotentialStats();
+
+  const countEl=document.getElementById('potential-count');
+  if (countEl) countEl.textContent=`${ags.length.toLocaleString()} of ${Object.keys(db.potential).length.toLocaleString()} agencies`;
+
+  // Populate country filter
+  const cSel=document.getElementById('f-potential-country');
+  const prevCC=cSel.value;
+  while(cSel.options.length>1) cSel.remove(1);
+  const pCountries=[...new Set(Object.values(db.potential).map(a=>a.countryCode))].sort((a,b)=>countryName(a).localeCompare(countryName(b)));
+  pCountries.forEach(cc=>{
+    const o=document.createElement('option'); o.value=cc; o.textContent=`${countryName(cc)} (${cc})`;
+    if(cc===prevCC) o.selected=true; cSel.appendChild(o);
+  });
+
+  if (!ags.length) {
+    area.innerHTML=`<div class="center-state">
+      <p>No potential feeds${Object.keys(db.potential).length?' match your filters':' yet'}.</p>
+      <p class="sub">Add feeds from Browse or manually.</p>
+    </div>`;
+    return;
+  }
+
+  // Group by country
+  const byCC={};
+  for (const ag of ags) (byCC[ag.countryCode||'XX']??=[]).push(ag);
+  const sorted=Object.entries(byCC).sort((a,b)=>countryName(a[0]).localeCompare(countryName(b[0])));
+
+  area.innerHTML='';
+  for (const [cc, countryAgs] of sorted) {
+    area.appendChild(renderPotentialCountry(cc, countryAgs));
+  }
+}
+
+function renderPotentialCountry(cc, ags) {
+  const wrap=document.createElement('div');
+  wrap.className='country-db-section';
+  wrap.style.cssText='background:white;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)';
+  const isOpen=ags.length<=12;
+  const sortedAgs=[...ags].sort((a,b)=>(a.subdivision||'').localeCompare(b.subdivision||'')||(a.agencyName||'').localeCompare(b.agencyName||''));
+
+  const hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#5c4d8a;color:white;cursor:pointer;user-select:none';
+  hdr.innerHTML=`
+    <button class="cg-chevron ${isOpen?'open':''}" title="Toggle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <span class="cg-name">${esc(countryName(cc))} (${esc(cc)})</span>
+    <span class="cg-count">${ags.length} agenc${ags.length===1?'y':'ies'}</span>`;
+
+  const body=document.createElement('div');
+  body.style.display=isOpen?'block':'none';
+  hdr.querySelector('.cg-chevron').addEventListener('click', e=>{ e.stopPropagation(); toggleCountryBody(body, hdr.querySelector('.cg-chevron')); });
+  hdr.addEventListener('click', ()=>toggleCountryBody(body, hdr.querySelector('.cg-chevron')));
+  wrap.appendChild(hdr);
+
+  const tableWrap=document.createElement('div');
+  tableWrap.style.overflowX='auto';
+  const table=document.createElement('table');
+  table.className='sources-table';
+  table.innerHTML=`<thead><tr>
+    <th>Agency Name</th><th>Subdivision</th><th>City / Region</th>
+    <th>Static</th><th>RT</th><th>Status</th><th>Notes</th><th></th>
+  </tr></thead>`;
+  const tbody=document.createElement('tbody');
+  for (const ag of sortedAgs) tbody.appendChild(buildPotentialRow(ag));
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  body.appendChild(tableWrap);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function buildPotentialRow(ag) {
+  const tr=document.createElement('tr');
+  tr.className='agency-row';
+  tr.dataset.id=ag.id;
+  tr.innerHTML=`
+    <td><div class="agency-name">${esc(ag.agencyName||'—')}</div></td>
+    <td><div style="white-space:nowrap;font-size:12px;color:#888">${esc(ag.subdivision||'—')}</div></td>
+    <td><div style="white-space:nowrap">${esc(ag.cityRegion||'—')}</div></td>
+    <td>${staticBadge(ag)}</td>
+    <td>${rtBadges(ag)}</td>
+    <td>${statusBadge(ag.status)}</td>
+    <td><div style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#888" title="${esc(ag.notes||'')}">${esc(ag.notes||'—')}</div></td>
+    <td>
+      <div class="row-actions">
+        <button class="icon-btn" data-action="promote" title="Move to Working Feeds" style="color:#2c5aa0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="18" x2="12" y2="6"/></svg>
+        </button>
+        <button class="icon-btn" data-action="edit" title="Edit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="icon-btn danger" data-action="delete" title="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+    </td>`;
+  tr.querySelector('[data-action="promote"]').addEventListener('click', async e=>{
+    e.stopPropagation();
+    await moveToWorking(ag.id);
+    toast(`Moved ${ag.agencyName} to Working Feeds`, 'success');
+    renderPotentialFeeds();
+  });
+  tr.querySelector('[data-action="edit"]').addEventListener('click', e=>{ e.stopPropagation(); openPotentialModal(ag.id); });
+  tr.querySelector('[data-action="delete"]').addEventListener('click', async e=>{
+    e.stopPropagation();
+    if (!confirm(`Delete "${ag.agencyName}"?`)) return;
+    await pfDelete(ag.id); toast(`Deleted ${ag.agencyName}`, 'info'); renderPotentialFeeds();
+  });
+  return tr;
+}
+
+function wirePotentialControls() {
+  document.getElementById('potential-search').addEventListener('input', e=>{ pfSearch=e.target.value.trim(); renderPotentialFeeds(); });
+  document.getElementById('f-potential-status').addEventListener('change', e=>{ pfStatusFilter=e.target.value; renderPotentialFeeds(); });
+  document.getElementById('f-potential-country').addEventListener('change', e=>{ pfCountryFilter=e.target.value; renderPotentialFeeds(); });
+  document.querySelectorAll('[data-potential-filter]').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      pfCoverageFilter=chip.dataset.potentialFilter;
+      document.querySelectorAll('[data-potential-filter]').forEach(c=>c.classList.remove('active-filter'));
+      chip.classList.add('active-filter');
+      renderPotentialFeeds();
+    });
+  });
+  document.getElementById('potential-clear').addEventListener('click', ()=>{
+    pfSearch=''; pfStatusFilter=''; pfCountryFilter=''; pfCoverageFilter='all';
+    document.getElementById('potential-search').value='';
+    document.getElementById('f-potential-status').value='';
+    document.getElementById('f-potential-country').value='';
+    document.querySelectorAll('[data-potential-filter]').forEach(c=>c.classList.remove('active-filter'));
+    document.querySelector('[data-potential-filter="all"]')?.classList.add('active-filter');
+    renderPotentialFeeds();
+  });
+}
+
+// Potential feeds modal — reuses agency modal pattern but writes to potential_feeds
+let currentPotentialEditId=null;
+
+function openPotentialModal(id=null) {
+  currentPotentialEditId=id;
+  const modal=document.getElementById('agency-modal');
+  populateCountrySelect('', true);
+
+  const title=document.getElementById('modal-title');
+  const saveBtn=document.getElementById('modal-save');
+  const sourceRow=document.getElementById('m-source-row');
+
+  ['m-subdivision','m-city','m-name','m-static-url','m-vp','m-tu','m-sa','m-notes'].forEach(k=>{ const el=document.getElementById(k); if(el) el.value=''; });
+  document.getElementById('m-quality').value='';
+  document.getElementById('m-status').value='NOT STARTED';
+  document.getElementById('m-has-static').checked=false;
+  document.getElementById('m-has-rt').checked=false;
+  document.getElementById('static-fields').classList.remove('visible');
+  document.getElementById('rt-fields').classList.remove('visible');
+  document.querySelectorAll('#modes-grid .mode-check').forEach(l=>{ l.classList.remove('checked'); l.querySelector('input').checked=false; });
+  sourceRow.style.display='none';
+
+  if (id) {
+    const ag=dbCache.potential[id];
+    if (!ag) return;
+    title.textContent='Edit Potential Feed';
+    saveBtn.textContent='Save Changes';
+    populateCountrySelect(ag.countryCode, true);
+    document.getElementById('m-subdivision').value=ag.subdivision||'';
+    document.getElementById('m-city').value=ag.cityRegion||'';
+    document.getElementById('m-name').value=ag.agencyName||'';
+    document.getElementById('m-quality').value=ag.quality||'';
+    document.getElementById('m-status').value=ag.status||'NOT STARTED';
+    document.getElementById('m-notes').value=ag.notes||'';
+    if (ag.hasStatic) { document.getElementById('m-has-static').checked=true; document.getElementById('static-fields').classList.add('visible'); }
+    document.getElementById('m-static-url').value=ag.staticUrl||'';
+    if (ag.hasRT) { document.getElementById('m-has-rt').checked=true; document.getElementById('rt-fields').classList.add('visible'); }
+    document.getElementById('m-vp').value=ag.rtVpUrl||'';
+    document.getElementById('m-tu').value=ag.rtTuUrl||'';
+    document.getElementById('m-sa').value=ag.rtSaUrl||'';
+    (ag.modes||[]).forEach(m=>{
+      const label=[...document.querySelectorAll('#modes-grid .mode-check')].find(l=>l.querySelector('input').value===m);
+      if (label) { label.classList.add('checked'); label.querySelector('input').checked=true; }
+    });
+  } else {
+    title.textContent='Add Potential Feed';
+    saveBtn.textContent='Save';
+  }
+
+  // Temporarily swap save handler
+  const handler = async ()=>{
+    const cc=document.getElementById('m-country').value;
+    const name=document.getElementById('m-name').value.trim();
+    if (!cc) { toast('Select a country', 'error'); return; }
+    if (!name) { toast('Agency name is required', 'error'); return; }
+    const modes=[...document.querySelectorAll('#modes-grid .mode-check input:checked')].map(i=>i.value);
+    const fields={
+      countryCode:cc, subdivision:document.getElementById('m-subdivision').value.trim(),
+      cityRegion:document.getElementById('m-city').value.trim(), agencyName:name, modes,
+      hasStatic:document.getElementById('m-has-static').checked, staticUrl:document.getElementById('m-static-url').value.trim(),
+      hasRT:document.getElementById('m-has-rt').checked, rtVpUrl:document.getElementById('m-vp').value.trim(),
+      rtTuUrl:document.getElementById('m-tu').value.trim(), rtSaUrl:document.getElementById('m-sa').value.trim(),
+      quality:document.getElementById('m-quality').value, status:document.getElementById('m-status').value,
+      notes:document.getElementById('m-notes').value.trim(),
+    };
+    if (currentPotentialEditId) { await pfUpdate(currentPotentialEditId, fields); toast(`Updated ${name}`, 'success'); }
+    else { await pfAdd(fields); toast(`Added ${name} to Potential Feeds`, 'success'); }
+    modal.classList.remove('open');
+    currentPotentialEditId=null;
+    // Restore original handler
+    saveBtn.removeEventListener('click', handler);
+    saveBtn.addEventListener('click', saveAgencyModal);
+    renderPotentialFeeds();
+  };
+  saveBtn.removeEventListener('click', saveAgencyModal);
+  saveBtn.addEventListener('click', handler);
+
+  // On close, restore handler
+  const restoreOnClose = ()=>{
+    saveBtn.removeEventListener('click', handler);
+    saveBtn.addEventListener('click', saveAgencyModal);
+    modal.removeEventListener('transitionend', restoreOnClose);
+  };
+
+  modal.classList.add('open');
+  document.getElementById('m-name').focus();
+}
+
+function exportPotentialCSV() {
+  const db=loadDB();
+  const ags=Object.values(db.potential).sort((a,b)=>countryName(a.countryCode).localeCompare(countryName(b.countryCode))||(a.cityRegion||'').localeCompare(b.cityRegion||''));
+  const headers=['Country','Country Code','Subdivision','City/Region','Agency Name','Modes','Static','Static URL','RT','VP URL','TU URL','SA URL','Quality','Notes','Status'];
+  const lines=[headers.map(csvCell).join(',')];
+  for (const ag of ags) {
+    lines.push([
+      countryName(ag.countryCode), ag.countryCode, ag.subdivision||'', ag.cityRegion||'', ag.agencyName||'',
+      (ag.modes||[]).join('|'), ag.hasStatic?'Yes':'No', ag.staticUrl||'',
+      ag.hasRT?'Yes':'No', ag.rtVpUrl||'', ag.rtTuUrl||'', ag.rtSaUrl||'',
+      ag.quality||'', ag.notes||'', ag.status||'',
+    ].map(csvCell).join(','));
+  }
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`potential-feeds-${new Date().toISOString().slice(0,10)}.csv`;
   a.click(); URL.revokeObjectURL(a.href);
   toast('Exported CSV', 'success');
 }
@@ -579,11 +963,13 @@ function buildStatusSelects() {
   csel.innerHTML=STATUSES.map(s=>`<option>${s}</option>`).join('');
 }
 
-function populateCountrySelect(selectedCode='') {
+function populateCountrySelect(selectedCode='', allCodes=false) {
   const db=loadDB();
   const sel=document.getElementById('m-country');
   sel.innerHTML='<option value="">— Select Country —</option>';
-  const codes=Object.keys(db.countries).sort((a,b)=>countryName(a).localeCompare(countryName(b)));
+  const codes=allCodes
+    ? ISO_CODES.slice().sort((a,b)=>countryName(a).localeCompare(countryName(b)))
+    : Object.keys(db.countries).sort((a,b)=>countryName(a).localeCompare(countryName(b)));
   for (const cc of codes) {
     const o=document.createElement('option');
     o.value=cc; o.textContent=`${countryName(cc)} (${cc})`;
@@ -791,10 +1177,10 @@ function buildImportCandidates() {
     if (!trackedCCs.has(ag.country)) continue; // only import for tracked countries
     const norm=normalizeAgencyName(ag.provider)+ag.country;
     const existId=existingNames.get(norm);
-    const staticUrl=(ag.staticFeeds[0]?.['urls.latest']||ag.staticFeeds[0]?.['urls.direct_download']||'');
-    const vpUrl=(ag.rtVP[0]?.['urls.latest']||ag.rtVP[0]?.['urls.direct_download']||'');
-    const tuUrl=(ag.rtTU[0]?.['urls.latest']||ag.rtTU[0]?.['urls.direct_download']||'');
-    const saUrl=(ag.rtSA[0]?.['urls.latest']||ag.rtSA[0]?.['urls.direct_download']||'');
+    const staticUrl=(ag.staticFeeds[0]?.['urls.direct_download']||ag.staticFeeds[0]?.['urls.latest']||'');
+    const vpUrl=(ag.rtVP[0]?.['urls.direct_download']||ag.rtVP[0]?.['urls.latest']||'');
+    const tuUrl=(ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'');
+    const saUrl=(ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'');
     const candidate={
       existId, agencyName:ag.provider, countryCode:ag.country,
       subdivision:ag.subdivision||'',
@@ -921,7 +1307,7 @@ function renderBrowseRow(ag) {
   const loc=[ag.municipality].filter(Boolean).join(', ');
   const cls={full:'row-full',partial_rt:'row-partial',static_only:'row-static',rt_only:'row-rtonly'}[ag.coverageLevel]||'';
   const sb=ag.staticFeeds.length===0?'<span class="dash">—</span>':ag.staticFeeds.slice(0,2).map(f=>{
-    const isA=!f['status']||f['status']==='active'; const url=f['urls.latest']||f['urls.direct_download'];
+    const isA=!f['status']||f['status']==='active'; const url=f['urls.direct_download']||f['urls.latest'];
     return url
       ?`<span class="badge ${isA?'badge-gtfs':'badge-dim'} has-url-tip" data-url="${esc(url)}"><a href="${esc(url)}" target="_blank" rel="noopener">GTFS</a></span>`
       :`<span class="badge ${isA?'badge-gtfs':'badge-dim'}">GTFS</span>`;
@@ -929,10 +1315,13 @@ function renderBrowseRow(ag) {
 
   // Check if in My DB
   const db=loadDB();
-  const inDB=Object.values(db.agencies).some(a=>normalizeAgencyName(a.agencyName)+a.countryCode===normalizeAgencyName(ag.provider)+ag.country);
-  const addBtn=inDB
-    ?`<span style="font-size:11px;color:#2e7d32;font-weight:600">✓ Tracked</span>`
-    :`<button class="cg-btn" style="background:#2c5aa0;border-color:#2c5aa0;white-space:nowrap" data-browse-add>+ My DB</button>`;
+  const inWorking=Object.values(db.agencies).some(a=>normalizeAgencyName(a.agencyName)+a.countryCode===normalizeAgencyName(ag.provider)+ag.country);
+  const inPotential=Object.values(db.potential).some(a=>normalizeAgencyName(a.agencyName)+a.countryCode===normalizeAgencyName(ag.provider)+ag.country);
+  const addBtn=inWorking
+    ?`<span style="font-size:11px;color:#2e7d32;font-weight:600">✓ Working</span>`
+    :inPotential
+    ?`<span style="font-size:11px;color:#5c4d8a;font-weight:600">✓ Potential</span>`
+    :`<div style="display:flex;gap:4px"><button class="cg-btn" style="background:#2c5aa0;border-color:#2c5aa0;white-space:nowrap" data-browse-add>+ Working</button><button class="cg-btn" style="background:#5c4d8a;border-color:#5c4d8a;white-space:nowrap" data-browse-add-potential>+ Potential</button></div>`;
 
   return `<tr class="${cls}">
     <td><div class="agency-name" title="${esc(ag.provider)}">${esc(ag.provider||'Unknown')}</div>${loc?`<div class="agency-loc">${esc(loc)}</div>`:''}</td>
@@ -1002,6 +1391,10 @@ function renderBrowseCountry(cc, agencies) {
     <div class="country-header">
       <div><span class="c-name">${esc(countryName(cc))} (${esc(cc)})</span><span class="c-count"> · ${agencies.length} agenc${agencies.length===1?'y':'ies'}</span></div>
       <div class="c-badges">${coverageBadges(agencies)}</div>
+      <div style="margin-left:auto;display:flex;gap:4px;flex-shrink:0">
+        <button class="cg-btn" style="background:#2c5aa0;border-color:#2c5aa0;white-space:nowrap" data-browse-cc="${esc(cc)}">+ Working</button>
+        <button class="cg-btn" style="background:#5c4d8a;border-color:#5c4d8a;white-space:nowrap" data-browse-cc-potential="${esc(cc)}">+ Potential</button>
+      </div>
       <svg class="chevron ${expand?'open':''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </div>
     <div class="country-body" style="display:${expand?'block':'none'}">
@@ -1037,6 +1430,74 @@ function renderBrowseResults() {
       body.style.display=open?'none':'block'; chev.classList.toggle('open',!open);
     });
   });
+  // Add entire country from Browse
+  area.querySelectorAll('[data-browse-cc]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      e.stopPropagation();
+      const cc=btn.dataset.browseCc;
+      const countryAgs=allMdbAgencies.filter(a=>a.country===cc);
+      if (!countryAgs.length) return;
+      if (!confirm(`Add ${countryName(cc)} with ${countryAgs.length} agencies to your database?`)) return;
+      // Ensure country exists
+      await dbAddCountry(cc);
+      let added=0;
+      const db=loadDB();
+      const existingNames=new Set(Object.values(db.agencies).filter(a=>a.countryCode===cc).map(a=>a.agencyName?.toLowerCase()));
+      for (const ag of countryAgs) {
+        if (existingNames.has(ag.provider?.toLowerCase())) continue;
+        const staticUrl=ag.staticFeeds[0]?.['urls.direct_download']||ag.staticFeeds[0]?.['urls.latest']||'';
+        const vpUrl=ag.rtVP[0]?.['urls.direct_download']||ag.rtVP[0]?.['urls.latest']||'';
+        const tuUrl=ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'';
+        const saUrl=ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'';
+        await dbAdd({
+          countryCode:cc, subdivision:ag.subdivision||'', cityRegion:ag.municipality||'',
+          agencyName:ag.provider, modes:[], hasStatic:ag.staticFeeds.length>0, staticUrl,
+          hasRT:ag.rtVP.length>0||ag.rtTU.length>0||ag.rtSA.length>0,
+          rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
+          source:'mdb', mdbSourceId:feedId(ag.staticFeeds[0]||{}), quality:'', notes:'', status:'NOT STARTED',
+        });
+        added++;
+      }
+      toast(`Added ${countryName(cc)}: ${added} agencies to Working Feeds`, 'success');
+      btn.textContent='✓ Added';
+      btn.disabled=true;
+      btn.style.background='#2e7d32';
+      btn.style.borderColor='#2e7d32';
+    });
+  });
+  // Add entire country to Potential
+  area.querySelectorAll('[data-browse-cc-potential]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      e.stopPropagation();
+      const cc=btn.dataset.browseCcPotential;
+      const countryAgs=allMdbAgencies.filter(a=>a.country===cc);
+      if (!countryAgs.length) return;
+      if (!confirm(`Add ${countryName(cc)} with ${countryAgs.length} agencies to Potential Feeds?`)) return;
+      let added=0;
+      const db=loadDB();
+      const existingNames=new Set(Object.values(db.potential).filter(a=>a.countryCode===cc).map(a=>a.agencyName?.toLowerCase()));
+      for (const ag of countryAgs) {
+        if (existingNames.has(ag.provider?.toLowerCase())) continue;
+        const staticUrl=ag.staticFeeds[0]?.['urls.direct_download']||ag.staticFeeds[0]?.['urls.latest']||'';
+        const vpUrl=ag.rtVP[0]?.['urls.direct_download']||ag.rtVP[0]?.['urls.latest']||'';
+        const tuUrl=ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'';
+        const saUrl=ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'';
+        await pfAdd({
+          countryCode:cc, subdivision:ag.subdivision||'', cityRegion:ag.municipality||'',
+          agencyName:ag.provider, modes:[], hasStatic:ag.staticFeeds.length>0, staticUrl,
+          hasRT:ag.rtVP.length>0||ag.rtTU.length>0||ag.rtSA.length>0,
+          rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
+          source:'mdb', mdbSourceId:feedId(ag.staticFeeds[0]||{}), quality:'', notes:'', status:'NOT STARTED',
+        });
+        added++;
+      }
+      toast(`Added ${countryName(cc)}: ${added} agencies to Potential Feeds`, 'success');
+      btn.textContent='✓ Added';
+      btn.disabled=true;
+      btn.style.background='#2e7d32';
+      btn.style.borderColor='#2e7d32';
+    });
+  });
   // Add to My DB buttons
   area.querySelectorAll('[data-browse-add]').forEach(btn=>{
     btn.addEventListener('click', e=>{
@@ -1047,7 +1508,7 @@ function renderBrowseResults() {
       // Find the agency in allMdbAgencies
       const ag=allMdbAgencies.find(a=>a.provider===name);
       if (!ag) { openAgencyModalPrefilled({ agencyName:name, cityRegion:loc }); return; }
-      const staticUrl=ag.staticFeeds[0]?.['urls.latest']||ag.staticFeeds[0]?.['urls.direct_download']||'';
+      const staticUrl=ag.staticFeeds[0]?.['urls.direct_download']||ag.staticFeeds[0]?.['urls.latest']||'';
       const vpUrl=ag.rtVP[0]?.['urls.direct_download']||ag.rtVP[0]?.['urls.latest']||'';
       const tuUrl=ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'';
       const saUrl=ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'';
@@ -1057,8 +1518,33 @@ function renderBrowseResults() {
         rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
         mdbSourceId:feedId(ag.staticFeeds[0]||{}),
       });
-      // Switch to My Database tab to show the modal in context
+      // Switch to Working Feeds tab to show the modal in context
       showTab('mydb');
+    });
+  });
+  // Add to Potential buttons
+  area.querySelectorAll('[data-browse-add-potential]').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      e.stopPropagation();
+      const row=btn.closest('tr');
+      const name=row.querySelector('.agency-name')?.textContent?.trim()||'';
+      const ag=allMdbAgencies.find(a=>a.provider===name);
+      if (!ag) return;
+      const staticUrl=ag.staticFeeds[0]?.['urls.direct_download']||ag.staticFeeds[0]?.['urls.latest']||'';
+      const vpUrl=ag.rtVP[0]?.['urls.direct_download']||ag.rtVP[0]?.['urls.latest']||'';
+      const tuUrl=ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'';
+      const saUrl=ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'';
+      await pfAdd({
+        countryCode:ag.country, subdivision:ag.subdivision||'', cityRegion:ag.municipality||'',
+        agencyName:ag.provider, modes:[], hasStatic:ag.staticFeeds.length>0, staticUrl,
+        hasRT:ag.rtVP.length>0||ag.rtTU.length>0||ag.rtSA.length>0,
+        rtVpUrl:vpUrl, rtTuUrl:tuUrl, rtSaUrl:saUrl,
+        source:'mdb', mdbSourceId:feedId(ag.staticFeeds[0]||{}), quality:'', notes:'', status:'NOT STARTED',
+      });
+      toast(`Added ${ag.provider} to Potential Feeds`, 'success');
+      btn.textContent='✓ Added';
+      btn.disabled=true;
+      btn.style.background='#5c4d8a';
     });
   });
 }
@@ -1282,8 +1768,8 @@ async function searchLocalMDB(query) {
   renderDiscoveryCards(hits.map(ag=>({
     name:ag.provider, subdivision:ag.subdivision||'', loc:ag.municipality||'',
     country:ag.country, coverageLevel:ag.coverageLevel,
-    staticUrl:ag.staticFeeds[0]?.['urls.latest']||ag.staticFeeds[0]?.['urls.direct_download']||'',
-    vpUrl:ag.rtVP[0]?.['urls.latest']||'', tuUrl:ag.rtTU[0]?.['urls.latest']||'', saUrl:ag.rtSA[0]?.['urls.latest']||'',
+    staticUrl:ag.staticFeeds[0]?.['urls.direct_download']||ag.staticFeeds[0]?.['urls.latest']||'',
+    vpUrl:ag.rtVP[0]?.['urls.direct_download']||ag.rtVP[0]?.['urls.latest']||'', tuUrl:ag.rtTU[0]?.['urls.direct_download']||ag.rtTU[0]?.['urls.latest']||'', saUrl:ag.rtSA[0]?.['urls.direct_download']||ag.rtSA[0]?.['urls.latest']||'',
     mdbSourceId:feedId(ag.staticFeeds[0]||{}), source:'mdb',
   })), query);
 }
@@ -1381,6 +1867,16 @@ function setHeaderActions(tab) {
     document.getElementById('ha-country').addEventListener('click',openCountryModal);
     document.getElementById('ha-import').addEventListener('click',openImportModal);
     document.getElementById('ha-export').addEventListener('click',exportCSV);
+  } else if (tab==='potential') {
+    sub.textContent='Feeds under investigation — not yet confirmed working';
+    el.innerHTML=`
+      <button class="btn btn-secondary" id="ha-p-add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Manually
+      </button>
+      <button class="btn btn-secondary" id="ha-p-export">Export CSV</button>`;
+    document.getElementById('ha-p-add').addEventListener('click',()=>openPotentialModal());
+    document.getElementById('ha-p-export').addEventListener('click',exportPotentialCSV);
   } else {
     sub.textContent='Global GTFS feed directory · Feeds v2 · Read-only';
     el.innerHTML='';
@@ -1397,9 +1893,11 @@ function showTab(name) {
   activeTab=name;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   document.getElementById('tab-mydb').style.display=name==='mydb'?'flex':'none';
+  document.getElementById('tab-potential').style.display=name==='potential'?'flex':'none';
   document.getElementById('tab-browse').style.display=name==='browse'?'flex':'none';
   setHeaderActions(name);
   if (name==='browse'&&!browseLoaded) loadBrowseTab();
+  if (name==='potential') renderPotentialFeeds();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1424,6 +1922,9 @@ async function init() {
 
   // Wire My Database controls
   wireMyDBControls();
+
+  // Wire Potential Feeds controls
+  wirePotentialControls();
 
   // Wire Browse controls (safe to call now, elements exist in DOM)
   wireBrowseControls();

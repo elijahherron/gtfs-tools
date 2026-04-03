@@ -173,6 +173,7 @@
     .chip-partial { background: #fff3e0; color: #e65100; }
     .chip-static  { background: #e3f2fd; color: #1565c0; }
     .chip-rtonly  { background: #f3e5f5; color: #6a1b9a; }
+    .chip-none    { background: #fafafa; color: #999; }
     .country-section { background: white; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
     .country-header { display: flex; align-items: center; gap: 12px; padding: 13px 18px; cursor: pointer; user-select: none; transition: background .15s; }
     .country-header:hover { background: #fafafa; }
@@ -301,20 +302,29 @@
         <p id="header-subtitle">Track and manage GTFS data sources</p>
       </div>
       <div class="tab-bar">
-        <button class="tab-btn active" data-tab="mydb">My Database</button>
-        <button class="tab-btn" data-tab="browse">Browse Sources</button>
+        <button class="tab-btn active" data-tab="mydb">Working Feeds</button>
+        <button class="tab-btn" data-tab="potential">Potential Feeds</button>
+        <button class="tab-btn" data-tab="browse">Browse</button>
       </div>
       <div class="header-actions" id="header-actions"></div>
     </div>
 
     <!-- ── My Database tab ───────────────────────────────── -->
     <div id="tab-mydb" class="tab-panel">
+      <div class="stats-bar" id="mydb-stats">
+        <div class="stat-chip chip-all active-filter" data-mydb-filter="all"><span class="stat-dot"></span><span id="ms-total">—</span> agencies</div>
+        <div class="stat-chip chip-full"    data-mydb-filter="full"><span class="stat-dot"></span><span id="ms-full">—</span> Full RT</div>
+        <div class="stat-chip chip-partial" data-mydb-filter="partial_rt"><span class="stat-dot"></span><span id="ms-partial">—</span> Partial RT</div>
+        <div class="stat-chip chip-static"  data-mydb-filter="static_only"><span class="stat-dot"></span><span id="ms-static">—</span> Static only</div>
+        <div class="stat-chip chip-rtonly"  data-mydb-filter="rt_only"><span class="stat-dot"></span><span id="ms-rtonly">—</span> RT only</div>
+        <div class="stat-chip chip-none"    data-mydb-filter="none"><span class="stat-dot"></span><span id="ms-none">—</span> No feeds</div>
+      </div>
       <div class="filters-bar" id="mydb-filters">
         <span class="filter-label">Status:</span>
         <select id="f-mydb-status" class="filter-select">
           <option value="">All statuses</option>
           <option>NOT STARTED</option><option>SOURCING</option>
-          <option>WORKING</option><option>FINISHED FOR NOW</option><option>BLOCKED</option>
+          <option>WORKING</option><option>FINISHED</option><option>FINISHED FOR NOW</option><option>BLOCKED</option>
         </select>
         <span class="filter-label">Country:</span>
         <select id="f-mydb-country" class="filter-select">
@@ -330,6 +340,44 @@
         </div>
       </div>
       <div class="results-area" id="mydb-results">
+        <div class="center-state">
+          <div class="spinner"></div>
+          <p>Loading database…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Potential Feeds tab ──────────────────────────── -->
+    <div id="tab-potential" class="tab-panel" style="display:none">
+      <div class="stats-bar" id="potential-stats">
+        <div class="stat-chip chip-all active-filter" data-potential-filter="all"><span class="stat-dot"></span><span id="ps-total">—</span> agencies</div>
+        <div class="stat-chip chip-full"    data-potential-filter="full"><span class="stat-dot"></span><span id="ps-full">—</span> Full RT</div>
+        <div class="stat-chip chip-partial" data-potential-filter="partial_rt"><span class="stat-dot"></span><span id="ps-partial">—</span> Partial RT</div>
+        <div class="stat-chip chip-static"  data-potential-filter="static_only"><span class="stat-dot"></span><span id="ps-static">—</span> Static only</div>
+        <div class="stat-chip chip-rtonly"  data-potential-filter="rt_only"><span class="stat-dot"></span><span id="ps-rtonly">—</span> RT only</div>
+        <div class="stat-chip chip-none"    data-potential-filter="none"><span class="stat-dot"></span><span id="ps-none">—</span> No feeds</div>
+      </div>
+      <div class="filters-bar" id="potential-filters">
+        <span class="filter-label">Status:</span>
+        <select id="f-potential-status" class="filter-select">
+          <option value="">All statuses</option>
+          <option>NOT STARTED</option><option>SOURCING</option>
+          <option>WORKING</option><option>FINISHED</option><option>FINISHED FOR NOW</option><option>BLOCKED</option>
+        </select>
+        <span class="filter-label">Country:</span>
+        <select id="f-potential-country" class="filter-select">
+          <option value="">All countries</option>
+        </select>
+        <span class="result-count" id="potential-count"></span>
+        <button class="clear-btn" id="potential-clear">Clear</button>
+        <div class="search-wrap" style="margin-left:auto">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input id="potential-search" type="text" placeholder="Search agencies, cities…">
+        </div>
+      </div>
+      <div class="results-area" id="potential-results">
         <div class="center-state">
           <div class="spinner"></div>
           <p>Loading database…</p>
