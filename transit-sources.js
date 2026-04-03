@@ -408,10 +408,8 @@ function _renderMyDatabase() {
   for (const cc of Object.keys(db.countries)) byCC[cc]=[];
   for (const ag of ags) (byCC[ag.countryCode]??=[]).push(ag);
 
-  // Sort countries: by status order, then alphabetically
+  // Sort countries alphabetically
   const sorted=Object.entries(byCC).sort(([a],[b])=>{
-    const sa=STATUS_ORDER[db.countries[a]?.status]??9, sb=STATUS_ORDER[db.countries[b]?.status]??9;
-    if (sa!==sb) return sa-sb;
     return countryName(a).localeCompare(countryName(b));
   });
 
@@ -1408,7 +1406,7 @@ function renderBrowseResults() {
   if (!filtered.length) { area.innerHTML='<div class="center-state"><p>No agencies match your filters.</p></div>'; return; }
   const byCC={};
   for (const ag of filtered) (byCC[ag.country||'XX']??=[]).push(ag);
-  const sorted=Object.entries(byCC).sort((a,b)=>b[1].length-a[1].length);
+  const sorted=Object.entries(byCC).sort((a,b)=>countryName(a[0]).localeCompare(countryName(b[0])));
   area.innerHTML=sorted.map(([cc,ags])=>renderBrowseCountry(cc,ags)).join('');
   // Wire country header toggles
   area.querySelectorAll('.country-header').forEach(h=>{
