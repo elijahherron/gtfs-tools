@@ -532,8 +532,7 @@ function buildAgencyTable(ags, container) {
   const table=document.createElement('table');
   table.className='sources-table';
   table.innerHTML=`<thead><tr>
-    <th>Agency Name</th><th>City / Region</th><th>Modes</th>
-    <th>Static</th><th>RT</th><th>Quality</th><th>Status</th><th>Notes</th><th></th>
+    <th>Agency</th><th>Location</th><th>Static</th><th>RT</th><th>Status</th><th>Notes</th><th></th>
   </tr></thead>`;
   const tbody=document.createElement('tbody');
   for (const ag of ags) tbody.appendChild(buildAgencyRow(ag));
@@ -548,12 +547,10 @@ function buildAgencyRow(ag) {
   tr.dataset.id=ag.id;
   tr.innerHTML=`
     <td><div class="agency-name">${esc(ag.agencyName||'—')}</div>
-        ${ag.source==='mdb'?'<div class="agency-loc" style="color:#1e88e5;font-size:10px">MDB import</div>':''}</td>
-    <td><div style="white-space:nowrap">${esc(ag.cityRegion||'—')}</div></td>
-    <td>${modeBadges(ag.modes||[])}</td>
+        ${ag.modes?.length?`<div style="font-size:10px;color:#999;margin-top:1px">${ag.modes.join(', ')}</div>`:''}</td>
+    <td><div style="white-space:nowrap">${esc([ag.cityRegion,ag.subdivision].filter(Boolean).join(', ')||'—')}</div></td>
     <td>${staticBadge(ag)}</td>
     <td>${rtBadges(ag)}</td>
-    <td>${qualityBadge(ag.quality)}</td>
     <td>${statusBadge(ag.status)}</td>
     <td><div style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#888" title="${esc(ag.notes||'')}">${esc(ag.notes||'—')}</div></td>
     <td>
@@ -750,8 +747,7 @@ function renderPotentialCountry(cc, ags) {
   const table=document.createElement('table');
   table.className='sources-table';
   table.innerHTML=`<thead><tr>
-    <th>Agency Name</th><th>Subdivision</th><th>City / Region</th>
-    <th>Static</th><th>RT</th><th>Status</th><th>Notes</th><th></th>
+    <th>Agency</th><th>Location</th><th>Static</th><th>RT</th><th>Status</th><th>Notes</th><th></th>
   </tr></thead>`;
   const tbody=document.createElement('tbody');
   for (const ag of sortedAgs) tbody.appendChild(buildPotentialRow(ag));
@@ -767,9 +763,9 @@ function buildPotentialRow(ag) {
   tr.className='agency-row';
   tr.dataset.id=ag.id;
   tr.innerHTML=`
-    <td><div class="agency-name">${esc(ag.agencyName||'—')}</div></td>
-    <td><div style="white-space:nowrap;font-size:12px;color:#888">${esc(ag.subdivision||'—')}</div></td>
-    <td><div style="white-space:nowrap">${esc(ag.cityRegion||'—')}</div></td>
+    <td><div class="agency-name">${esc(ag.agencyName||'—')}</div>
+        ${ag.modes?.length?`<div style="font-size:10px;color:#999;margin-top:1px">${ag.modes.join(', ')}</div>`:''}</td>
+    <td><div style="white-space:nowrap">${esc([ag.cityRegion,ag.subdivision].filter(Boolean).join(', ')||'—')}</div></td>
     <td>${staticBadge(ag)}</td>
     <td>${rtBadges(ag)}</td>
     <td>${statusBadge(ag.status)}</td>
