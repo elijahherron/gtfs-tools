@@ -1,0 +1,45 @@
+name: Refresh LABGG trip modifications
+
+# Keeps trip-modifications/LABGG_trip_modifications.pb looking "live" for QA
+# without anyone re-uploading it: every run bumps the feed header timestamp
+# and rolls service_dates forward from today, then commits the result so
+# https://github.com/<owner>/<repo>/raw/refs/heads/main/trip-modifications/LABGG_trip_modifications.pb
+# always resolves to a fresh git blob. There's no purge API for GitHub's raw
+# CDN, but each commit is a new blob and GitHub's cache there is short-lived
+# (commonly ~5 min), so it should catch up well before the next scheduled run.
+#
+# Note: GitHub's own docs say scheduled workflows can run late under load
+# (sometimes well past the cron interval), and schedules auto-disable if the
+# repo gets no commits for 60 days. If QA needs stricter freshness than that,
+# this approach isn't sufficient on its own.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+      - name: Regenerate trip modifications
+        run: python3 scripts/generate_labgg_trip_mods.py
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet -- trip-modifications/LABGG_trip_modifications.pb; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add trip-modifications/LABGG_trip_modifications.pb
+          git commit -m "Refresh LABGG trip modifications timestamp"
+          git push

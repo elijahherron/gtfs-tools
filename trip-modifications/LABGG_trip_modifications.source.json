@@ -1,0 +1,38 @@
+{
+  "gtfs_realtime_version": "3.0",
+  "rolling_window_days": 182,
+  "entities": [
+    {
+      "id": "temp_stop_route_11_1",
+      "stop": {
+        "stop_id": "temp_stop_1",
+        "stop_name": { "translation": [{ "text": "TEMP STOP" }] },
+        "stop_lat": 49.715819,
+        "stop_lon": -2.208585
+      }
+    },
+    {
+      "id": "route_11_detour_balto_dog_spa",
+      "trip_modifications": {
+        "selected_trips": [
+          { "trip_ids": ["trip_route_11_1", "trip_route_11_2"] }
+        ],
+        "_needs_service_dates": true,
+        "modifications": [
+          {
+            "start_stop_selector": { "stop_id": "stop_3" },
+            "end_stop_selector": { "stop_id": "stop_33" },
+            "replacement_stops": [
+              { "stop_id": "stop_3", "travel_time_to_stop": 0 },
+              { "stop_id": "stop_34", "travel_time_to_stop": 180 },
+              { "stop_id": "temp_stop_1", "travel_time_to_stop": 240 },
+              { "stop_id": "stop_61", "travel_time_to_stop": 300 },
+              { "stop_id": "stop_33", "travel_time_to_stop": 420 }
+            ],
+            "service_alert_id": "alert_route_11_detour"
+          }
+        ]
+      }
+    }
+  ]
+}
