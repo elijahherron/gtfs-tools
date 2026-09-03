@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Regenerates trip-modifications/LABGG_trip_modifications.pb from
-LABGG_trip_modifications.source.json, with a fresh header timestamp and a
-rolling service_dates window starting today. Run by
-.github/workflows/refresh-labgg-trip-mods.yml on a schedule so the feed
-never looks stale to QA without anyone re-uploading it by hand.
+LABGG_trip_modifications.source.json, rolling the service_dates window
+forward from today. Run by .github/workflows/refresh-labgg-trip-mods.yml on
+a schedule so the feed never looks stale to QA without anyone re-uploading
+it by hand.
+
+The real LABGG feed encodes one FeedEntity per (direction, date) pair
+rather than one entity with a list of dates, so that's what we reproduce
+here: a static stop/shape entity block, plus one dated trip_modifications
+entity per template per day in the rolling window.
 """
 import datetime
 import json
@@ -40,30 +45,44 @@ def emit_field(key, value, indent, pad):
     raise TypeError(f"Unsupported value for {key!r}: {value!r}")
 
 
-def rolling_service_dates(days):
-    today = datetime.date.today()
-    return [(today + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(days)]
+def rolling_dates(days):
+    start = datetime.date.today()
+    return [(start + datetime.timedelta(days=i)).strftime("%Y%m%d") for i in range(days)]
+
+
+def build_entities(source, dates):
+    entities = list(source["static_entities"])
+    for date in dates:
+        for template in source["daily_modification_templates"]:
+            entities.append({
+                "id": f"{template['numeric_id']}_{date}",
+                "trip_modifications": {
+                    "selected_trips": [{
+                        "trip_ids": template["trip_ids"],
+                        "shape_id": template["shape_id"],
+                    }],
+                    "service_dates": [date],
+                    "modifications": [template["modification"]],
+                },
+            })
+    return entities
 
 
 def main():
     source = json.loads(SOURCE.read_text())
-    dates = rolling_service_dates(source.get("rolling_window_days", 182))
-
-    for entity in source["entities"]:
-        tm = entity.get("trip_modifications")
-        if tm and tm.pop("_needs_service_dates", False):
-            tm["service_dates"] = dates
+    dates = rolling_dates(source.get("rolling_window_days", 182))
+    entities = build_entities(source, dates)
 
     now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
 
     lines = [
         "header {",
-        f'  gtfs_realtime_version: "{source.get("gtfs_realtime_version", "3.0")}"',
+        f'  gtfs_realtime_version: "{source.get("gtfs_realtime_version", "")}"',
         "  incrementality: FULL_DATASET",
         f"  timestamp: {now}",
         "}",
     ]
-    for entity in source["entities"]:
+    for entity in entities:
         lines.append("entity {")
         lines.extend(to_textproto(entity))
         lines.append("}")
@@ -86,7 +105,7 @@ def main():
     OUTPUT.write_bytes(result.stdout)
     print(
         f"Wrote {OUTPUT} ({len(result.stdout)} bytes), timestamp={now}, "
-        f"service_dates {dates[0]}..{dates[-1]} ({len(dates)} days)"
+        f"{len(entities)} entities, service_dates {dates[0]}..{dates[-1]} ({len(dates)} days)"
     )
 
 

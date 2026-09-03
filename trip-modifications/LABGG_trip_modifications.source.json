@@ -1,9 +1,9 @@
 {
-  "gtfs_realtime_version": "3.0",
+  "gtfs_realtime_version": "",
   "rolling_window_days": 182,
-  "entities": [
+  "static_entities": [
     {
-      "id": "temp_stop_route_11_1",
+      "id": "temp_stop_route_13",
       "stop": {
         "stop_id": "temp_stop_1",
         "stop_name": { "translation": [{ "text": "TEMP STOP" }] },
@@ -12,25 +12,46 @@
       }
     },
     {
-      "id": "route_11_detour_balto_dog_spa",
-      "trip_modifications": {
-        "selected_trips": [
-          { "trip_ids": ["trip_route_11_1", "trip_route_11_2"] }
-        ],
-        "_needs_service_dates": true,
-        "modifications": [
-          {
-            "start_stop_selector": { "stop_id": "stop_3" },
-            "end_stop_selector": { "stop_id": "stop_33" },
-            "replacement_stops": [
-              { "stop_id": "stop_3", "travel_time_to_stop": 0 },
-              { "stop_id": "stop_34", "travel_time_to_stop": 180 },
-              { "stop_id": "temp_stop_1", "travel_time_to_stop": 240 },
-              { "stop_id": "stop_61", "travel_time_to_stop": 300 },
-              { "stop_id": "stop_33", "travel_time_to_stop": 420 }
-            ],
-            "service_alert_id": "alert_route_11_detour"
-          }
+      "id": "shape_1681_0_trip_route_13_1",
+      "shape": {
+        "shape_id": "shape_1681_0_trip_route_13_1",
+        "encoded_polyline": "wvmnHbooLt@i@FUViBb@uAZ]p@o@lA{@nAm@FWSgBAw@ByANm@f@}@VS`@]B]C[e@qAA[Dg@TMfDeA|C@NCHE\\k@hAtLv@T`Fv@r@Cv@@~ASxAe@"
+      }
+    },
+    {
+      "id": "shape_1684_0_trip_route_13_2",
+      "shape": {
+        "shape_id": "shape_1684_0_trip_route_13_2",
+        "encoded_polyline": "mhlnHjwnLyAd@_BRw@As@BkB[uB[w@U[uDm@_G]j@IDOB}CAgDdAULEf@@Zd@pABZC\\a@\\WRg@|@Ol@CxA@v@RfBGVoAl@mAz@q@n@[\\c@tAWhBGTu@h@"
+      }
+    }
+  ],
+  "daily_modification_templates": [
+    {
+      "numeric_id": "1681",
+      "trip_ids": ["trip_route_13_1"],
+      "shape_id": "shape_1681_0_trip_route_13_1",
+      "modification": {
+        "start_stop_selector": { "stop_id": "stop_82" },
+        "end_stop_selector": { "stop_id": "stop_83" },
+        "replacement_stops": [
+          { "travel_time_to_stop": 27, "stop_id": "stop_86" },
+          { "travel_time_to_stop": 117, "stop_id": "temp_stop_1" },
+          { "travel_time_to_stop": 207, "stop_id": "stop_87" }
+        ]
+      }
+    },
+    {
+      "numeric_id": "1684",
+      "trip_ids": ["trip_route_13_2"],
+      "shape_id": "shape_1684_0_trip_route_13_2",
+      "modification": {
+        "start_stop_selector": { "stop_id": "stop_83" },
+        "end_stop_selector": { "stop_id": "stop_82" },
+        "replacement_stops": [
+          { "travel_time_to_stop": 39, "stop_id": "stop_87" },
+          { "travel_time_to_stop": 129, "stop_id": "temp_stop_1" },
+          { "travel_time_to_stop": 219, "stop_id": "stop_86" }
         ]
       }
     }
